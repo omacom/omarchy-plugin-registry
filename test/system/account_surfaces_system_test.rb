@@ -299,7 +299,7 @@ class AccountSurfacesSystemTest < ApplicationSystemTestCase
 
   test "account terminal remains aligned and elevated on a compact viewport" do
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
-      width: 360, height: 900, deviceScaleFactor: 1, mobile: false)
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
     sign_in_with_email_code
     visit dashboard_path
 
@@ -309,6 +309,12 @@ class AccountSurfacesSystemTest < ApplicationSystemTestCase
           .filter((button) => button.getClientRects().length)
           .map((button) => button.getBoundingClientRect())
         const panel = document.querySelector(".account-panel")
+        const titlebar = document.querySelector(".terminal-window__titlebar")
+        const titleElement = titlebar.querySelector("strong")
+        const actionElement = titlebar.querySelector(".terminal-window__titlebar-action")
+        const title = titleElement.getBoundingClientRect()
+        const action = actionElement.getBoundingClientRect()
+        const actionArrow = actionElement.querySelector("span").getBoundingClientRect()
         return {
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
           windowShadow: getComputedStyle(document.querySelector(".terminal-window")).boxShadow,
@@ -320,6 +326,13 @@ class AccountSurfacesSystemTest < ApplicationSystemTestCase
           mobileNavActive: document.querySelectorAll(".mobile-nav a.is-active").length,
           mobileNavTargets: [...document.querySelectorAll(".mobile-nav a")]
             .map((link) => link.getBoundingClientRect().height),
+          titlebarTitle: titleElement.textContent.trim(),
+          titlebarAction: actionElement.textContent.trim(),
+          titlebarFontMatched: getComputedStyle(titleElement).fontSize === getComputedStyle(actionElement).fontSize,
+          titlebarSingleLine: Math.abs((title.top + title.bottom) / 2 - (action.top + action.bottom) / 2) < 0.5 &&
+            Math.abs((actionArrow.top + actionArrow.bottom) / 2 - (action.top + action.bottom) / 2) < 0.5,
+          titlebarDistinct: title.right <= action.left,
+          titlebarContextHidden: getComputedStyle(titlebar.querySelector(".terminal-window__titlebar-context")).display === "none",
           buttonWidths: buttons.map((button) => button.width.toFixed(2)),
           buttonHeights: buttons.map((button) => button.height.toFixed(2))
         }
@@ -334,6 +347,12 @@ class AccountSurfacesSystemTest < ApplicationSystemTestCase
     assert_equal 4, dashboard["mobileNavLinks"]
     assert_equal 0, dashboard["mobileNavActive"]
     assert dashboard["mobileNavTargets"].all? { |height| height >= 44 }
+    assert_equal "┌─ Account dashboard", dashboard["titlebarTitle"]
+    assert_equal "security →", dashboard["titlebarAction"]
+    assert dashboard["titlebarFontMatched"]
+    assert dashboard["titlebarSingleLine"]
+    assert dashboard["titlebarDistinct"]
+    assert dashboard["titlebarContextHidden"]
     assert_operator dashboard["buttonWidths"].uniq.size, :>, 1
     assert_operator dashboard["buttonWidths"].map(&:to_f).max, :<, 180
     assert_operator dashboard["buttonHeights"].map(&:to_f).max, :<=, 32

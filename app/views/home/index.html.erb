@@ -41,7 +41,12 @@
       </div>
       <div class="fetch__info">
         <div class="fetch__metric" aria-label="<%= pluralize(@stats[:plugins], 'registry plugin') %>">
-          <div class="fetch__head" translate="no"><strong><%= number_with_delimiter(@stats[:plugins]) %></strong><span>plugins</span></div>
+          <div class="fetch__head" translate="no">
+            <span class="fetch__cluster">
+              <strong><%= number_with_delimiter(@stats[:plugins]) %></strong>
+              <span class="fetch__metric-label"><span class="fetch__metric-label-community">community </span>plugins</span>
+            </span>
+          </div>
           <div class="fetch__rule" aria-hidden="true"></div>
         </div>
         <div class="fetch__rows">
@@ -95,14 +100,14 @@
       <span class="recent-band__controls">
         <% if @wanted.many? %>
           <button type="button" class="recent-band__step" aria-label="Show previous Most Wanted plugin"
-                  aria-keyshortcuts="ArrowLeft" data-action="recent-rotate#previous"><span class="recent-band__step-symbol" aria-hidden="true">←</span> previous</button>
+                  aria-keyshortcuts="ArrowLeft" data-action="recent-rotate#previous"><span class="recent-band__step-symbol" aria-hidden="true">←</span> <span class="recent-band__step-label">previous</span><span class="recent-band__step-label-short" aria-hidden="true">prev</span></button>
         <% end %>
         <%= link_to directory_path(q: nil, category: nil, tag: nil, page: nil, sort: "trending"), class: "lab recent-band__more" do %>
           <span aria-hidden="true">$</span> sort -k trending
         <% end %>
         <% if @wanted.many? %>
           <button type="button" class="recent-band__step" aria-label="Show next Most Wanted plugin"
-                  aria-keyshortcuts="ArrowRight" data-action="recent-rotate#next">next <span class="recent-band__step-symbol" aria-hidden="true">→</span></button>
+                  aria-keyshortcuts="ArrowRight" data-action="recent-rotate#next"><span class="recent-band__step-label">next</span><span class="recent-band__step-label-short" aria-hidden="true">next</span> <span class="recent-band__step-symbol" aria-hidden="true">→</span></button>
         <% end %>
       </span>
     </div>
@@ -133,8 +138,9 @@
         <strong><%= number_with_delimiter(@recent_total) %></strong><small aria-hidden="true"> / <%= ApplicationHelper::CARD_RECENCY.in_days.to_i %>d</small>
       </span>
       <span class="recent-stream__controls">
-        <%= link_to directory_path(q: nil, category: nil, tag: nil, page: nil, sort: "newest"), class: "recent-stream__more" do %>
-          <span aria-hidden="true">$</span> sort -k newest
+        <%= link_to directory_path(q: nil, category: nil, tag: nil, page: nil, sort: "newest"), class: "recent-stream__more",
+              aria: { label: "Browse newest plugins" } do %>
+          <span aria-hidden="true">$</span><span class="recent-stream__sort-prefix"> sort -k</span> newest
         <% end %>
         <button type="button" class="recent-stream__toggle" aria-pressed="false" aria-label="Pause Recently Added"
                 data-recent-stream-target="toggle" data-action="recent-stream#toggle" hidden>pause <span class="recent-stream__toggle-symbol" aria-hidden="true">‖</span></button>

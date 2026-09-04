@@ -164,10 +164,10 @@
 
       <footer class="statusfoot">
         <div class="statusfoot__end">
-          <span class="statusfoot__project">
+          <a href="https://www.omacon.org" class="statusfoot__project" aria-label="Omacom">
             <%= render "shared/logo", class: "statusfoot__omacom", id_suffix: "footer" %>
-            <span class="lab">an <a href="https://www.omacon.org">Omacom</a> project · <span class="statusfoot__katakana" translate="no">オマコム</span></span>
-          </span>
+            <span class="lab">an <span class="statusfoot__project-name">Omacom</span> project <span class="statusfoot__katakana" translate="no">オマコム</span></span>
+          </a>
           <a href="https://plugins.omarchy.org" class="statusfoot__registry" translate="no">plugins.omarchy.org</a>
           <span class="statusfoot__trademark lab">
             <a href="https://omarchy.org" class="statusfoot__omarchy-link" aria-label="Omarchy"><%= tag.span "", class: "statusfoot__omarchy-wordmark", aria: { hidden: true }, style: "--wordmark-mask: url(#{asset_path('omarchy-wordmark.svg')})" %></a>

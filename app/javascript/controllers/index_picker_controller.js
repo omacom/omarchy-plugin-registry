@@ -3,6 +3,7 @@ import { copyText } from "lib/clipboard"
 import { beginClipboardOperation, clipboardOperationIsCurrent } from "lib/clipboard_feedback"
 
 const WINDOW_SIZE = 9
+const COMPACT_WINDOW_SIZE = 6
 const GRID_COLUMNS = 3
 const MAX_JSON_BYTES = 512 * 1024
 const MAX_DESCRIPTION_LENGTH = 512
@@ -12,6 +13,7 @@ const MATCH_TYPES = new Set(["sorted", "plugin", "kind", "author", "tag", "categ
 const SEARCH_DELAY = 220
 const WHEEL_STEP = 72
 const RESPONSE_TIMEOUT_MS = 8000
+const BROWSE_RELOAD_STORAGE_KEY = "registry:browse-reload-state"
 
 export default class extends Controller {
   static values = {
@@ -28,7 +30,9 @@ export default class extends Controller {
   connect() {
     this.element.classList.add("is-enhanced")
     this.page = Number(this.pickerTarget.dataset.indexPickerPageValue || 1)
-    this.perPage = Number(this.pickerTarget.dataset.indexPickerPerPageValue || WINDOW_SIZE)
+    const renderedPerPage = Number(this.pickerTarget.dataset.indexPickerPerPageValue || WINDOW_SIZE)
+    this.compactPageMedia = window.matchMedia("(max-width: 620px)")
+    this.perPage = renderedPerPage
     this.total = Number(this.pickerTarget.dataset.indexPickerTotalValue || 0)
     this.more = this.pickerTarget.dataset.indexPickerMoreValue === "true"
     this.endpoint = this.pickerTarget.dataset.indexPickerEndpointValue
@@ -49,6 +53,7 @@ export default class extends Controller {
     this.copyGeneration = 0
     this.wheelAccumulator = 0
     this.queuedNavigation = null
+    this.pendingLoad = null
     this.plugins = this.rowTargets.map((row) => this.pluginFromRow(row))
     this.enhanceShareLinks()
     this.categoryCounts = this.filterCounts("category", this.categoriesValue)
@@ -58,8 +63,24 @@ export default class extends Controller {
     this.syncFilterDisclosure()
     this.recentBand = document.querySelector("[data-index-recent]")
     this.index = this.plugins.length ? Math.min(this.index, this.plugins.length - 1) : -1
-    this.selectionCleared = this.index < 0
+    const storedBrowse = window.history.state?.registryBrowse || this.reloadedBrowseState()
+    const storedPerPage = Number(storedBrowse?.perPage)
+    const storedAnchor = Number(storedBrowse?.absoluteAnchor)
+    const hasStoredWindow = [COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(storedPerPage) &&
+      Number.isSafeInteger(storedAnchor) && storedAnchor >= 0
+    const responsivePerPage = this.responsivePerPage()
+    const responsivePage = hasStoredWindow ? Math.floor(storedAnchor / responsivePerPage) + 1 : this.page
+    this.selectionCleared = hasStoredWindow && typeof storedBrowse.selectionCleared === "boolean" ?
+      storedBrowse.selectionCleared : this.index < 0
+    this.absoluteAnchor = hasStoredWindow ?
+      storedAnchor : (this.page - 1) * this.perPage + Math.max(this.index, 0)
+    const needsResponsiveLoad = renderedPerPage !== responsivePerPage || responsivePage !== this.page
+    if (hasStoredWindow && !needsResponsiveLoad) {
+      this.index = this.plugins.length && !this.selectionCleared ?
+        Math.min(storedAnchor % responsivePerPage, this.plugins.length - 1) : -1
+    }
     this.applySelection()
+    if (!needsResponsiveLoad) this.replaceBrowseHistoryState()
     this.syncSortLinks()
     this.syncRecentVisibility()
     this.resizePageInput()
@@ -67,15 +88,31 @@ export default class extends Controller {
     this.handleDocumentKeydown = this.documentKeydown.bind(this)
     this.handleBeforeCache = this.beforeCache.bind(this)
     this.handlePopstate = this.popstate.bind(this)
+    this.handleTurboLoad = this.turboLoad.bind(this)
     this.handleDocumentPointerdown = this.documentPointerdown.bind(this)
     this.handleSelectionChange = this.selectionChange.bind(this)
+    this.handleCompactPageChange = this.syncResponsivePageSize.bind(this)
     this.handlePickerPointermove = () => this.pickerTarget.classList.add("is-pointer-mode")
     document.addEventListener("keydown", this.handleDocumentKeydown)
     document.addEventListener("pointerdown", this.handleDocumentPointerdown)
     document.addEventListener("selectionchange", this.handleSelectionChange)
     document.addEventListener("turbo:before-cache", this.handleBeforeCache)
+    document.addEventListener("turbo:load", this.handleTurboLoad)
     this.pickerTarget.addEventListener("pointermove", this.handlePickerPointermove)
-    window.addEventListener("popstate", this.handlePopstate)
+    this.compactPageMedia.addEventListener("change", this.handleCompactPageChange)
+    window.addEventListener("popstate", this.handlePopstate, { capture: true })
+
+    if (needsResponsiveLoad) {
+      queueMicrotask(() => {
+        if (!this.element.isConnected) return
+
+        const perPage = this.responsivePerPage()
+        const page = hasStoredWindow ? Math.floor(storedAnchor / perPage) + 1 : this.page
+        const selectIndex = hasStoredWindow && !this.selectionCleared ? storedAnchor % perPage : this.index
+        const absoluteAnchor = hasStoredWindow ? storedAnchor : null
+        this.loadPage(page, { selectIndex, absoluteAnchor, perPage, history: "replace" })
+      })
+    }
   }
 
   disconnect() {
@@ -84,8 +121,10 @@ export default class extends Controller {
     document.removeEventListener("pointerdown", this.handleDocumentPointerdown)
     document.removeEventListener("selectionchange", this.handleSelectionChange)
     document.removeEventListener("turbo:before-cache", this.handleBeforeCache)
+    document.removeEventListener("turbo:load", this.handleTurboLoad)
     this.pickerTarget.removeEventListener("pointermove", this.handlePickerPointermove)
-    window.removeEventListener("popstate", this.handlePopstate)
+    this.compactPageMedia.removeEventListener("change", this.handleCompactPageChange)
+    window.removeEventListener("popstate", this.handlePopstate, { capture: true })
     this.hideCopyStatus()
     window.clearTimeout(this.suggestionCloseTimer)
     window.clearTimeout(this.sortDisclosureTimer)
@@ -125,14 +164,71 @@ export default class extends Controller {
     this.syncRecentVisibility()
   }
 
-  popstate() {
+  responsivePerPage() {
+    return this.compactPageMedia.matches ? COMPACT_WINDOW_SIZE : WINDOW_SIZE
+  }
+
+  syncResponsivePageSize() {
+    const perPage = this.responsivePerPage()
+    const source = this.pendingLoad || {
+      page: this.page,
+      perPage: this.perPage,
+      selectIndex: this.index
+    }
+    if (perPage === source.perPage || this.searchTimer) return
+
+    const sourceIndex = source.selectIndex < 0 ? source.perPage - 1 : source.selectIndex
+    const fallbackAnchor = (source.page - 1) * source.perPage + Math.max(sourceIndex, 0)
+    const absoluteAnchor = Number.isSafeInteger(source.absoluteAnchor) ? source.absoluteAnchor :
+      (Number.isSafeInteger(this.absoluteAnchor) ? this.absoluteAnchor : fallbackAnchor)
+    const page = Math.floor(absoluteAnchor / perPage) + 1
+    const selectIndex = this.selectionCleared ? 0 : absoluteAnchor % perPage
+    const history = this.pendingLoad?.history ?? "replace"
+    const focus = this.pendingLoad?.focus ?? false
+    const reveal = this.pendingLoad?.reveal ?? false
+    this.loadPage(page, {
+      selectIndex, focus, reveal, absoluteAnchor, perPage, history, preserveQueuedNavigation: true
+    })
+  }
+
+  turboLoad() {
+    const stored = window.history.state?.registryBrowse
+    const storedPerPage = Number(stored?.perPage)
+    const storedAnchor = Number(stored?.absoluteAnchor)
+    if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(storedPerPage) ||
+        !Number.isSafeInteger(storedAnchor) || storedAnchor < 0) return
+
+    const perPage = this.responsivePerPage()
+    const page = Math.floor(storedAnchor / perPage) + 1
+    const selectionCleared = typeof stored.selectionCleared === "boolean" ? stored.selectionCleared : true
+    const pendingMatches = this.pendingLoad?.page === page && this.pendingLoad?.perPage === perPage &&
+      this.pendingLoad?.absoluteAnchor === storedAnchor
+    const currentMatches = this.page === page && this.perPage === perPage &&
+      this.absoluteAnchor === storedAnchor && this.selectionCleared === selectionCleared
+    if (!pendingMatches && !currentMatches) this.popstate({ state: window.history.state })
+  }
+
+  popstate(event) {
+    const stored = event.state?.registryBrowse
+    if (!stored) return
     this.suppressedSuggestionQuery = null
     this.inputOwnsBrowseSelection = false
     const url = new URL(window.location.href)
     this.syncMobileSectionLinks(url)
     this.syncFormFromUrl(url)
-    const page = Number(url.searchParams.get("page") || 1)
-    this.loadPage(Number.isSafeInteger(page) && page > 0 ? page : 1, { history: "none" })
+    const urlPage = Number(url.searchParams.get("page") || 1)
+    const page = Number.isSafeInteger(urlPage) && urlPage > 0 ? urlPage : 1
+    this.selectionCleared = typeof stored.selectionCleared === "boolean" ? stored.selectionCleared : true
+    const urlPerPage = Number(url.searchParams.get("per_page"))
+    const sourcePerPage = [COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(stored?.perPage) ? stored.perPage :
+      ([COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(urlPerPage) ? urlPerPage : WINDOW_SIZE)
+    const storedAnchor = Number(stored?.absoluteAnchor)
+    const absoluteAnchor = Number.isSafeInteger(storedAnchor) && storedAnchor >= 0 ?
+      storedAnchor : (page - 1) * sourcePerPage
+    const perPage = this.responsivePerPage()
+    const responsivePage = Math.floor(absoluteAnchor / perPage) + 1
+    const selectIndex = this.selectionCleared ? 0 : absoluteAnchor % perPage
+    this.loadPage(responsivePage, { selectIndex, absoluteAnchor, perPage, history: "replace" })
   }
 
   search() {
@@ -167,6 +263,10 @@ export default class extends Controller {
     if (event.isComposing) return
 
     const unmodified = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+    if (unmodified && event.key === "Escape" && this.filtersExpanded) {
+      this.escapeFilters(event)
+      return
+    }
     if (unmodified && event.key === "Escape" && !this.suggestionsTarget.hidden) {
       event.preventDefault()
       this.closeSuggestions()
@@ -247,8 +347,11 @@ export default class extends Controller {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
     if (event.target.closest("dialog[open], .theme-picker:not([hidden])")) return
     if (event.key === "Escape") {
-      event.preventDefault()
-      this.clearSelection()
+      if (this.filtersExpanded) this.escapeFilters(event)
+      else {
+        event.preventDefault()
+        this.clearSelection()
+      }
       return
     }
     if (event.target.closest("input, textarea, select, [contenteditable]")) return
@@ -263,7 +366,9 @@ export default class extends Controller {
       this.hideCopyStatus()
       this.selectionCleared = false
       this.index = focusedIndex
+      this.absoluteAnchor = (this.page - 1) * this.perPage + this.index
       this.applySelection()
+      this.replaceBrowseHistoryState()
     }
     const columns = this.gridColumns()
     if (columns > 1 && event.key === "ArrowRight") {
@@ -325,6 +430,10 @@ export default class extends Controller {
 
   dismissKeyHint(event) {
     if (event.key !== "Escape") return
+    if (this.filtersExpanded) {
+      this.escapeFilters(event)
+      return
+    }
     event.stopPropagation()
     event.preventDefault()
     event.currentTarget.classList.add("is-tooltip-dismissed")
@@ -397,6 +506,13 @@ export default class extends Controller {
       this.syncFilterLinks()
     }
     this.closeSortDisclosure(disclosure, { focus: true })
+  }
+
+  escapeFilters(event) {
+    event.preventDefault()
+    this.closeSuggestions()
+    this.toggleFilters(event)
+    this.filterToggleTarget.focus({ preventScroll: true })
   }
 
   async toggleFilters(event) {
@@ -495,8 +611,10 @@ export default class extends Controller {
 
     if (this.page === 1) {
       this.index = this.plugins.length ? 0 : -1
+      this.absoluteAnchor = 0
       this.applySelection()
       this.syncPickerState()
+      this.replaceBrowseHistoryState()
       link.focus({ preventScroll: true })
       this.liveTarget.textContent = "Browse is already on the first page."
       return
@@ -591,7 +709,7 @@ export default class extends Controller {
     if (next >= this.plugins.length && this.more) {
       this.pageBy(1, { focus, selectIndex: next - this.plugins.length, reveal })
     } else if (next < 0 && this.page > 1) {
-      this.pageBy(-1, { focus, selectIndex: WINDOW_SIZE + next, reveal })
+      this.pageBy(-1, { focus, selectIndex: this.perPage + next, reveal })
     } else {
       this.choose(Math.min(Math.max(next, 0), this.plugins.length - 1), { focus, reveal })
     }
@@ -602,7 +720,9 @@ export default class extends Controller {
     if (index !== this.index) this.hideCopyStatus()
     this.selectionCleared = false
     this.index = index
+    this.absoluteAnchor = (this.page - 1) * this.perPage + this.index
     this.applySelection()
+    this.replaceBrowseHistoryState()
     if (focus) this.rowTargets[index]?.querySelector(".index-picker__card-open")?.focus({ preventScroll: true })
     if (reveal) this.revealBrowseSelection()
   }
@@ -631,11 +751,16 @@ export default class extends Controller {
     this.selectionCleared = true
     this.inputOwnsBrowseSelection = false
     this.queuedNavigation = null
-    if (this.index < 0) return
+    if (this.index < 0) {
+      this.replaceBrowseHistoryState()
+      return
+    }
     this.index = -1
+    this.absoluteAnchor = (this.page - 1) * this.perPage
     if (document.activeElement?.closest?.(".index-picker__row")) document.activeElement.blur()
     this.applySelection()
     this.syncPickerState()
+    this.replaceBrowseHistoryState()
     if (announce) this.liveTarget.textContent = "Plugin selection cleared."
   }
 
@@ -659,6 +784,10 @@ export default class extends Controller {
     this.resizePageInput()
     this.pageTotalTarget.textContent = totalPages
     this.pageStatusTarget.setAttribute("aria-label", `Page ${this.page} of ${totalPages}`)
+    const pageSizeLabel = this.perPage === WINDOW_SIZE ? "nine" :
+      (this.perPage === COMPACT_WINDOW_SIZE ? "six" : String(this.perPage))
+    this.previousTarget.setAttribute("aria-label", `Previous ${pageSizeLabel} plugin results`)
+    this.nextTarget.setAttribute("aria-label", `Next ${pageSizeLabel} plugin results`)
     this.previousTarget.hidden = this.page <= 1
     this.nextTarget.hidden = !this.more
     this.previousTarget.href = this.webUrl(Math.max(this.page - 1, 1))
@@ -676,10 +805,13 @@ export default class extends Controller {
     }
   }
 
-  async loadPage(page, { selectIndex = 0, focus = false, reveal = false, history = "replace" } = {}) {
+  async loadPage(page, {
+    selectIndex = 0, focus = false, reveal = false, history = "replace", absoluteAnchor = null,
+    perPage = this.responsivePerPage(), preserveQueuedNavigation = false
+  } = {}) {
     window.clearTimeout(this.searchTimer)
     this.searchTimer = null
-    this.queuedNavigation = null
+    if (!preserveQueuedNavigation) this.queuedNavigation = null
     this.request?.abort()
     const generation = ++this.requestGeneration
     const query = this.canonicalQuery(this.inputTarget.value)
@@ -687,8 +819,14 @@ export default class extends Controller {
     this.syncInputWidth()
     this.syncFilterLinks()
     const request = new AbortController()
-    const expected = this.expectedResponse(page, query)
+    const expected = this.expectedResponse(page, query, perPage)
     this.request = request
+    const anchorOffset = this.selectionCleared ? 0 : (selectIndex < 0 ? perPage - 1 : selectIndex)
+    const requestedAnchor = Number.isSafeInteger(absoluteAnchor) && absoluteAnchor >= 0 ?
+      absoluteAnchor : (page - 1) * perPage + Math.max(anchorOffset, 0)
+    this.pendingLoad = {
+      page, perPage, selectIndex, focus, reveal, history, absoluteAnchor: requestedAnchor
+    }
     this.pickerTarget.removeAttribute("data-search-stale")
     this.pickerTarget.setAttribute("aria-busy", "true")
     this.updateDepth(query, { pending: true })
@@ -696,7 +834,7 @@ export default class extends Controller {
     let applied = false
 
     try {
-      const { data } = await this.requestJson(this.apiUrl(page, query), request)
+      const { data } = await this.requestJson(this.apiUrl(page, query, perPage), request)
       if (generation !== this.requestGeneration) return
       const next = this.normalizedResponse(data, expected)
 
@@ -719,6 +857,7 @@ export default class extends Controller {
       this.renderRows()
       this.index = this.plugins.length && !this.selectionCleared ?
         (selectIndex < 0 ? this.plugins.length - 1 : Math.min(selectIndex, this.plugins.length - 1)) : -1
+      this.absoluteAnchor = requestedAnchor
       this.applySelection()
       this.syncPickerState()
       this.updateHistory(history)
@@ -740,6 +879,7 @@ export default class extends Controller {
       if (generation === this.requestGeneration) {
         const queuedNavigation = applied ? this.queuedNavigation : null
         this.queuedNavigation = null
+        this.pendingLoad = null
         this.request = null
         this.pickerTarget.removeAttribute("aria-busy")
         if (queuedNavigation?.type === "page") {
@@ -764,7 +904,7 @@ export default class extends Controller {
 
     const emptyText = this.page > 1 ? "No plugins on this page." :
       (this.canonicalQuery(this.inputTarget.value) || this.formContext() ? "No plugins match this search." : "No plugins published yet.")
-    for (let index = this.plugins.length; index < WINDOW_SIZE; index += 1) {
+    for (let index = this.plugins.length; index < this.perPage; index += 1) {
       this.resultsTarget.append(this.emptyCard(index === 0 ? emptyText : ""))
     }
   }
@@ -1601,6 +1741,7 @@ export default class extends Controller {
     this.requestGeneration += 1
     this.request?.abort()
     this.request = null
+    this.pendingLoad = null
     this.queuedNavigation = null
     if (this.hasPickerTarget) this.pickerTarget.removeAttribute("aria-busy")
   }
@@ -1613,12 +1754,63 @@ export default class extends Controller {
     this.pickerTarget.dataset.indexPickerSelectedIndex = this.index
   }
 
+  reloadedBrowseState() {
+    const navigation = performance.getEntriesByType?.("navigation")?.[0]
+    if (navigation?.type !== "reload") return null
+
+    try {
+      const serialized = window.sessionStorage.getItem(BROWSE_RELOAD_STORAGE_KEY)
+      if (!serialized || serialized.length > 512) return null
+      const stored = JSON.parse(serialized)
+      const currentUrl = `${window.location.pathname}${window.location.search}`
+      if (!stored || stored.url !== currentUrl || !stored.browse || typeof stored.browse !== "object") return null
+      const perPage = Number(stored.browse.perPage)
+      const absoluteAnchor = Number(stored.browse.absoluteAnchor)
+      if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(perPage) ||
+          !Number.isSafeInteger(absoluteAnchor) || absoluteAnchor < 0 ||
+          typeof stored.browse.selectionCleared !== "boolean") return null
+      return { perPage, absoluteAnchor, selectionCleared: stored.browse.selectionCleared }
+    } catch {
+      return null
+    }
+  }
+
+  persistBrowseReloadState(browse) {
+    try {
+      const url = `${window.location.pathname}${window.location.search}`
+      window.sessionStorage.setItem(BROWSE_RELOAD_STORAGE_KEY, JSON.stringify({ url, browse }))
+    } catch {
+      // Storage is an optional enhancement; History remains authoritative in-session.
+    }
+  }
+
   updateHistory(mode) {
     const url = this.webUrl(this.page, this.loadedQuery)
     this.syncMobileSectionLinks(url)
-    if (mode === "none" || url.href === window.location.href) return
+    if (mode === "none") return
+    if (url.href === window.location.href) {
+      if (mode === "replace") this.replaceBrowseHistoryState()
+      return
+    }
+
+    const turboHistory = window.Turbo?.navigator?.history
+    if (turboHistory) {
+      if (mode === "push") turboHistory.push(url)
+      else turboHistory.replace(url, window.history.state?.turbo?.restorationIdentifier)
+      this.replaceBrowseHistoryState()
+      return
+    }
+
     const method = mode === "push" ? "pushState" : "replaceState"
-    window.history[method](this.historyState(mode), "", url)
+    const state = this.historyState(mode)
+    window.history[method](state, "", url)
+    this.persistBrowseReloadState(state.registryBrowse)
+  }
+
+  replaceBrowseHistoryState() {
+    const state = this.historyState("replace")
+    window.history.replaceState(state, "", window.location.href)
+    this.persistBrowseReloadState(state.registryBrowse)
   }
 
   syncMobileSectionLinks(url = new URL(window.location.href)) {
@@ -1630,12 +1822,18 @@ export default class extends Controller {
   }
 
   historyState(mode) {
-    const state = window.history.state
-    if (mode !== "push" || !state?.turbo) return state
+    const state = window.history.state || {}
+    const registryBrowse = {
+      perPage: this.perPage,
+      absoluteAnchor: this.absoluteAnchor,
+      selectionCleared: this.selectionCleared
+    }
+    if (mode !== "push" || !state.turbo) return { ...state, registryBrowse }
     const index = Number(state.turbo.restorationIndex)
     const identifier = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`
     return {
       ...state,
+      registryBrowse,
       turbo: {
         ...state.turbo,
         restorationIdentifier: identifier,
@@ -1662,6 +1860,7 @@ export default class extends Controller {
     if (query) params.set("q", query)
     else params.delete("q")
     params.delete("page")
+    params.delete("per_page")
     return params
   }
 

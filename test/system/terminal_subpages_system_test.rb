@@ -75,6 +75,45 @@ class TerminalSubpagesSystemTest < ApplicationSystemTestCase
     assert_equal "rgb(169, 177, 214)", governance["body"]
   end
 
+  test "compact publishing and governance titlebars stay on one typographic line" do
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
+
+    {
+      publishing_path => [ "Publishing guide", "publish.guide · read only" ],
+      governance_path => [ "Governance", "learn.governance · read only" ]
+    }.each do |path, (expected_title, expected_context)|
+      visit path
+      layout = page.evaluate_script <<~JS
+        (() => {
+          const titlebar = document.querySelector(".terminal-window__titlebar").getBoundingClientRect()
+          const titleElement = document.querySelector(".terminal-window__titlebar strong")
+          const contextElement = document.querySelector(".terminal-window__titlebar-context")
+          const title = titleElement.getBoundingClientRect()
+          const context = contextElement.getBoundingClientRect()
+          return {
+            title: titleElement.textContent.trim(),
+            context: contextElement.textContent.trim(),
+            sameFontSize: getComputedStyle(titleElement).fontSize === getComputedStyle(contextElement).fontSize,
+            sameLine: Math.abs((title.top + title.bottom) / 2 - (context.top + context.bottom) / 2) < 0.5,
+            distinct: title.right <= context.left,
+            contained: title.left >= titlebar.left && context.right <= titlebar.right,
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+          }
+        })()
+      JS
+      assert_includes layout["title"], expected_title
+      assert_equal expected_context, layout["context"]
+      assert layout["sameFontSize"], path
+      assert layout["sameLine"], path
+      assert layout["distinct"], path
+      assert layout["contained"], path
+      assert_equal 0, layout["overflow"], path
+    end
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
   test "terminal ANSI roles remain legible across every selectable theme" do
     visit governance_path
     page.execute_script <<~JS
