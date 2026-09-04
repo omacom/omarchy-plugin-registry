@@ -45,6 +45,18 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     assert_select ".hero__copy > .lab", text: /signed public index/i, count: 0
   end
 
+  test "hero reports the latest publication in compact UTC" do
+    published_at = Time.new(2036, 8, 28, 1, 35, 42, "+09:00")
+    @fresh.versions.order(:id).last.update!(published_at:)
+
+    get root_path
+
+    assert_response :success
+    assert_select ".fetch__rprompt", text: "updated 27 aug 36 · 16:35 UTC" do
+      assert_select "time[datetime='2036-08-27T16:35:42Z']", text: "27 aug 36 · 16:35 UTC", count: 1
+    end
+  end
+
   test "mobile navigation exposes progressive top-level and Browse links" do
     get root_path
 

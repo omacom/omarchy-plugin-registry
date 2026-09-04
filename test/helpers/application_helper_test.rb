@@ -13,6 +13,12 @@ class ApplicationHelperTest < ActionView::TestCase
       [ 0, 1, 702, 1024, 1100, 1536, 12_345, 1.megabyte ].map { |number| compact_byte_size(number) }
   end
 
+  test "compact UTC timestamps use fixed month names and normalize offsets" do
+    timestamp = Time.new(2026, 8, 28, 1, 5, 42, "+09:00")
+
+    assert_equal "27 aug 26 · 16:05 UTC", compact_utc_timestamp(timestamp)
+  end
+
   test "new plugin status uses the shared strict recency cutoff" do
     travel_to Time.zone.local(2026, 9, 2, 12, 0, 0) do
       cutoff = ApplicationHelper::CARD_RECENCY.ago

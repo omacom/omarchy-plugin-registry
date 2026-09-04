@@ -265,6 +265,13 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         (() => {
           const wordmark = document.querySelector(".hero__wm")
           const box = wordmark.getBoundingClientRect()
+          const fetch = document.querySelector(".fetch").getBoundingClientRect()
+          const timestamp = document.querySelector(".fetch__rprompt")
+          const timestampBox = timestamp.getBoundingClientRect()
+          const timeBox = timestamp.querySelector("time").getBoundingClientRect()
+          const prompt = timestamp.parentElement
+          const promptLeadBox = prompt.firstElementChild.getBoundingClientRect()
+          const promptVisible = getComputedStyle(prompt).display !== "none"
           const sourceAligned = [...wordmark.querySelectorAll("rect")].every((rect) =>
             Number(rect.getAttribute("x")) % 51 === 0 &&
             Number(rect.getAttribute("y")) % 50 === 0 &&
@@ -277,6 +284,12 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             cellWidth: box.width / 81,
             cellHeight: box.height / 19,
             sourceAligned,
+            promptVisible,
+            timestampWrapped: promptVisible && timestampBox.top >= promptLeadBox.bottom - 0.5,
+            timestampFits: !promptVisible || (
+              timestampBox.left >= fetch.left && timestampBox.right <= fetch.right &&
+              timeBox.left >= timestampBox.left && timeBox.right <= timestampBox.right
+            ),
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
           }
         })()
@@ -287,6 +300,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_equal expected_cell, geometry["cellWidth"], "horizontal cell at #{width}px"
       assert_equal expected_cell, geometry["cellHeight"], "vertical cell at #{width}px"
       assert geometry["sourceAligned"], "source grid alignment at #{width}px"
+      assert_equal width > 760, geometry["promptVisible"], "updated timestamp visibility at #{width}px"
+      assert_equal width == 1100, geometry["timestampWrapped"], "updated timestamp wrapping at #{width}px"
+      assert geometry["timestampFits"], "updated timestamp fit at #{width}px"
       assert_equal 0, geometry["overflow"], "horizontal overflow at #{width}px"
     end
   ensure

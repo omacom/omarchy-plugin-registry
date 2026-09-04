@@ -69,10 +69,11 @@
       </div>
     </div>
     <% if @stats[:updated_at] %>
+      <% registry_updated_at = @stats[:updated_at].utc %>
       <div class="fetch__prompt" translate="no">
         <span><b>registry@omarchy</b><s aria-hidden="true">:~$</s></span>
         <span class="fetch__cursor" aria-hidden="true"></span>
-        <span class="fetch__rprompt">updated <b><%= @stats[:updated_at].strftime("%Y-%m-%d %H:%M") %></b></span>
+        <span class="fetch__rprompt">updated <b><time datetime="<%= registry_updated_at.iso8601 %>"><%= compact_utc_timestamp(registry_updated_at) %></time></b></span>
       </div>
     <% end %>
     </div>

@@ -51,6 +51,14 @@ module ApplicationHelper
     number_to_human_size(bytes, precision: 3, significant: true, strip_insignificant_zeros: true)
   end
 
+  COMPACT_UTC_MONTHS = %w[jan feb mar apr may jun jul aug sep oct nov dec].freeze
+
+  def compact_utc_timestamp(time)
+    utc = time.utc
+    format("%02d %s %02d · %02d:%02d UTC",
+      utc.day, COMPACT_UTC_MONTHS.fetch(utc.month - 1), utc.year % 100, utc.hour, utc.min)
+  end
+
   # Turns a manifest-provided repository URL into { icon:, label:, url: } for the
   # sidebar Source row, or nil when the value isn't a linkable http(s) URL.
   def source_repo(url)

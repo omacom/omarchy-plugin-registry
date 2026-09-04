@@ -2907,6 +2907,11 @@ a.v:hover { color: var(--accent); }
   .nav__links { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
 }
 
+@media (min-width: 961px) and (max-width: 1100px) {
+  .fetch__prompt { flex-wrap: wrap; row-gap: 4px; }
+  .fetch__rprompt { width: 100%; margin-left: 0; text-align: right; }
+}
+
 @media (max-width: 960px) {
   .hero { grid-template-columns: minmax(0, 1fr); padding-right: 0; }
   .fetch { margin-inline: var(--pad); }
