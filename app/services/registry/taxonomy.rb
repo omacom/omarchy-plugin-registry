@@ -6,7 +6,8 @@ module Registry
   # side effect.
   module Taxonomy
     CATEGORIES = %w[
-      appearance desktop developer-tools hardware productivity system widgets other
+      appearance bar-widgets bars desktop developer-tools hardware menus
+      overlays panels productivity services system widgets other
     ].freeze
 
     TAGS = %w[
