@@ -85,6 +85,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       assert_select ".index-search__result[role='status'][aria-live='polite'][data-index-picker-target='searchMatchCount'][hidden]", count: 1
       assert_select ".index-search__reset", text: "reset", count: 1
       assert_select "kbd", text: "/ · ctrl k", count: 1
+      assert_select "button.index-search__filter-toggle[hidden][aria-controls='browse-filters'][aria-expanded='false']",
+        text: /filter/i, count: 1
     end
     assert_select ".index-query-plan", 0
     assert_select ".fetch__metric[aria-label='3 registry plugins'] .fetch__head", text: /3.*plugins/i, count: 1
@@ -96,8 +98,9 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     assert_select ".index-console", text: /level 0|independent input/i, count: 0
     assert_select ".index-search:not(.is-active)", 1
     assert_select ".index-browse-layer", 0
-    assert_select ".index-console--has-context [data-index-picker-target='visibleCategories']", text: /filter.*system 1.*widgets 2/i, count: 1 do
-      assert_select "a.index-picker__category", count: 2
+    assert_select "#browse-filters [data-index-picker-target='visibleCategories'] a[href]", minimum: 1
+    assert_select ".index-console--has-context [data-index-picker-target='visibleCategories']", text: /kids 0.*system 1.*widgets 2/i, count: 1 do
+      assert_select "a.index-picker__category", count: 3
       assert_select "a.index-picker__category.is-active[data-category='widgets'][href=?][aria-label='Clear widgets category filter, 2 registry plugins'][data-action='click->index-picker#toggleCategory']",
         root_path, count: 1
     end
@@ -118,6 +121,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
 
     get root_path(q: "definitely-absent", sort: "name", category: "widgets", tag: "clock")
     assert_select ".index-picker__row", 0
+    assert_select "[data-index-picker-target='breadcrumb']",
+      text: /all.*query:definitely-absent.*category:widgets.*tag:clock.*results/m, count: 1
     assert_select "a.index-picker__category.is-active[data-category='widgets'][href=?]",
       root_path(q: "definitely-absent", sort: "name", tag: "clock"), text: /widgets 2/, count: 1
   end
@@ -131,14 +136,14 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
 
     get root_path(category: "widgets", sort: "name")
     assert_select ".index-picker__row", count: HomeController::PER_PAGE
-    assert_select "[data-index-picker-target='visibleCategories']", text: /filter.*system 1.*widgets 10/i
+    assert_select "[data-index-picker-target='visibleCategories']", text: /kids 0.*system 1.*widgets 10/i
     assert_select ".index-browse__range", text: /1–9.*\/.*10/m
     assert_select "a[data-index-picker-target='next'][href=?]",
       root_path(category: "widgets", sort: "name", page: 2), count: 1
 
     get root_path(category: "widgets", sort: "name", page: 2)
     assert_select ".index-picker__row", count: 1
-    assert_select "[data-index-picker-target='visibleCategories']", text: /filter.*system 1.*widgets 10/i
+    assert_select "[data-index-picker-target='visibleCategories']", text: /kids 0.*system 1.*widgets 10/i
     assert_select ".index-browse__range", text: /10–10.*\/.*10/m
   end
 

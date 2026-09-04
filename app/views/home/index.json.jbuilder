@@ -38,6 +38,7 @@ json.taxonomy do
     json.match_count @result_category_counts.fetch(slug, 0)
   end
   json.tags Registry::Taxonomy::TAGS
+  json.tag_counts HomeController::FILTER_TAGS.index_with { |tag| @tag_counts.fetch(tag, 0) }
   json.max_tags Registry::Taxonomy::MAX_TAGS
 end
 

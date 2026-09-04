@@ -15,7 +15,35 @@ class CopyButtonSystemTest < ApplicationSystemTestCase
     end
 
     visit plugin_path("acme", "weather")
-    within(".install-strip") do
+    surfaces = page.evaluate_script <<~JS
+      (() => {
+        const install = document.querySelector(".install-cmd")
+        const copy = install.querySelector(".copy-button")
+        const tileProbe = document.createElement("span")
+        const controlProbe = document.createElement("span")
+        tileProbe.style.cssText = "position:fixed;background:var(--break);box-shadow:var(--shadow-tile)"
+        controlProbe.style.cssText = "position:fixed;box-shadow:var(--shadow-control)"
+        document.body.append(tileProbe, controlProbe)
+        const result = {
+          background: getComputedStyle(install).backgroundColor,
+          expectedBackground: getComputedStyle(tileProbe).backgroundColor,
+          installShadow: getComputedStyle(install).boxShadow,
+          expectedInstallShadow: getComputedStyle(tileProbe).boxShadow,
+          copyShadow: getComputedStyle(copy).boxShadow,
+          expectedCopyShadow: getComputedStyle(controlProbe).boxShadow
+        }
+        tileProbe.remove()
+        controlProbe.remove()
+        return result
+      })()
+    JS
+    assert_equal surfaces["expectedBackground"], surfaces["background"]
+    assert_equal surfaces["expectedInstallShadow"], surfaces["installShadow"]
+    assert_equal surfaces["expectedCopyShadow"], surfaces["copyShadow"]
+    refute_equal "none", surfaces["installShadow"]
+    refute_equal "none", surfaces["copyShadow"]
+
+    within(".install-cmd") do
       assert_text "omarchy plugin add acme/weather"
       button = find("button.copy-button--labeled")
       assert_selector ".copy-button__copy-label", text: "COPY", visible: true
@@ -52,13 +80,17 @@ class CopyButtonSystemTest < ApplicationSystemTestCase
           const icon = document.querySelector(".copy-button__check")
           const center = (element) => { const rect = element.getBoundingClientRect(); return rect.top + rect.height / 2 }
           return { color: getComputedStyle(icon).color, fontSize: getComputedStyle(label).fontSize,
-            height: button.getBoundingClientRect().height, centerDelta: Math.abs(center(label) - center(icon)) }
+            height: button.getBoundingClientRect().height, centerDelta: Math.abs(center(label) - center(icon)),
+            shadow: getComputedStyle(button).boxShadow,
+            installShadow: getComputedStyle(document.querySelector(".install-cmd")).boxShadow }
         })()
       JS
       assert_equal "rgb(122, 162, 247)", alignment["color"]
       assert_equal "11px", alignment["fontSize"]
       assert_operator alignment["height"], :>=, 30
       assert_operator alignment["centerDelta"], :<=, 1
+      assert_equal surfaces["copyShadow"], alignment["shadow"]
+      assert_equal surfaces["installShadow"], alignment["installShadow"]
     end
   end
 

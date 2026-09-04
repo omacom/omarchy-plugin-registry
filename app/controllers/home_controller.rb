@@ -60,6 +60,7 @@ class HomeController < ApplicationController
   PER_PAGE = 9
   MOST_WANTED_LIMIT = 5
   RECENT_STREAM_LIMIT = 12
+  FILTER_TAGS = %w[security].freeze
   MOST_WANTED_ORDER = "week_downloads DESC, upvotes_count DESC, plugins.views_count DESC, plugins.downloads_count DESC".freeze
   JSON_PER_PAGE = 24
   MAX_QUERY_LENGTH = 160
@@ -100,6 +101,7 @@ class HomeController < ApplicationController
       # publication cannot make the JSON page contradict its own total.
       @total = plugins.first&.directory_total&.to_i || scope.unscope(:select).count
       @category_counts = category_counts(Plugin.directory_visible)
+      @tag_counts = tag_counts(Plugin.directory_visible)
       @result_category_counts = if @query.present?
         category_counts(scope)
       else
@@ -146,8 +148,9 @@ class HomeController < ApplicationController
         [ plugin.id, plugin.try(:week_downloads).to_i, plugin.try(:upvotes_count).to_i,
           plugin.views_count, plugin.downloads_count ]
       end
-      freshen(@plugins, @wanted, wanted_signature, @recent, @query, @sort, @category, @tag, @page, @per_page, @more, @total,
-        @catalog_revision, @category_counts.sort, @result_category_counts.sort, @search_plan, @search_suggestions,
+      freshen(@plugins, @wanted, wanted_signature, @recent, @query, @sort, @category, @tag,
+        @page, @per_page, @more, @total, @catalog_revision, @category_counts.sort,
+        @tag_counts.sort, @result_category_counts.sort, @search_plan, @search_suggestions,
         @recent_total, @stats.values, last_modified: false)
       # Jbuilder asks installability and attachment questions. Render before
       # leaving the read transaction so those implicit reads share this snapshot.
@@ -225,6 +228,13 @@ class HomeController < ApplicationController
     counts = scope.unscope(:select, :order).group(:category).count
     counts["other"] = counts.fetch("other", 0) + counts.delete(nil).to_i
     counts
+  end
+
+  def tag_counts(scope)
+    scope.unscope(:select, :order).joins("JOIN json_each(plugins.tags) AS browse_tags")
+      .group("browse_tags.value")
+      .pluck(Arel.sql("browse_tags.value"), Arel.sql("COUNT(DISTINCT plugins.id)"))
+      .to_h
   end
 
   def filtered_scope

@@ -792,6 +792,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       localStorage.removeItem("registry-theme-override-revision")
     JS
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
 
     palette = page.evaluate_script <<~JS
       (() => {
@@ -833,7 +834,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           recentSuffix: getComputedStyle(document.querySelector(".recent-stream__count small")).color,
           recentDollar: getComputedStyle(document.querySelector(".recent-stream__more span")).color,
           pauseSymbol: getComputedStyle(document.querySelector(".recent-stream__toggle-symbol")).color,
-          filterLabel: getComputedStyle(document.querySelector(".index-picker__layer-head > span > b")).color,
+          filterLabel: getComputedStyle(document.querySelector(".index-search__filter-toggle")).color,
           filterCount: getComputedStyle(document.querySelector(".index-picker__category strong")).color,
           browseNav: getComputedStyle(document.querySelector(".index-picker__status-item > b")).color,
           pageArrows: [...document.querySelectorAll(".index-picker__pagination > a")]
@@ -858,7 +859,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           ].every((selector) => getComputedStyle(document.querySelector(selector)).boxShadow ===
             getComputedStyle(document.querySelector(".index-picker__layer-head")).boxShadow),
           controlsShadowed: [
-            ".index-search__result", ".index-search__form kbd", ".index-search__reset", ".index-search__clear"
+            ".index-search__result", ".index-search__form kbd", ".index-search__reset", ".index-search__clear",
+            ".index-search__filter-toggle", ".index-picker__filter-option"
           ].every((selector) => getComputedStyle(document.querySelector(selector)).boxShadow ===
             getComputedStyle(document.querySelector(".index-search__form kbd")).boxShadow),
           browseSeparate: getComputedStyle(document.querySelector(".index-browse-stack")).boxShadow === "none",
@@ -1179,7 +1181,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         return {
           searchText: ratio(".index-search__result", ".index-search"),
           searchBorder: ratio(".index-search__result", ".index-search", "borderTopColor"),
-          filterLabel: ratio(".index-picker__layer-head b", ".index-picker__layer-head"),
+          filterLabel: ratio(".index-search__filter-toggle.is-active", ".index-search__filter-toggle.is-active"),
           category: ratio(".index-picker__category.is-active", ".index-picker__layer-head"),
           categoryCount: ratio(".index-picker__category.is-active strong", ".index-picker__layer-head"),
           selectedName: ratio(".index-picker__row.is-selected .index-picker__card-name", ".index-picker__row.is-selected"),
@@ -1195,6 +1197,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       const style = document.createElement("style")
       style.textContent = "*, *::before, *::after { transition: none !important; }"
       document.head.append(style)
+      document.querySelector(".index-search__filter-toggle").click()
       document.querySelector(".index-picker__category").classList.add("is-active")
       document.querySelector(".index-picker__row").classList.add("is-selected")
     JS
@@ -1281,20 +1284,77 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_no_selector ".index-picker__row.is-selected"
   end
 
-  test "registry category counts toggle live without moving the page" do
+  test "registry category counts toggle live without moving the page or existing cards" do
     visit root_path(sort: "name")
+    assert_no_selector ".index-console.is-filter-open"
+    find(".index-search__filter-toggle").click
+    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+    assert_selector ".index-search__filter-toggle.is-active[aria-expanded='true']"
     page.execute_script <<~JS
       document.body.dataset.categoryNavigation = "live"
       document.querySelector(".index-picker__layer-head").scrollIntoView({ block: "center" })
+      window.__filterCard = document.querySelector(".index-picker__card")
+      window.__filterCardLeft = window.__filterCard.getBoundingClientRect().left
+      window.__realFetch = window.fetch
+      window.fetch = (url, options = {}) => {
+        if (new URL(url).searchParams.get("category") !== "appearance") {
+          return window.__realFetch(url, options)
+        }
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => window.__realFetch(url, options).then(resolve, reject), 300)
+          options.signal?.addEventListener("abort", () => {
+            window.clearTimeout(timer)
+            reject(new DOMException("Aborted", "AbortError"))
+          }, { once: true })
+        })
+      }
     JS
     scroll_before = page.evaluate_script("window.scrollY")
     find("a.index-picker__category[data-category='appearance']").click
+    sleep 0.08
+    pending_motion = page.evaluate_script <<~JS
+      (() => {
+        const picker = document.querySelector(".index-picker")
+        return {
+          sameCard: document.querySelector(".index-picker__card") === window.__filterCard,
+          leftDelta: document.querySelector(".index-picker__card").getBoundingClientRect().left - window.__filterCardLeft,
+          animation: getComputedStyle(picker).animationName,
+          transform: getComputedStyle(picker).transform
+        }
+      })()
+    JS
+    assert pending_motion["sameCard"]
+    assert_in_delta 0, pending_motion["leftDelta"], 0.1
+    assert_equal "none", pending_motion["animation"]
+    assert_equal "none", pending_motion["transform"]
 
     assert_selector ".index-picker__row", count: 1
     assert_selector ".index-picker__row", text: "gamma"
     assert_equal({ "sort" => "name", "category" => "appearance" },
       Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    assert_no_selector ".index-picker__filter-label, .index-picker__filter-glyph"
     assert_selector "a.index-picker__category.is-active[aria-label^='Clear appearance category filter,']", text: /appearance 1/i
+    filter_insets = page.evaluate_script <<~JS
+      (() => {
+        const search = document.querySelector(".index-search").getBoundingClientRect()
+        const searchEntry = document.querySelector(".index-search__entry").getBoundingClientRect()
+        const filterToggle = document.querySelector(".index-search__filter-toggle").getBoundingClientRect()
+        const layer = document.querySelector(".index-picker__layer-head").getBoundingClientRect()
+        const filters = [...document.querySelectorAll("a.index-picker__category")]
+        const first = filters[0].getBoundingClientRect()
+        const last = filters.at(-1).getBoundingClientRect()
+        return {
+          searchLeft: searchEntry.left - search.left,
+          searchRight: search.right - filterToggle.right,
+          filterLeft: first.left - layer.left,
+          filterRight: layer.right - last.right,
+          activeMarker: getComputedStyle(document.querySelector("a.index-picker__category.is-active"), "::before").content
+        }
+      })()
+    JS
+    assert_in_delta filter_insets["searchLeft"], filter_insets["filterLeft"], 0.1
+    assert_in_delta filter_insets["searchRight"], filter_insets["filterRight"], 0.1
+    assert_equal "none", filter_insets["activeMarker"]
     Selenium::WebDriver::Wait.new(timeout: 2).until do
       page.evaluate_script("getComputedStyle(document.querySelector('.index-picker__category.is-active')).color") ==
         page.evaluate_script("getComputedStyle(document.querySelector('.index-picker__category.is-active strong')).color")
@@ -1302,6 +1362,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal "live", page.evaluate_script("document.body.dataset.categoryNavigation")
     assert_equal "appearance", page.evaluate_script("document.activeElement.dataset.category")
     assert_in_delta scroll_before, page.evaluate_script("window.scrollY"), 1
+    assert_nil find(".index-picker", visible: :all)["data-level-transition"]
 
     scroll_before_clear = page.evaluate_script("window.scrollY")
     find("a.index-picker__category.is-active").click
@@ -1311,10 +1372,94 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal "live", page.evaluate_script("document.body.dataset.categoryNavigation")
     assert_equal "appearance", page.evaluate_script("document.activeElement.dataset.category")
     assert_in_delta scroll_before_clear, page.evaluate_script("window.scrollY"), 1
+    assert_nil find(".index-picker", visible: :all)["data-level-transition"]
+  end
+
+  test "Search and filter controls share compact type, height, and shadows" do
+    visit root_path(q: "clock", sort: "name")
+    find(".index-search__filter-toggle").click
+
+    metrics = page.evaluate_script <<~JS
+      (() => {
+        const controls = [
+          document.querySelector(".index-search__result"),
+          document.querySelector(".index-search__clear"),
+          document.querySelector(".index-search__reset"),
+          document.querySelector(".index-search__form kbd"),
+          document.querySelector(".index-search__filter-toggle"),
+          document.querySelector(".index-picker__filter-option")
+        ]
+        const labels = [
+          document.querySelector(".index-search__result"),
+          document.querySelector(".index-search__clear small"),
+          document.querySelector(".index-search__reset"),
+          document.querySelector(".index-search__form kbd"),
+          document.querySelector(".index-search__filter-toggle"),
+          document.querySelector(".index-picker__filter-option")
+        ]
+        return {
+          heights: controls.map((control) => control.getBoundingClientRect().height),
+          fonts: labels.map((label) => getComputedStyle(label).fontSize),
+          shadows: controls.map((control) => getComputedStyle(control).boxShadow),
+          filterHeight: document.querySelector(".index-picker__layer-head").getBoundingClientRect().height
+        }
+      })()
+    JS
+
+    assert_equal [ 28 ], metrics["heights"].uniq
+    assert_equal [ "10px" ], metrics["fonts"].uniq
+    assert_equal 1, metrics["shadows"].uniq.size
+    refute_equal "none", metrics["shadows"].first
+    assert_equal 38, metrics["filterHeight"]
+  end
+
+  test "Development, Security, and Kids are direct browse filters" do
+    publisher = Publisher.find_by!(name: "acme")
+    development = Plugin.create!(publisher:, name: "forge", summary: "Developer tools",
+      latest_version: "1.0.0", category: "developer-tools", tags: [ "security" ])
+    development.versions.create!(version: "1.0.0", manifest: {}, sha256: "d" * 64,
+      size_bytes: 1, state: :published, published_at: Time.current)
+    kids = Plugin.create!(publisher:, name: "playroom", summary: "For children",
+      latest_version: "1.0.0", category: "kids")
+    kids.versions.create!(version: "1.0.0", manifest: {}, sha256: "e" * 64,
+      size_bytes: 1, state: :published, published_at: Time.current)
+
+    visit root_path(sort: "name")
+    assert_selector ".index-search__filter-toggle[aria-expanded='false']"
+    assert_no_selector ".index-console.is-filter-open"
+    find(".index-search__filter-toggle").click
+    assert_selector "a.index-picker__category[data-category='developer-tools']", text: /development 1/i
+    assert_no_selector "a.index-picker__category[data-category='developer-tools']", text: /developer-tools/i
+    assert_selector "a.index-picker__tag[data-tag='security']", text: /security 1/i
+    assert_selector "a.index-picker__category[data-category='kids']", text: /kids 1/i
+
+    find("a.index-picker__category[data-category='kids']").click
+    assert_selector ".index-picker__row", count: 1, text: "playroom"
+    assert_equal({ "sort" => "name", "category" => "kids" },
+      Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    assert_selector "a.index-picker__category.is-active[data-category='kids']"
+
+    find(".index-search__filter-toggle").click
+    assert_no_selector ".index-console.is-filter-open"
+    assert_selector ".index-picker__row", count: 5
+    assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    assert_nil page.evaluate_script("document.querySelector('input[type=hidden][name=category]')?.value")
+
+    find(".index-search__filter-toggle").click
+    find("a.index-picker__tag[data-tag='security']").click
+    assert_selector ".index-picker__row", count: 1, text: "forge"
+    assert_equal({ "sort" => "name", "tag" => "security" },
+      Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    assert_selector "a.index-picker__tag.is-active[data-tag='security']"
+    find(".index-search__filter-toggle").click
+    assert_no_selector ".index-console.is-filter-open"
+    assert_selector ".index-picker__row", count: 5
+    assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
   end
 
   test "a live response adds a category populated after the page was rendered" do
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
     assert_no_selector "a.index-picker__category[data-category='bars']"
 
     publisher = Publisher.find_by!(name: "acme")
@@ -1348,6 +1493,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "category links track pending search text before its request completes" do
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
     find("input[name='q']").set("pending-query")
 
     href = URI(find("a.index-picker__category[data-category='appearance']")["href"])
@@ -1357,6 +1503,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "a failed live category toggle restores its previous filter state" do
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => {
@@ -1372,11 +1519,75 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
     assert_nil page.evaluate_script("document.querySelector('input[type=hidden][name=category]')?.value")
     assert_no_selector "a.index-picker__category.is-active"
+    assert_no_selector ".index-console--has-context"
+    assert_equal "all › results", page.evaluate_script("document.querySelector('[data-index-picker-target=breadcrumb]').textContent")
     assert_selector ".index-picker__row", count: 3
+  end
+
+  test "a failed FILTER reset restores combined selections and disclosure" do
+    visit root_path(sort: "name", category: "appearance", tag: "clock")
+    assert_selector ".index-console.is-filter-open"
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.fetch = (url, options = {}) => {
+        const parsed = new URL(url)
+        if (!parsed.searchParams.has("category")) {
+          return Promise.resolve(new Response("{}", {
+            status: 200, headers: { "Content-Type": "application/json" }
+          }))
+        }
+        return window.__realFetch(url, options)
+      }
+    JS
+
+    find(".index-search__filter-toggle").click
+    assert_selector "[data-index-picker-target='live']", text: /Search could not be updated/, visible: :all
+    assert_selector ".index-console.is-filter-open"
+    assert_selector ".index-search__filter-toggle.is-active[aria-expanded='true']"
+    assert_selector "a.index-picker__category.is-active[data-category='appearance']"
+    assert_equal "all › category:appearance + tag:clock › results",
+      page.evaluate_script("document.querySelector('[data-index-picker-target=breadcrumb]').textContent")
+    assert_equal [ "appearance" ], all("input[type=hidden][name=category]", visible: :all).map(&:value).uniq
+    assert_equal [ "clock" ], all("input[type=hidden][name=tag]", visible: :all).map(&:value).uniq
+    assert_equal({ "sort" => "name", "category" => "appearance", "tag" => "clock" },
+      Rack::Utils.parse_nested_query(URI(page.current_url).query))
+  end
+
+  test "Turbo cache restores authoritative filters when navigation interrupts a reset" do
+    visit root_path(sort: "name", category: "appearance")
+    assert_selector ".index-console--has-context.is-filter-open"
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.fetch = (url, options = {}) => {
+        const parsed = new URL(url)
+        if (!parsed.pathname.endsWith(".json") || parsed.searchParams.has("category")) {
+          return window.__realFetch(url, options)
+        }
+        return new Promise((_resolve, reject) => {
+          options.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"))
+          }, { once: true })
+        })
+      }
+    JS
+
+    find(".index-search__filter-toggle").click
+    assert_no_selector ".index-console.is-filter-open"
+    assert_equal "appearance", Rack::Utils.parse_nested_query(URI(page.current_url).query)["category"]
+    click_link "governance"
+    assert_current_path governance_path
+
+    page.go_back
+    assert_current_path root_path(sort: "name", category: "appearance")
+    assert_selector ".index-console--has-context.is-filter-open"
+    assert_selector "a.index-picker__category.is-active[data-category='appearance']"
+    assert_equal [ "appearance" ], all("input[type=hidden][name=category]", visible: :all).map(&:value).uniq
+    assert_selector ".index-picker__row", count: 1, text: "gamma"
   end
 
   test "typing during a pending category request keeps the new filter and search focus" do
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => {
@@ -2003,7 +2214,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert paints["fillRects"].all? { |x, y, width, height| x.zero? && y.zero? && width == paints["width"] && height == paints["height"] }
   end
 
-  test "unused search keeps reset and shortcut at their original right edge" do
+  test "unused search keeps reset, shortcut, and FILTER at the right edge" do
     visit root_path(sort: "name")
 
     positions = page.evaluate_script <<~JS
@@ -2012,14 +2223,15 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const reset = document.querySelector(".index-search__reset").getBoundingClientRect()
         const shortcut = document.querySelector(".index-search__form kbd").getBoundingClientRect()
         const search = document.querySelector(".index-search").getBoundingClientRect()
-        const filter = document.querySelector(".index-picker__layer-head").getBoundingClientRect()
+        const filterToggle = document.querySelector(".index-search__filter-toggle").getBoundingClientRect()
+        const filter = document.querySelector(".index-picker__layer-head")
         const firstCard = document.querySelector(".index-picker__card").getBoundingClientRect()
         return {
           countHidden: document.querySelector(".index-search__result").hidden,
           clearHidden: document.querySelector(".index-search__clear").hidden,
-          controlsRight: entry.right < reset.left && reset.right < shortcut.left,
-          searchFilterGap: filter.top - search.bottom,
-          filterCardGap: firstCard.top - filter.bottom
+          controlsRight: entry.right < reset.left && reset.right < shortcut.left && shortcut.right < filterToggle.left,
+          filterCollapsed: getComputedStyle(filter).display === "none",
+          searchCardGap: firstCard.top - search.bottom
         }
       })()
     JS
@@ -2027,8 +2239,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert positions["countHidden"]
     assert positions["clearHidden"]
     assert positions["controlsRight"]
-    assert_in_delta 7, positions["searchFilterGap"], 0.1
-    assert_in_delta 7, positions["filterCardGap"], 0.1
+    assert positions["filterCollapsed"]
+    assert_in_delta 7, positions["searchCardGap"], 0.1
     compact_counts = page.evaluate_script <<~JS
       (() => {
         const element = document.querySelector("[data-controller~='index-picker']")
@@ -2041,6 +2253,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "search cursor, result box, and frameless Browse stay legible" do
     visit root_path(q: "clock", sort: "name")
+    find(".index-search__filter-toggle").click
 
     find(".index-search__entry").click
     assert_equal "q", page.evaluate_script("document.activeElement.name")
@@ -2071,17 +2284,17 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const front = frontElement.getBoundingClientRect()
         const filterElement = document.querySelector(".index-picker__layer-head")
         const gridElement = document.querySelector(".index-picker__grid")
-        const firstCard = document.querySelector(".index-picker__card:nth-child(1)").getBoundingClientRect()
-        const thirdCard = document.querySelector(".index-picker__card:nth-child(3)").getBoundingClientRect()
-        const lastCard = document.querySelector(".index-picker__card:nth-child(9)").getBoundingClientRect()
+        const firstCardElement = document.querySelector(".index-picker__card:nth-child(1)")
+        const thirdCardElement = document.querySelector(".index-picker__card:nth-child(3)")
+        const lastCardElement = document.querySelector(".index-picker__card:nth-child(9)")
         const statusElement = document.querySelector(".index-picker__status")
-        const status = statusElement.getBoundingClientRect()
         const statusLeft = document.querySelector(".index-picker__status-left").getBoundingClientRect()
         const statusKeys = document.querySelector(".index-picker__keys").getBoundingClientRect()
         const navText = [...document.querySelectorAll(".index-picker__status-item > b, .index-picker__home")]
         const keyText = [...document.querySelectorAll(".index-picker__key-hint > strong")]
         const categoryLinks = [...document.querySelectorAll("a.index-picker__category")]
         const categoryColors = new Set(categoryLinks.map((item) => getComputedStyle(item).color))
+        const resetStyle = getComputedStyle(document.querySelector(".index-search__reset"))
         const categoryCountColors = new Set(categoryLinks.map((item) => getComputedStyle(item.querySelector("strong")).color))
         const panelBackgrounds = new Set([
           ".promptline", ".recent-card", ".index-search", ".index-picker__layer-head", ".index-picker__card", ".index-picker__status"
@@ -2099,11 +2312,15 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         inputElement.blur()
         const cursorAnimation = getComputedStyle(cursorElement).animationName
         inputElement.focus()
+        const firstCard = firstCardElement.getBoundingClientRect()
+        const thirdCard = thirdCardElement.getBoundingClientRect()
+        const lastCard = lastCardElement.getBoundingClientRect()
+        const status = statusElement.getBoundingClientRect()
         return {
           cursorBeforeInput: cursor.right <= input.left && input.left - cursor.right <= 8,
           cursorAnimation,
           singleCaret,
-          clearBoxed: getComputedStyle(clear).borderStyle !== "none" && clearRect.width >= 32 && clearRect.height >= 32,
+          clearBoxed: getComputedStyle(clear).borderStyle !== "none" && clearRect.width >= 28 && clearRect.height >= 28,
           clearBeforeReset: clearRect.right <= reset.getBoundingClientRect().left && reset.getBoundingClientRect().left - clearRect.right <= 13,
           escMatchesReset: getComputedStyle(clear.querySelector("small")).fontSize === getComputedStyle(reset).fontSize &&
             getComputedStyle(clear.querySelector("small")).fontWeight === getComputedStyle(reset).fontWeight,
@@ -2112,7 +2329,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           examples: document.querySelectorAll(".index-search__examples a").length,
           noExplainBlock: !document.querySelector(".index-query-plan"),
           resultBoxed: getComputedStyle(resultElement).borderStyle !== "none" &&
-            result.width >= 32 && result.height >= 32,
+            result.width >= 28 && result.height >= 28,
           resultBeforeClear: result.right <= clearRect.left && clearRect.left - result.right <= 13,
           resultAccented: getComputedStyle(resultElement).borderTopColor ===
             getComputedStyle(resultElement).color,
@@ -2129,7 +2346,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           frontAligned: Math.abs(front.left - search.left) < 1 && Math.abs(front.right - search.right) < 1,
           browseFrameless: parseFloat(getComputedStyle(frontElement).borderTopWidth) === 0,
           filterBoxed: getComputedStyle(filterElement).borderStyle !== "none" &&
-            filterElement.textContent.trim().toLowerCase().startsWith("filter /"),
+            !filterElement.querySelector(".index-picker__filter-label, .index-picker__filter-glyph"),
           footerBoxed: getComputedStyle(statusElement).borderStyle !== "none" &&
             statusElement.textContent.trim().toLowerCase().startsWith("nav/"),
           balancedFooterInsets: Math.abs((statusLeft.left - status.left) - (status.right - statusKeys.right)) < 1,
@@ -2140,6 +2357,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           matchingSectionHeadingGaps: Math.abs((search.top - browseTitle.bottom) - (recentRow.top - recentTitle.bottom)) < 0.5 &&
             Math.abs(search.top - browseTitle.bottom - 18) < 0.5,
           filterCardGap: firstCard.top - filterElement.getBoundingClientRect().bottom,
+          filterGridGap: gridElement.getBoundingClientRect().top - filterElement.getBoundingClientRect().bottom,
+          cardGridGap: firstCard.top - gridElement.getBoundingClientRect().top,
           cardFooterGap: status.top - lastCard.bottom,
           compactSearch: searchForm.height > filterElement.getBoundingClientRect().height &&
             searchForm.height <= filterElement.getBoundingClientRect().height + 20,
@@ -2162,8 +2381,14 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           neutralCategories: categoryColors.size === 1,
           accentedCategoryCounts: categoryCountColors.size === 1 &&
             [...categoryCountColors][0] !== [...categoryColors][0],
-          separatorNotUnderlined: getComputedStyle(document.querySelector(".index-picker__category"), "::after").display === "inline-block" &&
-            getComputedStyle(document.querySelector(".index-picker__category"), "::after").textDecorationLine === "none",
+          boxedCategoryFilters: categoryLinks.every((item) => {
+            const style = getComputedStyle(item)
+            return style.display === resetStyle.display && style.minHeight === resetStyle.minHeight &&
+              style.borderTopStyle === resetStyle.borderTopStyle && style.paddingLeft === resetStyle.paddingLeft &&
+              style.paddingRight === resetStyle.paddingRight && style.lineHeight === resetStyle.lineHeight
+          }),
+          categorySeparatorsRemoved: categoryLinks.every((item) =>
+            getComputedStyle(item, "::after").content === "none"),
           uniformPanelBackgrounds: panelBackgrounds.size === 1,
           pluginMetricEyecatcher: parseFloat(fetchNumber.fontSize) > parseFloat(fetchLabel.fontSize) * 2.5 &&
             Math.abs(fetchRule.width - fetchHead.width) < 1 && fetchRule.top > fetchHead.bottom,
@@ -2198,7 +2423,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert metrics["balancedFooterInsets"]
     assert metrics["matchingFooterTypography"]
     assert metrics["matchingSectionHeadingGaps"]
-    assert_in_delta 7, metrics["filterCardGap"], 1.1
+    assert_in_delta 7, metrics["filterGridGap"], 1.1, metrics.inspect
+    assert_in_delta 0, metrics["cardGridGap"], 0.1, metrics.inspect
+    assert_in_delta 7, metrics["filterCardGap"], 1.1, metrics.inspect
     assert_in_delta 7, metrics["cardFooterGap"], 1.1
     assert metrics["compactSearch"]
     assert metrics["gridUnpadded"]
@@ -2213,7 +2440,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert metrics["noShadow"]
     assert metrics["neutralCategories"]
     assert metrics["accentedCategoryCounts"]
-    assert metrics["separatorNotUnderlined"]
+    assert metrics["boxedCategoryFilters"]
+    assert metrics["categorySeparatorsRemoved"]
     assert metrics["uniformPanelBackgrounds"]
     assert metrics["pluginMetricEyecatcher"]
     assert metrics["recentClearsSearch"]
@@ -2812,6 +3040,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_operator page.evaluate_script("window.scrollY"), :>, scroll_before
 
     visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => new Promise((resolve, reject) => {
@@ -2825,7 +3054,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_selector "[data-index-picker-target='resultRange']", text: /19–22 \/ 22/
     assert_equal "3", find("input[aria-label='Jump to result page']").value
     assert_selector "[data-index-picker-target='pageTotal']", text: "3"
-    assert_selector "[data-index-picker-target='visibleCategories']", text: /filter.*appearance 1.*system 1.*widgets 1.*other 19/i
+    assert_selector "[data-index-picker-target='visibleCategories']", text: /appearance 1.*kids 0.*system 1.*widgets 1.*other 19/im
     assert_no_selector ".index-picker.is-level-opening, .index-picker.is-level-returning"
     assert_selector ".recent-band:not([hidden])"
     assert_equal "3", Rack::Utils.parse_nested_query(URI(page.current_url).query)["page"]
@@ -3110,6 +3339,44 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_selector ".index-picker__row", count: 0
   end
 
+  test "malformed Security facet counts fail closed without replacing Browse" do
+    visit root_path(sort: "name")
+    find(".index-search__filter-toggle").click
+    original_names = all(".index-picker__row .index-picker__card-name").map(&:text)
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.fetch = async (url, options = {}) => {
+        const query = new URL(url).searchParams.get("q") || ""
+        if (!query.startsWith("tag-count-")) return window.__realFetch(url, options)
+        const response = await window.__realFetch(url, options)
+        const payload = await response.json()
+        const mutation = query.slice("tag-count-".length)
+        if (mutation === "missing") delete payload.taxonomy.tag_counts
+        if (mutation === "null") payload.taxonomy.tag_counts = null
+        if (mutation === "array") payload.taxonomy.tag_counts = []
+        if (mutation === "extra") payload.taxonomy.tag_counts = { security: 0, other: 0 }
+        if (mutation === "missing-key") payload.taxonomy.tag_counts = {}
+        if (mutation === "string") payload.taxonomy.tag_counts = { security: "0" }
+        if (mutation === "negative") payload.taxonomy.tag_counts = { security: -1 }
+        if (mutation === "fractional") payload.taxonomy.tag_counts = { security: 0.5 }
+        if (mutation === "unsafe") payload.taxonomy.tag_counts = { security: Number.MAX_SAFE_INTEGER + 1 }
+        return new Response(JSON.stringify(payload), {
+          status: 200, headers: { "Content-Type": "application/json" }
+        })
+      }
+    JS
+
+    %w[missing null array extra missing-key string negative fractional unsafe].each do |mutation|
+      page.execute_script("document.querySelector('[data-index-picker-target=live]').textContent = ''")
+      find("input[name='q']").set("tag-count-#{mutation}")
+      assert_selector "[data-index-picker-target='live']", text: /Search could not be updated/, visible: :all
+      assert_selector ".index-picker[data-search-stale='true']"
+      assert_equal original_names, all(".index-picker__row .index-picker__card-name").map(&:text)
+      assert_selector ".index-console.is-filter-open"
+      assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    end
+  end
+
   test "malformed JSON and oversized bodies cannot replace the nine-card window" do
     visit root_path(sort: "name")
     page.execute_script <<~JS
@@ -3218,22 +3485,79 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     end
   end
 
-  test "actual depth changes use page-open and return transitions" do
+  test "Search depth changes replace cards without moving or animating them" do
     visit root_path(sort: "name")
     search = find("input[name='q']")
     search.set("clock")
     assert_selector ".index-search.is-active"
     assert_no_selector ".index-query-plan"
-    assert_selector ".index-picker[data-level-transition='opening']"
     assert_selector ".index-search__suggestions:not([hidden])"
+    assert_equal({ "animation" => "none", "transform" => "none", "transition" => nil },
+      page.evaluate_script(<<~JS))
+        (() => {
+          const picker = document.querySelector(".index-picker")
+          const style = getComputedStyle(picker)
+          return {
+            animation: style.animationName,
+            transform: style.transform,
+            transition: picker.dataset.levelTransition || null
+          }
+        })()
+      JS
 
     search.send_keys(:escape)
     assert_field "q", with: "clock"
     assert_no_selector ".index-search__suggestions"
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.__returnCard = document.querySelector(".index-picker__card")
+      window.__returnLeft = window.__returnCard.getBoundingClientRect().left
+      window.__returnTop = window.__returnCard.getBoundingClientRect().top
+      window.fetch = (url, options = {}) => {
+        if (new URL(url).searchParams.get("q")) return window.__realFetch(url, options)
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => window.__realFetch(url, options).then(resolve, reject), 300)
+          options.signal?.addEventListener("abort", () => {
+            window.clearTimeout(timer)
+            reject(new DOMException("Aborted", "AbortError"))
+          }, { once: true })
+        })
+      }
+    JS
     search.send_keys(:escape)
+    sleep 0.08
+    pending_motion = page.evaluate_script <<~JS
+      (() => {
+        const card = document.querySelector(".index-picker__card")
+        const pickerStyle = getComputedStyle(document.querySelector(".index-picker"))
+        return {
+          sameCard: card === window.__returnCard,
+          left: card.getBoundingClientRect().left - window.__returnLeft,
+          top: card.getBoundingClientRect().top - window.__returnTop,
+          animation: pickerStyle.animationName,
+          transform: pickerStyle.transform
+        }
+      })()
+    JS
+    assert pending_motion["sameCard"]
+    assert_in_delta 0, pending_motion["left"], 0.1
+    assert_in_delta 0, pending_motion["top"], 0.1
+    assert_equal "none", pending_motion["animation"]
+    assert_equal "none", pending_motion["transform"]
     assert_selector ".index-search:not(.is-active)"
-    assert_selector ".index-picker[data-level-transition='returning']"
     assert_current_path root_path(sort: "name")
+    assert_equal({ "animation" => "none", "transform" => "none", "transition" => nil },
+      page.evaluate_script(<<~JS))
+        (() => {
+          const picker = document.querySelector(".index-picker")
+          const style = getComputedStyle(picker)
+          return {
+            animation: style.animationName,
+            transform: style.transform,
+            transition: picker.dataset.levelTransition || null
+          }
+        })()
+      JS
   end
 
   test "mobile browse removes page-history chrome and keeps larger card tiles" do
@@ -3246,6 +3570,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const picker = document.querySelector(".index-picker")
         const card = document.querySelector(".index-picker__card")
         const name = document.querySelector(".index-picker__card-name")
+        const controls = [
+          ".index-search__result", ".index-search__clear", ".index-search__reset", ".index-search__filter-toggle"
+        ].map((selector) => document.querySelector(selector).getBoundingClientRect())
         return {
           layersHidden: [...document.querySelectorAll(".index-browse-layer, .index-picker__layer-head")]
             .every((element) => getComputedStyle(element).display === "none"),
@@ -3257,6 +3584,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           cards: document.querySelectorAll(".index-picker__card").length,
           statusLeftHidden: getComputedStyle(document.querySelector(".index-picker__status-left")).display === "none",
           keyHintsHidden: getComputedStyle(document.querySelector(".index-picker__keys")).display === "none",
+          searchControlsAligned: controls.every((control) => Math.abs(control.top - controls[0].top) < 0.5 &&
+            Math.abs(control.bottom - controls[0].bottom) < 0.5) && controls.every((control, index) =>
+            controls.slice(index + 1).every((other) => control.right <= other.left || other.right <= control.left)),
           pageTargetHeight: document.querySelector(".index-picker__page input").getBoundingClientRect().height,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         }
@@ -3272,8 +3602,32 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal HomeController::PER_PAGE, metrics["cards"]
     assert metrics["statusLeftHidden"]
     assert metrics["keyHintsHidden"]
+    assert metrics["searchControlsAligned"]
     assert_operator metrics["pageTargetHeight"], :>=, 44
     assert_equal 0, metrics["overflow"]
+
+    find(".index-search__filter-toggle").click
+    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+    filter_layout = page.evaluate_script <<~JS
+      (() => {
+        const layer = document.querySelector(".index-picker__layer-head")
+        const scroller = layer.querySelector("[data-index-picker-target='visibleCategories']")
+        const toggle = document.querySelector(".index-search__filter-toggle")
+        const option = document.querySelector(".index-picker__filter-option")
+        return {
+          height: layer.getBoundingClientRect().height,
+          internalOverflow: scroller.scrollWidth - scroller.clientWidth,
+          pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          matchingFont: getComputedStyle(toggle).fontSize === getComputedStyle(option).fontSize,
+          duplicateLabel: Boolean(layer.querySelector(".index-picker__filter-label, .index-picker__filter-glyph"))
+        }
+      })()
+    JS
+    assert_equal 38, filter_layout["height"]
+    assert_operator filter_layout["internalOverflow"], :>, 0
+    assert_equal 0, filter_layout["pageOverflow"]
+    assert filter_layout["matchingFont"]
+    refute filter_layout["duplicateLabel"]
 
     find(".index-browse__sort summary").click
     assert_selector ".index-browse__sort.is-open .index-browse__sort-options a", count: HomeController::SORTS.size
@@ -3303,7 +3657,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
   test "back and forward restore category browse context" do
     visit root_path(category: "widgets", sort: "name")
     assert_selector ".index-picker__row", count: 1, text: "alpha"
-    assert_selector ".index-console--has-context [data-index-picker-target='visibleCategories']", text: /filter.*widgets 1/i
+    assert_selector ".index-console--has-context.is-filter-open [data-index-picker-target='visibleCategories']", text: /widgets 1/i
 
     find("body").send_keys(:backspace)
     assert_current_path root_path(sort: "name")
@@ -3312,7 +3666,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.go_back
     assert_current_path root_path(category: "widgets", sort: "name")
     assert_selector ".index-picker__row", count: 1, text: "alpha"
-    assert_selector ".index-console--has-context [data-index-picker-target='visibleCategories']", text: /filter.*widgets 1/i
+    assert_selector ".index-console--has-context.is-filter-open [data-index-picker-target='visibleCategories']", text: /widgets 1/i
 
     page.go_forward
     assert_current_path root_path(sort: "name")

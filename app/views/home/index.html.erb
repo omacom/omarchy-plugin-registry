@@ -160,16 +160,16 @@
   </section>
 <% end %>
 
-<% browse_context = if @query.present?
-     "query / #{@query}"
-   elsif @category
-     "category / #{@category}"
-   elsif @tag
-     "tag / #{@tag}"
-   end %>
+<% browse_context = [
+     ("query / #{@query}" if @query.present?),
+     ("category / #{@category}" if @category),
+     ("tag / #{@tag}" if @tag)
+   ].compact.join(" + ").presence %>
 <section id="browse" class="index-console <%= 'index-console--has-context' if browse_context %>" aria-labelledby="directory-title"
          data-controller="index-picker browse-return"
          data-index-picker-categories-value="<%= Registry::Taxonomy::CATEGORIES.to_json %>"
+         data-index-picker-category-labels-value="<%= Registry::Taxonomy::CATEGORIES.index_with { |category| Registry::Taxonomy.label(category).downcase }.to_json %>"
+         data-index-picker-filter-tags-value="<%= HomeController::FILTER_TAGS.to_json %>"
          data-index-picker-tags-value="<%= Registry::Taxonomy::TAGS.to_json %>">
   <% range_start = @plugins.empty? ? 0 : (@page - 1) * @per_page + 1 %>
   <% range_end = @plugins.empty? ? 0 : [range_start + @plugins.size - 1, @total].min %>
@@ -227,6 +227,9 @@
       </button>
       <%= link_to "reset", directory_path(q: nil, category: nil, tag: nil), class: "index-search__reset", aria: { label: "Reset search and filters" } %>
       <kbd title="Focus search">/ · ctrl k</kbd>
+      <button type="button" class="index-search__filter-toggle" aria-label="Show plugin filters"
+        aria-controls="browse-filters" aria-expanded="false" data-index-picker-target="filterToggle"
+        data-action="index-picker#toggleFilters" hidden>filter</button>
     <% end %>
     <% search_examples = [ "wireguard", "@publisher", "author:publisher", "plugin:weather",
                            "kind:bar-widget", "tag:media", "category:system", 'text:"power profile"' ] %>

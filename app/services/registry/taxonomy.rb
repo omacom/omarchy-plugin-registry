@@ -6,7 +6,7 @@ module Registry
   # side effect.
   module Taxonomy
     CATEGORIES = %w[
-      appearance bar-widgets bars desktop developer-tools hardware menus
+      appearance bar-widgets bars desktop developer-tools hardware kids menus
       overlays panels productivity services system widgets other
     ].freeze
 
@@ -16,15 +16,15 @@ module Registry
     ].freeze
 
     MAX_TAGS = 3
+    CATEGORY_LABELS = { "developer-tools" => "Development" }.freeze
 
     module_function
 
     def category?(value) = CATEGORIES.include?(value)
     def tag?(value) = TAGS.include?(value)
 
-    # "developer-tools" => "Developer Tools"
     def label(slug)
-      slug.to_s.split("-").map(&:capitalize).join(" ")
+      CATEGORY_LABELS.fetch(slug.to_s) { slug.to_s.split("-").map(&:capitalize).join(" ") }
     end
   end
 end

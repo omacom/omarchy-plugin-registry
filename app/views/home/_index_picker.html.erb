@@ -1,13 +1,11 @@
 <% picker_total = @total %>
 <% range_start = @plugins.empty? ? 0 : (@page - 1) * @per_page + 1 %>
 <% range_end = @plugins.empty? ? 0 : [range_start + @plugins.size - 1, picker_total].min %>
-<% context_path = if @query.present?
-     "query:#{@query}"
-   elsif @category
-     "category:#{@category}"
-   elsif @tag
-     "tag:#{@tag}"
-   end %>
+<% context_path = [
+     ("query:#{@query}" if @query.present?),
+     ("category:#{@category}" if @category),
+     ("tag:#{@tag}" if @tag)
+   ].compact.join(" + ").presence %>
 <div class="index-picker"
   data-index-picker-target="picker"
   data-index-picker-page-value="<%= @page %>"
@@ -19,19 +17,30 @@
   <%
     registry_categories = Registry::Taxonomy::CATEGORIES.filter_map do |category|
       count = @category_counts.fetch(category, 0)
-      [ category, count ] if count.positive? || @category == category
+      [ category, count ] if count.positive? || @category == category || category == "kids"
     end
+    security_count = @tag_counts.fetch("security", 0)
   %>
-  <header class="index-picker__layer-head">
-    <span data-index-picker-target="visibleCategories" tabindex="-1"><b>filter</b><span aria-hidden="true"> / </span>
+  <header class="index-picker__layer-head" id="browse-filters">
+    <span data-index-picker-target="visibleCategories" tabindex="-1">
       <% if registry_categories.any? %>
         <% registry_categories.each do |category, count| %>
           <% category_active = @category == category %>
+          <% category_label = Registry::Taxonomy.label(category).downcase %>
           <%= link_to directory_path(category: (category_active ? nil : category)),
-                class: [ "index-picker__category", { "is-active": category_active } ],
-                aria: { label: (category_active ? "Clear #{category} category filter, #{count} registry plugins" : "Filter by #{category} category, #{count} registry plugins") },
+                class: [ "index-picker__filter-option", "index-picker__category", { "is-active": category_active } ],
+                aria: { label: (category_active ? "Clear #{category_label} category filter, #{count} registry plugins" : "Filter by #{category_label} category, #{count} registry plugins") },
                 data: { category: category, action: "click->index-picker#toggleCategory" } do %>
-            <%= category %> <strong><%= count %></strong>
+            <span><%= category_label %> <strong><%= count %></strong></span>
+          <% end %>
+        <% end %>
+        <% if security_count.positive? || @tag == "security" %>
+          <% security_active = @tag == "security" %>
+          <%= link_to directory_path(tag: (security_active ? nil : "security")),
+                class: [ "index-picker__filter-option", "index-picker__tag", { "is-active": security_active } ],
+                aria: { label: (security_active ? "Clear security tag filter, #{security_count} registry plugins" : "Filter by security tag, #{security_count} registry plugins") },
+                data: { tag: "security", action: "click->index-picker#toggleTag" } do %>
+            <span>security <strong><%= security_count %></strong></span>
           <% end %>
         <% end %>
       <% else %>

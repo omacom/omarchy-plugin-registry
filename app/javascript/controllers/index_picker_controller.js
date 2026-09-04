@@ -14,13 +14,15 @@ const WHEEL_STEP = 72
 const RESPONSE_TIMEOUT_MS = 8000
 
 export default class extends Controller {
-  static values = { categories: Array, tags: Array }
+  static values = {
+    categories: Array, categoryLabels: Object, filterTags: Array, tags: Array
+  }
 
   static targets = [
     "form", "input", "picker", "results", "row", "resultRange", "searchMatchCount", "live", "previous", "next",
     "fishPreview", "fishPrefix", "fishSuffix", "suggestions", "suggestion", "suggestionStatus",
     "visibleCategories", "breadcrumb", "pageStatus", "pageInput", "pageTotal",
-    "sortLink", "clear", "copyStatus"
+    "sortLink", "clear", "filterToggle", "copyStatus"
   ]
 
   connect() {
@@ -49,17 +51,15 @@ export default class extends Controller {
     this.queuedNavigation = null
     this.plugins = this.rowTargets.map((row) => this.pluginFromRow(row))
     this.enhanceShareLinks()
-    this.categoryCounts = Object.fromEntries(this.categoriesValue.map((category) => {
-      const link = [...this.visibleCategoriesTarget.querySelectorAll("a[data-category]")]
-        .find((candidate) => candidate.dataset.category === category)
-      const count = Number(link?.querySelector("strong")?.textContent || 0)
-      return [category, Number.isSafeInteger(count) && count >= 0 ? count : 0]
-    }))
+    this.categoryCounts = this.filterCounts("category", this.categoriesValue)
+    this.tagCounts = this.filterCounts("tag", this.filterTagsValue)
+    this.filtersExpanded = this.hasActiveFilters()
+    this.filterToggleTarget.hidden = false
+    this.syncFilterDisclosure()
     this.recentBand = document.querySelector("[data-index-recent]")
     this.index = this.plugins.length ? Math.min(this.index, this.plugins.length - 1) : -1
     this.selectionCleared = this.index < 0
     this.applySelection()
-    this.depthHasContext = this.hasContext()
     this.syncSortLinks()
     this.syncRecentVisibility()
     this.resizePageInput()
@@ -90,8 +90,6 @@ export default class extends Controller {
     window.clearTimeout(this.suggestionCloseTimer)
     window.clearTimeout(this.sortDisclosureTimer)
     cancelAnimationFrame(this.sortDisclosureFrame)
-    cancelAnimationFrame(this.levelAnimationFrame)
-    window.clearTimeout(this.levelAnimationTimer)
     this.cancelPendingRequest()
   }
 
@@ -102,12 +100,22 @@ export default class extends Controller {
     window.clearTimeout(this.sortDisclosureTimer)
     cancelAnimationFrame(this.sortDisclosureFrame)
     this.closeSuggestions()
+    const url = new URL(window.location.href)
+    this.canonicalizeHistoryFilters(url)
+    this.syncFilterInputs({
+      sort: url.searchParams.get("sort") || "downloads",
+      category: url.searchParams.get("category"),
+      tag: url.searchParams.get("tag")
+    })
     this.inputTarget.value = this.loadedQuery
     this.syncInputWidth()
     this.syncPickerState()
+    this.updateVisibleCategories()
     this.updateDepth(this.loadedQuery)
-    this.pickerTarget.classList.remove("is-level-opening", "is-level-returning", "is-pointer-mode")
-    this.pickerTarget.removeAttribute("data-level-transition")
+    this.filterToggleTarget.hidden = true
+    this.filterToggleTarget.setAttribute("aria-expanded", "false")
+    this.element.classList.remove("is-filter-open")
+    this.pickerTarget.classList.remove("is-pointer-mode")
     const sortDisclosure = this.element.querySelector("details.index-browse__sort")
     if (sortDisclosure) {
       sortDisclosure.open = false
@@ -136,7 +144,7 @@ export default class extends Controller {
     this.syncInputWidth()
     this.updateDepth(query, { pending: true })
     this.syncSortLinks()
-    this.syncCategoryLinks()
+    this.syncFilterLinks()
     this.syncRecentVisibility(1)
     this.searchTimer = window.setTimeout(() => {
       this.searchTimer = null
@@ -386,35 +394,92 @@ export default class extends Controller {
     if (!applied && !this.request && this.formSort() === sort) {
       this.replaceHiddenInput("sort", fallback === "downloads" ? "" : fallback)
       this.syncSortLinks()
-      this.syncCategoryLinks()
+      this.syncFilterLinks()
     }
     this.closeSortDisclosure(disclosure, { focus: true })
   }
 
-  async toggleCategory(event) {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    const category = event.currentTarget.dataset.category
-    if (!this.categoriesValue.includes(category)) return
+  async toggleFilters(event) {
     event.preventDefault()
-    const previous = new FormData(this.formTarget).get("category") || ""
-    const next = previous === category ? "" : category
-    this.replaceHiddenInput("category", next)
+    if (!this.filtersExpanded) {
+      this.filtersExpanded = true
+      this.syncFilterDisclosure()
+      return
+    }
+
+    const form = new FormData(this.formTarget)
+    const previous = { category: form.get("category") || "", tag: form.get("tag") || "" }
+    this.filtersExpanded = false
+    this.syncFilterDisclosure()
+    if (!previous.category && !previous.tag) return
+
+    this.replaceHiddenInput("category", "")
+    this.replaceHiddenInput("tag", "")
+    const loading = this.loadPage(1, { selectIndex: 0, history: "push" })
+    const generation = this.requestGeneration
+    const applied = await loading
+    if (!this.element.isConnected || generation !== this.requestGeneration || applied) return
+
+    if (!this.request && !this.hasActiveFilters()) {
+      this.replaceHiddenInput("category", previous.category)
+      this.replaceHiddenInput("tag", previous.tag)
+      this.filtersExpanded = true
+      this.syncFilterDisclosure()
+      this.syncSortLinks()
+      this.updateVisibleCategories()
+      this.updateDepth(this.loadedQuery)
+    }
+  }
+
+  hasActiveFilters() {
+    const form = new FormData(this.formTarget)
+    return Boolean(form.get("category") || form.get("tag"))
+  }
+
+  syncFilterDisclosure() {
+    this.element.classList.toggle("is-filter-open", this.filtersExpanded)
+    this.filterToggleTarget.classList.toggle("is-active", this.filtersExpanded)
+    this.filterToggleTarget.setAttribute("aria-expanded", String(this.filtersExpanded))
+    this.filterToggleTarget.setAttribute("aria-label", this.filtersExpanded ?
+      (this.hasActiveFilters() ? "Clear plugin filters and hide" : "Hide plugin filters") :
+      "Show plugin filters")
+  }
+
+  toggleCategory(event) {
+    return this.toggleFilter(event, "category", this.categoriesValue)
+  }
+
+  toggleTag(event) {
+    return this.toggleFilter(event, "tag", this.filterTagsValue)
+  }
+
+  async toggleFilter(event, name, allowedValues) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const value = event.currentTarget.dataset[name]
+    if (!allowedValues.includes(value)) return
+    event.preventDefault()
+    const previous = new FormData(this.formTarget).get(name) || ""
+    const next = previous === value ? "" : value
+    this.replaceHiddenInput(name, next)
+    this.syncFilterDisclosure()
     const loading = this.loadPage(1, { selectIndex: 0, history: "push" })
     const generation = this.requestGeneration
     const applied = await loading
     if (!this.element.isConnected || generation !== this.requestGeneration) return
 
-    if (!applied && !this.request && (new FormData(this.formTarget).get("category") || "") === next) {
-      this.replaceHiddenInput("category", previous)
+    if (!applied && !this.request && (new FormData(this.formTarget).get(name) || "") === next) {
+      this.replaceHiddenInput(name, previous)
+      this.syncFilterDisclosure()
       this.syncSortLinks()
       this.updateVisibleCategories()
+      this.updateDepth(this.loadedQuery)
     }
-    this.focusCategory(category)
+    this.focusFilter(name, value)
   }
 
-  focusCategory(category) {
-    const replacement = [...this.visibleCategoriesTarget.querySelectorAll("a[data-category]")]
-      .find((link) => link.dataset.category === category)
+  focusFilter(name, value) {
+    const replacement = [...this.visibleCategoriesTarget.querySelectorAll(`a[data-${name}]`)]
+      .find((link) => link.dataset[name] === value)
     const focusTarget = replacement || this.visibleCategoriesTarget
     focusTarget.focus({ preventScroll: true })
   }
@@ -620,7 +685,7 @@ export default class extends Controller {
     const query = this.canonicalQuery(this.inputTarget.value)
     this.inputTarget.value = query
     this.syncInputWidth()
-    this.syncCategoryLinks()
+    this.syncFilterLinks()
     const request = new AbortController()
     const expected = this.expectedResponse(page, query)
     this.request = request
@@ -640,6 +705,7 @@ export default class extends Controller {
       this.total = next.total
       this.more = next.more
       this.categoryCounts = next.categoryCounts
+      this.tagCounts = next.tagCounts
       this.loadedQuery = next.query
       this.suggestionQuery = next.query
       this.suggestions = next.suggestions
@@ -872,42 +938,57 @@ export default class extends Controller {
     return card
   }
 
-  updateVisibleCategories() {
-    const activeCategory = new FormData(this.formTarget).get("category")
-    const label = document.createElement("b")
-    label.textContent = "filter"
-    const separator = document.createElement("span")
-    separator.textContent = " / "
-    separator.setAttribute("aria-hidden", "true")
-    const entries = this.categoriesValue.filter((category) =>
-      (this.categoryCounts[category] || 0) > 0 || activeCategory === category)
-    const categoryNodes = entries.map((category) => {
-      const count = this.categoryCounts[category] || 0
-      const active = activeCategory === category
-      const link = document.createElement("a")
-      link.className = `index-picker__category${active ? " is-active" : ""}`
-      link.href = this.categoryUrl(category)
-      link.dataset.category = category
-      link.dataset.action = "click->index-picker#toggleCategory"
-      link.setAttribute("aria-label", active ?
-        `Clear ${category} category filter, ${count} registry plugins` :
-        `Filter by ${category} category, ${count} registry plugins`)
-      link.append(document.createTextNode(`${category} `))
-      const total = document.createElement("strong")
-      total.textContent = count
-      link.append(total)
-      return link
-    })
+  filterCounts(name, values) {
+    return Object.fromEntries(values.map((value) => {
+      const link = [...this.visibleCategoriesTarget.querySelectorAll(`a[data-${name}]`)]
+        .find((candidate) => candidate.dataset[name] === value)
+      const count = Number(link?.querySelector("strong")?.textContent || 0)
+      return [value, Number.isSafeInteger(count) && count >= 0 ? count : 0]
+    }))
+  }
 
-    if (categoryNodes.length) {
-      this.visibleCategoriesTarget.replaceChildren(label, separator, ...categoryNodes)
+  updateVisibleCategories() {
+    const form = new FormData(this.formTarget)
+    const categoryNodes = this.categoriesValue.filter((category) =>
+      (this.categoryCounts[category] || 0) > 0 || form.get("category") === category || category === "kids"
+    ).map((category) => this.filterOption(
+      "category", category, this.categoryLabelsValue[category] || category,
+      this.categoryCounts[category] || 0, form.get("category") === category
+    ))
+    const tagNodes = this.filterTagsValue.filter((tag) =>
+      (this.tagCounts[tag] || 0) > 0 || form.get("tag") === tag
+    ).map((tag) => this.filterOption(
+      "tag", tag, tag, this.tagCounts[tag] || 0, form.get("tag") === tag
+    ))
+    const filters = [ ...categoryNodes, ...tagNodes ]
+
+    if (filters.length) {
+      this.visibleCategoriesTarget.replaceChildren(...filters)
     } else {
       const empty = document.createElement("i")
       empty.className = "index-picker__category"
       empty.dataset.category = "other"
       empty.textContent = "none"
-      this.visibleCategoriesTarget.replaceChildren(label, separator, empty)
+      this.visibleCategoriesTarget.replaceChildren(empty)
     }
+  }
+
+  filterOption(name, value, label, count, active) {
+    const link = document.createElement("a")
+    link.className = `index-picker__filter-option index-picker__${name}${active ? " is-active" : ""}`
+    link.href = this.filterUrl(name, value)
+    link.dataset[name] = value
+    link.dataset.action = `click->index-picker#toggle${name[0].toUpperCase()}${name.slice(1)}`
+    link.setAttribute("aria-label", active ?
+      `Clear ${label} ${name} filter, ${count} registry plugins` :
+      `Filter by ${label} ${name}, ${count} registry plugins`)
+    const text = document.createElement("span")
+    text.append(document.createTextNode(`${label} `))
+    const total = document.createElement("strong")
+    total.textContent = count
+    text.append(total)
+    link.append(text)
+    return link
   }
 
   suggestionFromElement(element) {
@@ -1058,14 +1139,13 @@ export default class extends Controller {
 
   updateDepth(query, { pending = false, unavailable = false } = {}) {
     const cleanQuery = query.trim()
-    const context = cleanQuery ? `query / ${cleanQuery}` : this.formContext()
+    const depthQuery = pending ? this.loadedQuery.trim() : cleanQuery
+    const context = [ depthQuery ? `query / ${depthQuery}` : "", this.formContext() ]
+      .filter(Boolean).join(" + ")
     const hasContext = Boolean(context)
-    if (this.depthHasContext !== undefined && hasContext !== this.depthHasContext) {
-      this.animateLevel(hasContext)
-    }
-    this.depthHasContext = hasContext
+    this.inputTarget.closest(".index-search")?.classList.toggle("is-active", Boolean(depthQuery))
     this.element.classList.toggle("index-console--has-context", hasContext)
-    this.breadcrumbTarget.textContent = `all${hasContext ? ` › ${context.replace(" / ", ":")}` : ""} › results`
+    this.breadcrumbTarget.textContent = `all${hasContext ? ` › ${context.replaceAll(" / ", ":")}` : ""} › results`
 
     this.searchMatchCountTarget.hidden = !cleanQuery
     if (!cleanQuery) return
@@ -1076,25 +1156,11 @@ export default class extends Controller {
       (unavailable ? "Plugin search unavailable" : `${this.total} ${this.total === 1 ? "plugin" : "plugins"} found for ${cleanQuery}`))
   }
 
-  animateLevel(forward) {
-    cancelAnimationFrame(this.levelAnimationFrame)
-    window.clearTimeout(this.levelAnimationTimer)
-    this.pickerTarget.classList.remove("is-level-opening", "is-level-returning")
-    this.pickerTarget.dataset.levelTransition = forward ? "opening" : "returning"
-    this.levelAnimationFrame = requestAnimationFrame(() => {
-      this.pickerTarget.classList.add(forward ? "is-level-opening" : "is-level-returning")
-      this.levelAnimationTimer = window.setTimeout(() => {
-        this.pickerTarget.classList.remove("is-level-opening", "is-level-returning")
-      }, 260)
-    })
-  }
-
   syncInputWidth() {
     const length = Array.from(this.inputTarget.value).length
     this.inputTarget.style.width = `${length ? Math.min(Math.max(length + 1, 12), 48) : 48}ch`
     const active = Boolean(this.canonicalQuery(this.inputTarget.value))
     this.clearTarget.hidden = !active
-    this.inputTarget.closest(".index-search")?.classList.toggle("is-active", active)
   }
 
   asciiStrip(value) {
@@ -1139,6 +1205,10 @@ export default class extends Controller {
       category: url.searchParams.get("category"),
       tag: url.searchParams.get("tag")
     })
+    if (this.hasActiveFilters()) {
+      this.filtersExpanded = true
+      this.syncFilterDisclosure()
+    }
     this.syncSortLinks()
     const page = Number(url.searchParams.get("page") || 1)
     this.syncRecentVisibility(Number.isSafeInteger(page) && page > 0 ? page : 1)
@@ -1183,9 +1253,10 @@ export default class extends Controller {
 
   formContext() {
     const data = new FormData(this.formTarget)
-    if (data.get("category")) return `category / ${data.get("category")}`
-    if (data.get("tag")) return `tag / ${data.get("tag")}`
-    return ""
+    return [
+      data.get("category") ? `category / ${data.get("category")}` : "",
+      data.get("tag") ? `tag / ${data.get("tag")}` : ""
+    ].filter(Boolean).join(" + ")
   }
 
   hasContext() {
@@ -1349,6 +1420,19 @@ export default class extends Controller {
       return [category.slug, category.count]
     }))
 
+    const tagCountsPayload = data.taxonomy?.tag_counts
+    if (!tagCountsPayload || typeof tagCountsPayload !== "object" || Array.isArray(tagCountsPayload) ||
+        Object.keys(tagCountsPayload).length !== this.filterTagsValue.length) {
+      throw new TypeError("Invalid search tag counts")
+    }
+    const tagCounts = Object.fromEntries(this.filterTagsValue.map((tag) => {
+      const count = tagCountsPayload[tag]
+      if (!Object.hasOwn(tagCountsPayload, tag) || !Number.isSafeInteger(count) || count < 0) {
+        throw new TypeError("Invalid search tag count")
+      }
+      return [tag, count]
+    }))
+
     const remaining = Math.max(page.total - (page.number - 1) * page.per_page, 0)
     if (!Array.isArray(data.plugins) || data.plugins.length !== Math.min(page.per_page, remaining)) {
       throw new TypeError("Invalid search plugins")
@@ -1419,6 +1503,7 @@ export default class extends Controller {
       suggestions,
       plugins,
       categoryCounts,
+      tagCounts,
       catalogRevision: data.catalog_revision
     }
   }
@@ -1589,17 +1674,19 @@ export default class extends Controller {
     return url
   }
 
-  syncCategoryLinks() {
-    this.visibleCategoriesTarget.querySelectorAll("a[data-category]").forEach((link) => {
-      link.href = this.categoryUrl(link.dataset.category)
+  syncFilterLinks() {
+    [ "category", "tag" ].forEach((name) => {
+      this.visibleCategoriesTarget.querySelectorAll(`a[data-${name}]`).forEach((link) => {
+        link.href = this.filterUrl(name, link.dataset[name])
+      })
     })
   }
 
-  categoryUrl(category) {
+  filterUrl(name, value) {
     const url = new URL(this.formTarget.action, window.location.origin)
     const params = this.formParams(this.canonicalQuery(this.inputTarget.value))
-    if (params.get("category") === category) params.delete("category")
-    else params.set("category", category)
+    if (params.get(name) === value) params.delete(name)
+    else params.set(name, value)
     url.search = params.toString()
     return url
   }

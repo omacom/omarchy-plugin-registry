@@ -72,12 +72,33 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_includes body["taxonomy"]["search_operators"], "plugin:"
     assert_includes body["taxonomy"]["search_operators"], "text:"
     assert_includes body["taxonomy"]["tags"], "weather"
-    widgets = body["taxonomy"]["categories"].find { |c| c["slug"] == "widgets" }
-    assert_equal({ "slug" => "widgets", "label" => "Widgets", "count" => 1, "match_count" => 0 }, widgets)
+    categories = body["taxonomy"]["categories"].index_by { |category| category["slug"] }
+    assert_equal({ "slug" => "widgets", "label" => "Widgets", "count" => 1, "match_count" => 0 },
+      categories["widgets"])
+    assert_equal "Development", categories["developer-tools"]["label"]
+    assert_equal({ "slug" => "kids", "label" => "Kids", "count" => 0, "match_count" => 0 },
+      categories["kids"])
+    assert_equal({ "security" => 0 }, body["taxonomy"]["tag_counts"])
 
     assert_equal 1, body["page"]["number"]
     assert_equal 1, body["page"]["total"]
     refute body["page"]["more"]
+  end
+
+  test "Security facet counts distinct directory-visible plugins only" do
+    visible = Plugin.create!(publisher: @acme, name: "secure", summary: "Security",
+      latest_version: "1.0.0", tags: %w[security security])
+    visible.versions.create!(version: "1.0.0", manifest: {}, sha256: "9" * 64,
+      size_bytes: 1, state: :published, published_at: 1.day.ago)
+    Plugin.create!(publisher: @acme, name: "unreleased-secure", summary: "Hidden", tags: [ "security" ])
+    Plugin.create!(publisher: @acme, name: "held-secure", summary: "Held",
+      latest_version: "1.0.0", tags: [ "security" ], state: :security_holding)
+
+    get directory_json_path
+    assert_equal 1, body.dig("taxonomy", "tag_counts", "security")
+
+    get root_path
+    assert_select "a.index-picker__tag[data-tag='security']", text: /security 1/i, count: 1
   end
 
   test "directory JSON honours the same filters and typed operators as the page" do
