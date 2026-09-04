@@ -430,13 +430,13 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
 
     assert_select ".recent-band .recent-card", count: HomeController::MOST_WANTED_LIMIT
     assert_select ".recent-band .recent-card--master", text: /half-synced/, count: 1 do
-      assert_select ".recent-card__art--fallback", count: 1
+      assert_select ".recent-card__art--fallback.discovery-preview-fallback", text: "[ preview unavailable ]", count: 1
     end
     assert_select ".recent-band .recent-card .recent-card__art[src]", count: 4
     assert_select ".recent-stream__group:not(.recent-stream__group--duplicate)" do
       assert_select ".recent-stream__card", count: 7
       assert_select ".recent-stream__visual img", count: 5
-      assert_select ".recent-stream__fallback", count: 2
+      assert_select ".recent-stream__fallback.discovery-preview-fallback", text: "[ preview unavailable ]", count: 2
       assert_select ".recent-stream__primary .recent-stream__name", count: 7
       assert_select ".recent-stream__secondary .recent-stream__publisher", count: 7
       assert_select "mark, b", count: 0

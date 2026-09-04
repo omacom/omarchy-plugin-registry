@@ -637,16 +637,45 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
     assert_selector ".recent-stream__group:not(.recent-stream__group--duplicate) .recent-stream__card", count: 3
     assert_selector ".recent-stream__group:not(.recent-stream__group--duplicate) .recent-stream__visual img", count: 1
-    assert_selector ".recent-stream__group:not(.recent-stream__group--duplicate) .recent-stream__fallback", count: 2
-    widths = page.evaluate_script <<~JS
-      (() => ({
-        wanted: document.querySelector(".recent-stack .recent-card").offsetWidth,
-        recentlyAdded: document.querySelector(".recent-stream__card").offsetWidth,
-        shadow: getComputedStyle(document.querySelector(".recent-stream__card")).boxShadow
-      }))()
+    assert_selector ".recent-stream__group:not(.recent-stream__group--duplicate) .recent-stream__fallback",
+      text: "[ preview unavailable ]", count: 2
+    presentation = page.evaluate_script <<~JS
+      (() => {
+        const wantedFallback = document.querySelector(".recent-stack .recent-card__art--fallback")
+        const streamFallback = document.querySelector(".recent-stream__fallback")
+        const fallbackProperties = [
+          "alignItems", "backgroundColor", "backgroundImage", "color", "display", "filter",
+          "fontFamily", "fontSize", "fontWeight", "justifyContent", "letterSpacing", "lineHeight",
+          "paddingBottom", "paddingLeft", "paddingRight", "paddingTop", "textAlign"
+        ]
+        const wantedStyle = getComputedStyle(wantedFallback)
+        const streamStyle = getComputedStyle(streamFallback)
+        const textCenter = (element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const rect = range.getBoundingClientRect()
+          return rect.top + rect.height / 2
+        }
+        return {
+          wanted: document.querySelector(".recent-stack .recent-card").offsetWidth,
+          recentlyAdded: document.querySelector(".recent-stream__card").offsetWidth,
+          shadow: getComputedStyle(document.querySelector(".recent-stream__card")).boxShadow,
+          trendingAlignment: Math.abs(
+            textCenter(document.querySelector(".recent-band__more")) -
+            textCenter(document.querySelector(".recent-band__step"))
+          ),
+          fallbackMatches: fallbackProperties.every((property) => wantedStyle[property] === streamStyle[property]),
+          copyCursors: [...document.querySelectorAll(
+            ".index-picker__card-name, .recent-card__name, .recent-stream__name"
+          )].map((link) => getComputedStyle(link).cursor)
+        }
+      })()
     JS
-    assert_in_delta widths["wanted"], widths["recentlyAdded"], 1
-    refute_equal "none", widths["shadow"]
+    assert_in_delta presentation["wanted"], presentation["recentlyAdded"], 1
+    refute_equal "none", presentation["shadow"]
+    assert_in_delta 0, presentation["trendingAlignment"], 0.1
+    assert presentation["fallbackMatches"]
+    assert_equal [ "copy" ], presentation["copyCursors"].uniq
     assert page.evaluate_script <<~JS
       (() => {
         const viewport = document.querySelector(".recent-stream__viewport")
@@ -681,11 +710,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       }))()
     JS
     assert_operator moving["x"], :>, first_x, "the stream should travel toward the right"
-    assert moving["shadows"].all? { |shadow| shadow == widths["shadow"] }, "moving cards must retain their shadows"
+    assert moving["shadows"].all? { |shadow| shadow == presentation["shadow"] }, "moving cards must retain their shadows"
 
     find(".recent-stream__viewport").hover
     assert_equal "paused", page.evaluate_script("getComputedStyle(document.querySelector('.recent-stream__track')).animationPlayState")
-    paused_shadows = page.evaluate_script(<<~JS, widths["shadow"])
+    paused_shadows = page.evaluate_script(<<~JS, presentation["shadow"])
       [...document.querySelectorAll(".recent-stream__card")]
         .every((card) => getComputedStyle(card).boxShadow === arguments[0])
     JS
