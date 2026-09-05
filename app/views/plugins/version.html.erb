@@ -48,6 +48,7 @@
           <code><%= @plugin.full_name %></code> without the version.</p>
       <% end %>
     <% end %>
+    <%= render "plugins/compatibility", version: @version, assessments: @compatibility_assessments %>
     <div class="readme" data-controller="readme-code">
       <% if @readme.present? %>
         <%= render_markdown @readme, asset_base: readme_asset_base(@version) %>

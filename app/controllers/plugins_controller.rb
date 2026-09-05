@@ -29,7 +29,8 @@ class PluginsController < ApplicationController
     @versions = visible_versions.order(version_sort_key: :desc)
     @notices = Registry::PluginNotices.for_version(version: @version)
     @readme = version_readme(@version)
-    freshen(@plugin, @version, @latest, @notices.map(&:kind))
+    @compatibility_assessments = @version.compatibility_assessments.includes(:omarchy_release).order(updated_at: :desc).limit(100)
+    freshen(@plugin, @version, @latest, @notices.map(&:kind), @compatibility_assessments.map(&:entry))
   end
 
   private

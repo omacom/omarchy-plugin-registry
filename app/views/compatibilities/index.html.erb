@@ -1,0 +1,15 @@
+<% content_for :title, "Compatibility inbox — Omarchy Hub" %>
+<div class="content-page container">
+  <h1>Compatibility inbox</h1>
+  <p class="lede">Recent reports and checks for your packages. A break may be an Omarchy regression, not a creator mistake.</p>
+  <% if Current.user.admin? %><p><%= link_to "Register Omarchy releases", admin_omarchy_releases_path %></p><% end %>
+  <table class="table">
+    <thead><tr><th>Package release</th><th>Omarchy version / build</th><th>Status</th></tr></thead>
+    <tbody>
+      <% @assessments.each do |assessment| %>
+        <tr><td><%= link_to "#{assessment.plugin_version.plugin.full_name}@#{assessment.plugin_version.version}", compatibility_path(assessment) %></td><td><%= assessment.omarchy_release.label %></td><td><%= assessment.status.humanize %></td></tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @assessments.empty? %><p>No compatibility evidence yet.</p><% end %>
+</div>

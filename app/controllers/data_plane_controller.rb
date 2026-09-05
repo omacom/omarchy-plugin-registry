@@ -5,6 +5,7 @@ class DataPlaneController < ActionController::API
   def config = serve("config.json#{sig_suffix}", type: content_type_for_json)
   def all = serve("all.json#{sig_suffix}", type: content_type_for_json)
   def revocations = serve("revocations.json#{sig_suffix}", type: content_type_for_json)
+  def compatibility = serve("compatibility.json#{sig_suffix}", type: content_type_for_json)
   def legacy_map = serve("legacy-map.json#{sig_suffix}", type: content_type_for_json)
   def signing_key = serve("signing-key.pub", type: "text/plain")
 

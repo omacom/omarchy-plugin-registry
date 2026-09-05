@@ -1,0 +1,9 @@
+Compatibility needs a look
+
+<%= @version.plugin.full_name %>@<%= @version.version %> on Omarchy <%= @target.label %>
+Status: <%= @evidence["status"].humanize %>. <%= @evidence["works"] %> working reports; <%= @evidence["problems"] %> problem reports from unmodified copies.
+<%= @assessment.reason %>
+
+Review evidence and reproduction details: <%= compatibility_url(@assessment) %>
+
+This may be an Omarchy regression. Community reports alone never block installation. Report details are visible to your publishing team and moderators; no logs are uploaded automatically.

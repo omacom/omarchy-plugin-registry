@@ -1,0 +1,28 @@
+<% content_for :title, "Omarchy release contracts — Omarchy Hub" %>
+<div class="content-page container">
+  <h1>Omarchy release contracts</h1>
+  <p>Register the exact shipped or candidate identity. Contracts are immutable; changed bytes or APIs require a new build identity. Candidate and development builds require a build identifier.</p>
+  <% if @release.errors.any? %><p role="alert"><%= @release.errors.full_messages.to_sentence %></p><% end %>
+  <%= form_with model: [:admin, @release], class: "form-stack u-max-narrow" do |form| %>
+    <div class="field"><%= form.label :version %><%= form.text_field :version, required: true, maxlength: 64, placeholder: "4.2.0-rc.1" %></div>
+    <div class="field"><%= form.label :build, "Build (commit SHA or package build ID)" %><%= form.text_field :build, maxlength: 80 %></div>
+    <div class="field"><%= form.label :channel %><%= form.select :channel, %w[stable candidate development] %></div>
+    <%= form.fields_for :apis do |apis| %>
+      <% %w[plugin theme].each do |kind| %>
+        <div class="field"><%= apis.label kind, "Supported #{kind} API versions" %><%= apis.select kind, (1..20).to_a, { selected: @release.apis.fetch(kind, [1]), include_hidden: false }, multiple: true, required: true %></div>
+      <% end %>
+    <% end %>
+    <%= form.submit "Register release", class: "button" %>
+  <% end %>
+  <table class="table"><thead><tr><th>Version / build</th><th>Channel</th><th>APIs</th></tr></thead><tbody>
+    <% @releases.each do |release| %><tr><td><%= release.label %></td><td><%= release.channel %></td><td><%= release.apis.to_json %></td></tr><% end %>
+  </tbody></table>
+  <section>
+    <h2>Import isolated runner evidence</h2>
+    <p>Paste the JSON produced by a disposable candidate runner. Verify its exact archive SHA, Omarchy build, image/VM identity and test scope first. Infrastructure errors are inconclusive, not incompatibilities.</p>
+    <%= form_with url: admin_compatibility_checks_path, class: "form-stack" do |form| %>
+      <div class="field"><%= form.label :evidence, "Runner evidence JSON" %><%= form.textarea :evidence, rows: 12, maxlength: 100000, required: true %></div>
+      <%= form.submit "Record check evidence", class: "button" %>
+    <% end %>
+  </section>
+</div>

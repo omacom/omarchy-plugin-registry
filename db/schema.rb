@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_05_102426) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_05_172143) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -82,6 +82,55 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_102426) do
     t.index ["user_id"], name: "index_comments_on_user_id"
   end
 
+  create_table "compatibility_assessments", force: :cascade do |t|
+    t.integer "alert_level", default: 0, null: false
+    t.text "check_evidence", default: "", null: false
+    t.string "check_result", default: "not_run", null: false
+    t.datetime "created_at", null: false
+    t.string "decision", default: "none", null: false
+    t.integer "omarchy_release_id", null: false
+    t.integer "plugin_version_id", null: false
+    t.text "reason", default: "", null: false
+    t.integer "revision", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["omarchy_release_id"], name: "index_compatibility_assessments_on_omarchy_release_id"
+    t.index ["plugin_version_id", "omarchy_release_id"], name: "assessment_identity", unique: true
+    t.index ["plugin_version_id"], name: "index_compatibility_assessments_on_plugin_version_id"
+    t.check_constraint "check_result IN ('not_run', 'passed', 'failed', 'inconclusive')", name: "compatibility_check_result"
+    t.check_constraint "decision IN ('none', 'incompatible')", name: "compatibility_decision"
+    t.check_constraint "revision >= 0 AND alert_level BETWEEN 0 AND 3", name: "compatibility_counters"
+  end
+
+  create_table "compatibility_notifications", force: :cascade do |t|
+    t.integer "compatibility_assessment_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "level", null: false
+    t.datetime "sent_at"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["compatibility_assessment_id", "user_id", "level"], name: "compatibility_notification_identity", unique: true
+    t.index ["compatibility_assessment_id"], name: "idx_on_compatibility_assessment_id_2e3ff40b20"
+    t.index ["sent_at"], name: "index_compatibility_notifications_on_sent_at"
+    t.index ["user_id"], name: "index_compatibility_notifications_on_user_id"
+    t.check_constraint "level BETWEEN 1 AND 3", name: "compatibility_notification_level"
+  end
+
+  create_table "compatibility_reports", force: :cascade do |t|
+    t.string "category", null: false
+    t.integer "compatibility_assessment_id", null: false
+    t.datetime "created_at", null: false
+    t.text "details", default: "", null: false
+    t.boolean "modified", default: false, null: false
+    t.string "outcome", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["compatibility_assessment_id", "user_id"], name: "one_compatibility_report_per_user", unique: true
+    t.index ["compatibility_assessment_id"], name: "index_compatibility_reports_on_compatibility_assessment_id"
+    t.index ["user_id"], name: "index_compatibility_reports_on_user_id"
+    t.check_constraint "category IN ('appearance', 'activation', 'other', 'none')", name: "compatibility_report_category"
+    t.check_constraint "outcome IN ('works', 'problem')", name: "compatibility_report_outcome"
+  end
+
   create_table "daily_downloads", force: :cascade do |t|
     t.integer "count", default: 0, null: false
     t.date "date", null: false
@@ -133,6 +182,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_102426) do
     t.index ["publisher_id", "user_id"], name: "index_memberships_on_publisher_id_and_user_id", unique: true
     t.index ["publisher_id"], name: "index_memberships_on_publisher_id"
     t.index ["user_id"], name: "index_memberships_on_user_id"
+  end
+
+  create_table "omarchy_releases", force: :cascade do |t|
+    t.json "apis", default: {}, null: false
+    t.string "build", default: "", null: false
+    t.string "channel", default: "stable", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "version", null: false
+    t.index ["version", "build"], name: "index_omarchy_releases_on_version_and_build", unique: true
+    t.check_constraint "channel IN ('stable', 'candidate', 'development')", name: "release_channel"
   end
 
   create_table "passkeys", force: :cascade do |t|
@@ -326,6 +386,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_102426) do
   add_foreign_key "audit_events", "users"
   add_foreign_key "comments", "plugins"
   add_foreign_key "comments", "users"
+  add_foreign_key "compatibility_assessments", "omarchy_releases"
+  add_foreign_key "compatibility_assessments", "plugin_versions"
+  add_foreign_key "compatibility_notifications", "compatibility_assessments"
+  add_foreign_key "compatibility_notifications", "users"
+  add_foreign_key "compatibility_reports", "compatibility_assessments"
+  add_foreign_key "compatibility_reports", "users"
   add_foreign_key "daily_downloads", "plugin_versions"
   add_foreign_key "device_authorizations", "api_tokens"
   add_foreign_key "device_authorizations", "publishers"

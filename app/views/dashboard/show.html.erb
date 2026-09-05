@@ -41,6 +41,7 @@
     </div>
   <% end %>
 
+  <p><%= link_to "Compatibility inbox", compatibilities_path %></p>
   <% @publishers.each do |publisher| %>
     <section>
       <h2><%= publisher.name %> <% if publisher.org? %><span class="badge">org</span><% end %></h2>

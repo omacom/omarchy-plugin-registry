@@ -1,0 +1,11 @@
+<%# locals: (version:, assessments:) %>
+<section>
+  <h2>Version compatibility</h2>
+  <% if version.manifest["compatibility"].present? %><p>Author requirements: <code><%= version.manifest["compatibility"].to_json %></code></p><% end %>
+  <p>Unknown means untested, not incompatible. Three independent problem reports raise a warning; only an audited confirmation blocks this release on the affected Omarchy build.</p>
+  <table class="table"><thead><tr><th>Omarchy version / build</th><th>Evidence</th></tr></thead><tbody>
+    <% assessments.each do |assessment| %><tr><td><%= assessment.omarchy_release.label %></td><td><%= link_to assessment.status.humanize, compatibility_path(assessment) %></td></tr><% end %>
+  </tbody></table>
+  <% if assessments.empty? %><p>Unknown — no compatibility evidence yet.</p><% end %>
+  <p><%= link_to "Works for me / report a problem", new_compatibility_report_path(publisher: version.plugin.publisher.name, name: version.plugin.name, version: version.version) %></p>
+</section>

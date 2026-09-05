@@ -1,0 +1,35 @@
+<% content_for :title, "Compatibility — Omarchy Hub" %>
+<div class="content-page container">
+  <h1><%= @version.plugin.full_name %>@<%= @version.version %></h1>
+  <p class="lede">Omarchy <%= @assessment.omarchy_release.label %>: <%= @evidence["status"].humanize %></p>
+  <p><%= @evidence["works"] %> working reports · <%= @evidence["problems"] %> problem reports from unmodified copies. These are user attestations, not verified installations.</p>
+  <p>Automated check: <%= @assessment.check_result.humanize %>. A passing check covers only the recorded test scope, not every app or machine.</p>
+  <% if @assessment.reason.present? %><p><%= @assessment.reason %></p><% end %>
+  <p><%= link_to "Works for me / report a problem", new_compatibility_report_path(publisher: @version.plugin.publisher.name, name: @version.plugin.name, version: @version.version, omarchy_version: @assessment.omarchy_release.version, omarchy_build: @assessment.omarchy_release.build) %></p>
+  <p><%= link_to "Package releases and alternatives", package_path(@version.plugin) %> · <%= link_to "Public decision audit", audit_log_path %></p>
+  <% if @privileged %>
+    <section>
+      <h2>Private evidence</h2>
+      <pre><%= @assessment.check_evidence %></pre>
+      <% @reports.each do |report| %>
+        <article>
+          <h3><%= report.outcome.humanize %> — <%= report.category %><%= " (modified copy)" if report.modified? %></h3>
+          <p class="muted"><%= report.updated_at.to_date %></p>
+          <pre><%= report.details %></pre>
+        </article>
+      <% end %>
+    </section>
+    <% if Current.user.admin? || Current.user.owner_of?(@version.plugin.publisher) %>
+      <section>
+        <h2>Confirm a decision</h2>
+        <p>Only this package release and Omarchy build are affected. Require reproduction evidence or creator acknowledgment. This is not a security revocation. Clearing a confirmed block requires a moderator.</p>
+        <%= form_with url: compatibility_decisions_path, scope: :decision, class: "form-stack u-max-narrow" do |form| %>
+          <%= form.hidden_field :compatibility_assessment_id, name: "compatibility_assessment_id", value: @assessment.id %>
+          <div class="field"><%= form.label :decision %><%= form.select :decision, Current.user.admin? ? [["Confirm incompatible", "incompatible"], ["Clear confirmed block", "none"]] : [["Acknowledge incompatibility", "incompatible"]] %></div>
+          <div class="field"><%= form.label :reason, "Public evidence / reproduction summary" %><%= form.textarea :reason, required: true, maxlength: 4000, rows: 5 %></div>
+          <%= form.submit "Record audited decision", class: "button" %>
+        <% end %>
+      </section>
+    <% end %>
+  <% end %>
+</div>

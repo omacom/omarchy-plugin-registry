@@ -17,6 +17,7 @@ class PluginVersion < ApplicationRecord
   # Human-approval provenance: set only by an explicit admin approve
   belongs_to :approved_by, class_name: "User", optional: true # submitting principal; release re-checks it
   has_many :daily_downloads, dependent: :destroy
+  has_many :compatibility_assessments, dependent: :restrict_with_error
   has_one_attached :tarball
 
   validates :version, presence: true, uniqueness: { scope: :plugin_id }

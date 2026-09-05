@@ -87,6 +87,8 @@ Disable automatic checks with `touch ~/.local/state/omarchy/package-revocations-
 
 ## Rollout and verification
 
+Version declarations, exact-build community reports, creator alerts, signed compatibility advisories and candidate checks are defined in [compatibility.md](compatibility.md). Compatibility and security review are separate claims.
+
 Deploy the additive registry migration first, then roll out the companion client before announcing theme installation. Existing plugin endpoints and signing identities remain unchanged. Do not silently relocate dirty directories, relabel Git installs as reviewed releases, or rename a registry origin without a coordinated pin/token migration.
 
 The paired theme corpus is in `test/conformance/corpus/theme_*.json` here and `test/shell.d/fixtures/package-store/corpus/` in Omarchy. Registry request tests cover shared publishing/review/revocation and browse isolation. Omarchy's `package-store-test.sh` runs real signed HTTP registry fixtures, install/clone/update/migration/revocation behavior, palette activation and malicious archives, with temporary user homes and custom XDG roots.

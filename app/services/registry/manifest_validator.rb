@@ -47,6 +47,7 @@ module Registry
       check_license
       check_repository
       check_min_omarchy_version
+      errors.concat(PackageCompatibility.errors(manifest))
       check_category
       check_tags
       if manifest["packageType"] == "theme"

@@ -54,6 +54,15 @@ module DataPlane
         generator.write_config
         generator.write_revocations
         generator.record_witness!
+        # Advisory damage must never hold up emergency security revocations
+        # or healthy indexes. Preserve the old advisory and raise at the end.
+        compatibility_failure = nil
+        begin
+          Compatibility.write(generator)
+        rescue Compatibility::ContinuityError => e
+          compatibility_failure = e
+          Rails.logger.error("[DataPlane] #{e.message}")
+        end
         # Artifact verification is scoped PER PLUGIN: a corrupt artifact
         # freezes only its own plugin's index (prior signed pair preserved
         # byte-for-byte) while every healthy plugin's takedowns, yanks, and
@@ -72,6 +81,7 @@ module DataPlane
         generator.warn_orphan_indexes!
         generator.write_all_listing(failed_plugin_ids: failed_plugin_ids)
         generator.write_legacy_map
+        raise compatibility_failure if compatibility_failure
         raise ArtifactIntegrityError, artifact_failures.join("; ") if artifact_failures.any?
       end
     end
@@ -214,6 +224,8 @@ module DataPlane
         "dl" => "#{DataPlane.base_url}/dl/{publisher}/{name}/{name}-{version}.tar.gz",
         "index" => "#{DataPlane.base_url}/index/{publisher}/{name}.json",
         "revocations" => "#{DataPlane.base_url}/revocations.json",
+        "compatibility" => "#{DataPlane.base_url}/compatibility.json",
+        "compatibilitySchemaVersion" => 1,
         "legacy_map" => "#{DataPlane.base_url}/legacy-map.json",
         "signing_key" => "#{DataPlane.base_url}/signing-key.pub",
         "api" => DataPlane.base_url
@@ -451,6 +463,7 @@ module DataPlane
         "yanked" => version.yanked?,
         "license" => version.license,
         "minOmarchyVersion" => version.min_omarchy_version,
+        "compatibility" => version.manifest["compatibility"],
         "kinds" => version.manifest["kinds"],
         "caps" => version.capability_fingerprint
       }.compact

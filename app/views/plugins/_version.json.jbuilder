@@ -7,6 +7,8 @@ json.yanked version.yanked?
 json.yank_reason version.yank_reason
 json.license version.license
 json.min_omarchy_version version.min_omarchy_version
+json.compatibility version.manifest["compatibility"]
+json.compatibility_report_url absolute_url(new_compatibility_report_path(publisher: version.plugin.publisher.name, name: version.plugin.name, version: version.version))
 json.kinds version.manifest["kinds"]
 json.package_type version.plugin.package_type
 json.size_bytes version.size_bytes

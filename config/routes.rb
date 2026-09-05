@@ -10,6 +10,9 @@ Rails.application.routes.draw do
   post "onboarding", to: "onboarding#create"
 
   resource :dashboard, only: :show, controller: "dashboard"
+  resources :compatibilities, only: %i[index show], controller: "compatibilities"
+  resources :compatibility_reports, only: %i[new create]
+  resources :compatibility_decisions, only: :create
   namespace :settings do
     resource :two_factor, only: %i[show update destroy], controller: "two_factor"
     resources :passkeys, only: %i[create destroy] do
@@ -76,6 +79,8 @@ Rails.application.routes.draw do
 
   namespace :admin do
     root "dashboard#show"
+    resources :omarchy_releases, only: %i[index create]
+    resources :compatibility_checks, only: :create
     resources :versions, only: :show do
       member do
         get :download_tarball
@@ -139,6 +144,8 @@ Rails.application.routes.draw do
   get "all.json", to: "data_plane#all", format: false
   get "revocations.json.sig", to: "data_plane#revocations", defaults: { sig: "1" }, format: false
   get "revocations.json", to: "data_plane#revocations", format: false
+  get "compatibility.json.sig", to: "data_plane#compatibility", defaults: { sig: "1" }, format: false
+  get "compatibility.json", to: "data_plane#compatibility", format: false
   get "legacy-map.json.sig", to: "data_plane#legacy_map", defaults: { sig: "1" }, format: false
   get "legacy-map.json", to: "data_plane#legacy_map", format: false
   get "signing-key.pub", to: "data_plane#signing_key", format: false
