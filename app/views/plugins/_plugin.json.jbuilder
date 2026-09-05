@@ -8,6 +8,7 @@ json.name plugin.name
 json.full_name plugin.full_name
 json.summary plugin.summary
 json.kinds plugin.kinds
+json.package_type plugin.package_type
 json.category plugin.category
 json.category_label plugin.category && Registry::Taxonomy.label(plugin.category)
 json.tags plugin.tags
@@ -67,5 +68,5 @@ else
   json.preview nil
 end
 
-json.url absolute_url(plugin_path(plugin.publisher.name, plugin.name))
-json.install_command(plugin.installable? ? "omarchy plugin add #{plugin.full_name}" : nil)
+json.url absolute_url(package_path(plugin))
+json.install_command(plugin.installable? ? plugin.install_command : nil)

@@ -9,6 +9,7 @@ json.query do
   json.sort @sort
   json.category @category
   json.tag @tag
+  json.package_type @package_type
 end
 
 json.page do
@@ -31,9 +32,18 @@ json.taxonomy do
   end
   json.tags Registry::Taxonomy::TAGS
   json.max_tags Registry::Taxonomy::MAX_TAGS
+  json.package_types Plugin::PACKAGE_TYPES
 end
 
-json.plugins @plugins do |plugin|
+json.packages @plugins do |plugin|
+  json.partial! "plugins/plugin", plugin: plugin
+end
+
+json.plugins @plugins.reject(&:theme?) do |plugin|
+  json.partial! "plugins/plugin", plugin: plugin
+end
+
+json.themes @plugins.select(&:theme?) do |plugin|
   json.partial! "plugins/plugin", plugin: plugin
 end
 

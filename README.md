@@ -1,10 +1,13 @@
-# Omarchy Plugin Registry
+# Omarchy Hub
 
-The hosted plugin registry for [Omarchy](https://omarchy.org) Quattro —
+The hosted plugin and theme registry for [Omarchy](https://omarchy.org) Quattro —
 `plugins.omarchy.org`. A Rails control plane serving a crates.io-style static
 data plane: append-only JSON index + immutable, checksummed tarballs, with
 registry-native accounts, automated review, and a kill-bit for revoking
-already-installed plugins.
+already-installed packages. "Omarchy Hub" is the working product name; existing
+registry hostnames, signing keys and protocol paths stay compatible.
+
+Theme format, trust model, storage and editable clones: [docs/packages.md](docs/packages.md).
 
 Full design: [docs/design.md](docs/design.md). Branding: [docs/branding.md](docs/branding.md)
 (matches Omacom / [omacon.org](https://www.omacon.org)).
@@ -18,7 +21,7 @@ required user verification, or TOTP), namespaces
 trusted publishing later), review, and admin (quarantine / yank / kill-bit).
 On every accepted publish it regenerates static index files and freezes the
 tarball — installs never touch Rails in the hot path. Clients
-(`omarchy plugin add publisher/name`) fetch index + tarball from the CDN,
+(`omarchy plugin add publisher/name` or `omarchy theme add publisher/name`) fetch index + tarball from the CDN,
 verify checksums, and check a tiny signed `revocations.json` kill list.
 
 ## Development
@@ -45,11 +48,12 @@ claims, the admin console, and a JSON browse API for a native in-desktop
 plugin browser (docs/browse-api.md — unsigned browse data, never an install
 path).
 
-**Not yet done, and required before launch**: the Quattro-side client
-(`omarchy plugin add/update/publish`, signature + freshness verification,
-receipts, the kill-bit check — contract in `docs/client-spec.md`), deployment
-(`docs/deploy.md`), the real omarchyplugins.com catalog for seeding, and the
-governance roster names.
+The companion Omarchy implementation lives on `plugin-registry-client`. It includes
+verified plugin/theme installs, authoring, updates, editable clones, migration of
+verified legacy receipts, and a user revocation timer. The existing registry has
+also imported the legacy plugin catalog. These branch changes still need their
+coordinated rollout; changing this working name does not change DNS or deploy
+anything. Launch configuration and governance are documented in `docs/deploy.md`.
 
 Verify the current state locally — no claim here substitutes for running the
 gates yourself (CI runs once the repo has a remote):

@@ -292,3 +292,15 @@ one revalidation. Do not treat them as exact.
 There is no rate limit today; please do not make one necessary. Respect the
 60-second freshness window, use `If-None-Match`, prefer `all.json` for whole-
 catalog work, and identify your client in a `User-Agent`.
+# Plugins and themes
+
+The registry now hosts both types. `/packages.json` lists both, `/plugins.json`
+lists plugins, and `/themes.json` lists themes. Directory JSON adds `packages`
+and `themes` arrays alongside the compatible `plugins` array. `page.total`
+counts the selected package type, or all packages on `/packages.json`.
+`query.package_type` and `taxonomy.package_types` describe type filtering.
+Every entry adds `package_type` and uses the correct `install_command`.
+Theme detail/version URLs are `/themes/<publisher>/<name>.json` and
+`/themes/<publisher>/<name>/<version>.json`. Detail envelopes retain the historical `plugin` key to
+share the existing client schema. Read [packages.md](packages.md) for trust and
+installation rules; browse JSON is still unsigned display data.

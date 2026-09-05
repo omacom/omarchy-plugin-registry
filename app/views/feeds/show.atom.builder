@@ -2,7 +2,7 @@ base = DataPlane.base_url
 
 xml.instruct!
 xml.feed xmlns: "http://www.w3.org/2005/Atom" do
-  xml.title "Omarchy Plugins — recent releases"
+  xml.title "Omarchy Hub — recent releases"
   xml.id "#{base}/feed.xml"
   xml.link rel: "self", href: "#{base}/feed.xml"
   xml.link rel: "alternate", href: base
@@ -10,7 +10,7 @@ xml.feed xmlns: "http://www.w3.org/2005/Atom" do
 
   @versions.each do |version|
     plugin = version.plugin
-    url = "#{base}/plugins/#{plugin.publisher.name}/#{plugin.name}"
+    url = "#{base}#{package_path(plugin)}"
     xml.entry do
       xml.id "#{url}#v#{version.version}"
       xml.title "#{plugin.full_name} v#{version.version}"

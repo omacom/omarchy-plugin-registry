@@ -1,6 +1,6 @@
 xml.instruct!
 xml.urlset xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" do
-  [ "", "/governance", "/publishing", "/audit" ].each do |path|
+  [ "", "/themes", "/governance", "/publishing", "/audit" ].each do |path|
     xml.url do
       xml.loc "#{@base}#{path}"
     end
@@ -12,7 +12,7 @@ xml.urlset xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9" do
   end
   @plugins.each do |plugin|
     xml.url do
-      xml.loc "#{@base}/plugins/#{plugin.publisher.name}/#{plugin.name}"
+      xml.loc "#{@base}#{package_path(plugin)}"
       xml.lastmod plugin.updated_at.utc.iso8601
     end
   end

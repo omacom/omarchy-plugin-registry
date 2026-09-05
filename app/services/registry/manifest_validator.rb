@@ -18,10 +18,6 @@ module Registry
       "service" => { key: "service", extensions: %w[.qml .sh] }
     }.freeze
     ALLOWED_KINDS = KIND_ENTRY_RULES.keys.freeze
-    # Deferred by the design ("maybe: themes join the same registry") — no
-    # client contract or conformance fixture exists yet, so accepting the kind
-    # would promise installs Quattro can't perform.
-    DEFERRED_KINDS = %w[theme].freeze
     ID_FORMAT = /\A[A-Za-z0-9][A-Za-z0-9._-]*\z/
 
     # The complete SPDX license list, vendored from spdx.org (config/spdx.json,
@@ -42,6 +38,7 @@ module Registry
 
     def valid?
       check_schema_version
+      check_package_type
       check_required_fields
       check_id
       check_version
@@ -52,6 +49,9 @@ module Registry
       check_min_omarchy_version
       check_category
       check_tags
+      if manifest["packageType"] == "theme"
+        errors.concat(ThemeValidator.new(tarball).errors)
+      end
       errors.empty?
     end
 
@@ -61,6 +61,11 @@ module Registry
 
     def check_schema_version
       errors << "schemaVersion must be 1" unless manifest["schemaVersion"] == 1
+    end
+
+    def check_package_type
+      value = manifest.fetch("packageType", "plugin")
+      errors << "packageType must be plugin or theme" unless %w[plugin theme].include?(value)
     end
 
     def check_required_fields
@@ -113,15 +118,21 @@ module Registry
       unless kinds.is_a?(Array) && kinds.any? && kinds.all? { |k| k.is_a?(String) }
         return errors << "kinds must be a non-empty array of strings"
       end
-      deferred = kinds & DEFERRED_KINDS
-      errors << "kinds not yet supported: #{deferred.join(', ')} (themes are deferred until the client contract lands)" if deferred.any?
-      unknown = kinds - ALLOWED_KINDS - DEFERRED_KINDS
+      if manifest["packageType"] == "theme"
+        errors << "theme packages must declare only kinds: [theme]" unless kinds == [ "theme" ]
+        return
+      end
+      unknown = kinds - ALLOWED_KINDS
       errors << "unknown kinds: #{unknown.join(', ')}" if unknown.any?
     end
 
     def check_entry_points
       entry_points = manifest["entryPoints"]
       return errors << "entryPoints must be an object" unless entry_points.is_a?(Hash)
+      if manifest["packageType"] == "theme"
+        errors << "themes require entryPoints: {theme: colors.toml}" unless entry_points == { "theme" => "colors.toml" }
+        return
+      end
 
       # Quattro semantics: every declared kind must have its mapped entry-point
       # key; extra keys are allowed but every value is validated.

@@ -39,7 +39,7 @@ class MomusRoundFortySevenTest < ActionDispatch::IntegrationTest
     assert_not_equal recorded, fresh
   end
 
-  test "the deferred theme kind is refused with a clear message" do
+  test "a theme kind without the explicit theme package type is refused" do
     dev = User.create!(email_address: "dev@example.com", name: "Dev",
       otp_secret: ROTP::Base32.random, otp_enabled_at: Time.current)
     publisher = Publisher.create!(name: "acme", kind: :org)
@@ -53,6 +53,6 @@ class MomusRoundFortySevenTest < ActionDispatch::IntegrationTest
           files: { "theme.json" => "{}" }
         )).call
     end
-    assert_match(/deferred/, error.message)
+    assert_match(/unknown kinds: theme/, error.message)
   end
 end

@@ -1,15 +1,19 @@
-<% content_for :title, "Publishing — Omarchy Plugins" %>
+<% content_for :title, "Publishing — Omarchy Hub" %>
 <div class="content-page container">
   <p class="eyebrow">Publishing guide</p>
-  <h1>Ship a plugin in minutes.</h1>
+  <h1>Share your plugins and themes.</h1>
   <div class="prose">
     <p class="statement">Push it anywhere — GitHub, Codeberg, your own Forgejo, or nowhere
       public at all. The registry never requires a forge. Tag, publish, done.</p>
 
     <h2>1. Scaffold</h2>
-    <pre>$ omarchy plugin new weather</pre>
+    <pre>$ omarchy plugin new you/weather
+$ omarchy theme new you/night</pre>
     <p>You get a <code>manifest.json</code>, a starter widget, a readme, and an optional CI
       publish workflow.</p>
+    <p>A theme starts with <code>colors.toml</code> and a manifest. Add wallpapers in
+      <code>backgrounds/</code> and a <code>preview.png</code>. To start from an installed
+      palette, use <code>omarchy theme new you/night --from tokyo-night</code>.</p>
 
     <h2>2. Claim your namespace</h2>
     <p><%= link_to "Sign in", new_session_path %> (no password — we email you a code), claim
@@ -34,10 +38,32 @@ $ curl -X POST --data-binary @weather-1.0.0.tar.gz \
     <h2>The rules</h2>
     <ul>
       <li>Strict semver, always increasing. A used version number is burned forever, even if rejected.</li>
-      <li><code>license</code> (SPDX) is required. <code>repository</code> is optional and shown on your plugin page — publishing via trusted publishing adds provenance links to the exact commit.</li>
-      <li>No symlinks, no entry points outside the plugin directory, 10 MB max.</li>
+      <li>A declared <code>license</code> must be SPDX. Preserve upstream licenses and attribution when adapting someone else's work. <code>repository</code> is optional; trusted publishing records the exact source commit.</li>
+      <li>No symlinks or paths outside the package directory. Plugins allow 10 MB compressed; themes allow 50 MB.</li>
       <li>Manifest <code>id</code> must equal <code>yourhandle.pluginname</code>.</li>
     </ul>
+
+    <h2>Publishing a theme</h2>
+    <pre>$ omarchy theme validate ./omarchy-night-theme
+$ omarchy theme publish ./omarchy-night-theme</pre>
+    <p>The same account, namespace, review pipeline, hold window, signed downloads and
+      revocations cover themes. A theme declares <code>packageType: "theme"</code>,
+      <code>kinds: ["theme"]</code> and <code>entryPoints: {"theme": "colors.toml"}</code>.
+      A package's type cannot change after its first submission.</p>
+    <p>Themes supply palette data, shell appearance, installed icon names and images.
+      Omarchy generates application configs. Scripts, Lua, terminal overrides and
+      extension installers cannot be published as a theme. Palette values are validated
+      before they reach generated configs. Suspicious content still goes through review;
+      passing a scan is not a guarantee that every vulnerability has been found.</p>
+    <p>The raw upload endpoint is <code>/api/v1/themes/you/night/versions</code>.
+      Device login and trusted-publishing tokens work for both package types.</p>
+
+    <h2>Customize a release</h2>
+    <pre>$ omarchy plugin clone you/weather
+$ omarchy theme clone you.night my-night --apply</pre>
+    <p>Downloads live in your user data directory. Clones live in your config directory
+      with their own identity and keep the original installed. They are editable local
+      work, outside automatic updates and release scan coverage. No sudo is required.</p>
 
     <h2>Make it look good</h2>
     <p>Ship one screenshot named <code>preview.png</code> (or <code>.jpg</code>, <code>.webp</code>,

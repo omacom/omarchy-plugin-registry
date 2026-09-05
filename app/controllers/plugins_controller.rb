@@ -37,6 +37,9 @@ class PluginsController < ApplicationController
   def load_plugin!
     @publisher = Publisher.find_by!(name: params[:publisher])
     @plugin = @publisher.plugins.find_by!(name: params[:name])
+    if (type = request.path_parameters[:package_type]) && @plugin.package_type != type
+      raise ActiveRecord::RecordNotFound
+    end
     @privileged = authenticated? && (Current.user.admin? || Current.user.member_of?(@publisher))
     # An unreleased plugin page 404s for the public — indistinguishable from
     # a name that never existed.

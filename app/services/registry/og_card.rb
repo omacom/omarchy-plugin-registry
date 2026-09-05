@@ -51,8 +51,8 @@ module Registry
       canvas = base_canvas
       canvas = header(canvas)
       canvas = stamp(canvas, text("PLUGINS.OMARCHY.ORG", :bold, 20), MAGENTA, MARGIN, 196)
-      canvas = stamp(canvas, text("Plugins for people\nwho love computers.", :extrabold, 54, spacing: 14), PAPER, MARGIN, 240)
-      line = "#{stats[:plugins]} plugins · #{stats[:publishers]} publishers · #{ActiveSupport::NumberHelper.number_to_human(stats[:downloads], format: '%n%u', precision: 3, significant: true, units: { thousand: 'k', million: 'M' })} downloads"
+      canvas = stamp(canvas, text("Make Omarchy yours.\nPlugins and themes.", :extrabold, 54, spacing: 14), PAPER, MARGIN, 240)
+      line = "#{stats[:plugins]} packages · #{stats[:publishers]} publishers · #{ActiveSupport::NumberHelper.number_to_human(stats[:downloads], format: '%n%u', precision: 3, significant: true, units: { thousand: 'k', million: 'M' })} downloads"
       canvas = stamp(canvas, text(line, :bold, 23), PINK, MARGIN, 460)
       canvas = footer(canvas)
       png(canvas)
@@ -74,7 +74,7 @@ module Registry
     def header(canvas)
       canvas = canvas.composite2(logo(56), :over, x: MARGIN, y: 56)
       canvas = stamp(canvas, text("Omarchy", :bold, 30), PAPER, MARGIN + 156, 68)
-      stamp(canvas, text("Plugins", :bold, 30), PINK, MARGIN + 156 + 152, 68)
+      stamp(canvas, text("Hub", :bold, 30), PINK, MARGIN + 156 + 152, 68)
     end
 
     def footer(canvas)

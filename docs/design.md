@@ -3,6 +3,8 @@ title: Omarchy Plugin Registry — Design Brainstorm
 description: A real package-management solution for Omarchy Quattro plugins — hosted, scanned, revocable — modeled on npm, RubyGems, and the registries that learned the hard way.
 ---
 
+> Package scope and storage extension (2026-09-05): [Plugins and themes in Omarchy Hub](packages.md) supersedes this historical design's theme deferral and client install-location decisions. The rest remains architectural background.
+
 ```mosaic-hero
 {
   "eyebrow": "Design brainstorm · Draft 3",

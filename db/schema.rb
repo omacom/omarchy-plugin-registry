@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_05_102426) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -190,6 +190,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.string "latest_version"
     t.string "name", null: false
     t.string "normalized_name", null: false
+    t.string "package_type", default: "plugin", null: false
     t.json "preview_meta", default: {}, null: false
     t.integer "publisher_id", null: false
     t.integer "ratings_count", default: 0, null: false
@@ -205,8 +206,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.integer "views_count", default: 0, null: false
     t.index ["category"], name: "index_plugins_on_category"
     t.index ["normalized_name"], name: "index_plugins_on_normalized_name"
+    t.index ["package_type"], name: "index_plugins_on_package_type"
     t.index ["publisher_id", "name"], name: "index_plugins_on_publisher_id_and_name", unique: true
     t.index ["publisher_id"], name: "index_plugins_on_publisher_id"
+    t.check_constraint "package_type IN ('plugin', 'theme')", name: "plugins_package_type"
   end
 
   create_table "publishers", force: :cascade do |t|

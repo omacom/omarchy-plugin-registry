@@ -1,0 +1,19 @@
+{
+  "name": "theme_missing_palette",
+  "expect": "invalid",
+  "manifest": {
+    "schemaVersion": 1,
+    "packageType": "theme",
+    "id": "acme.weather",
+    "name": "Weather",
+    "version": "1.0.0",
+    "kinds": [
+      "theme"
+    ],
+    "entryPoints": {
+      "theme": "colors.toml"
+    },
+    "license": "MIT"
+  },
+  "files": {}
+}

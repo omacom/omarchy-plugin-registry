@@ -37,6 +37,8 @@ class HomeController < ApplicationController
   MAX_PER_PAGE = 100
 
   def index
+    selected_type = request.path_parameters[:package_type] || params[:package_type]
+    @package_type = selected_type if Plugin::PACKAGE_TYPES.include?(selected_type)
     @query = params[:q].to_s.strip
     @sort = SORTS.key?(params[:sort]) ? params[:sort] : "downloads"
     @page = [ params[:page].to_i, 1 ].max
@@ -60,8 +62,8 @@ class HomeController < ApplicationController
     # Announced (and shown) only while filtering — the unfiltered count is
     # already in the hero stats. JSON always carries it: a native client
     # paginating a list needs to know how far the list goes.
-    @total = scope.unscope(:select).count if @query.present? || @category || @tag || request.format.json?
-    @category_counts = Plugin.directory_visible.where.not(category: nil).group(:category).count
+    @total = scope.unscope(:select).count if @query.present? || @category || @tag || @package_type || request.format.json?
+    @category_counts = package_scope.directory_visible.where.not(category: nil).group(:category).count
     # A short strip of genuinely new plugins on the unfiltered first page —
     # the default downloads sort would otherwise bury every fresh release.
     # Plus the popular shelf, same rule as the omarchy.org homepage's plugin
@@ -69,7 +71,7 @@ class HomeController < ApplicationController
     # active sort/filter, so the top of the page always features what the
     # community actually installs.
     if @page == 1 && @query.blank? && @category.nil? && @tag.nil?
-      visible = Plugin.directory_visible.includes(:publisher).with_attached_preview_card
+      visible = package_scope.directory_visible.includes(:publisher).with_attached_preview_card
         .select("plugins.*", "#{FIRST_PUBLISHED_SQL} AS first_published_at", "#{LAST_PUBLISHED_SQL} AS last_published_at")
       @recent = visible
         .where("#{FIRST_PUBLISHED_SQL} >= ?", ApplicationHelper::CARD_RECENCY.ago)
@@ -78,14 +80,19 @@ class HomeController < ApplicationController
         .order(Arel.sql(SORTS["downloads"])).order(:id).limit(6)
     end
     @stats = {
-      plugins: Plugin.listed.where.not(latest_version: nil).count,
+      plugins: Plugin.where(package_type: "plugin").directory_visible.count,
+      themes: Plugin.where(package_type: "theme").directory_visible.count,
       publishers: Publisher.claimed.count,
       downloads: Plugin.sum(:downloads_count)
     }
-    freshen(@plugins, @recent, @popular, @query, @sort, @category, @tag, @page, @per_page, @more, @total, @stats.values)
+    freshen(@plugins, @recent, @popular, @query, @sort, @category, @tag, @package_type, @page, @per_page, @more, @total, @stats.values)
   end
 
   private
+
+  def package_scope
+    @package_type ? Plugin.where(package_type: @package_type) : Plugin.all
+  end
 
   # Honoured for JSON only. The web grid stays at its designed 24: the pager
   # links don't carry per_page, so a bigger HTML page would silently snap back
@@ -116,7 +123,7 @@ class HomeController < ApplicationController
   end
 
   def filtered_scope
-    scope = Plugin.directory_visible.includes(:publisher).with_attached_preview_card
+    scope = package_scope.directory_visible.includes(:publisher).with_attached_preview_card
 
     if @terms[:text].any?
       like = "%#{ActiveRecord::Base.sanitize_sql_like(@terms[:text].join(' ').downcase)}%"

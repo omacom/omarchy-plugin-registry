@@ -1,22 +1,21 @@
 <section class="hero" data-hero-sentinel>
   <div class="container hero__inner">
     <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
-    <% host = request.host.to_s %>
-    <% if host.start_with?("themes.") %>
+    <% if @package_type == "theme" %>
       <p class="page-subtitle">Community themes</p>
-      <p class="hero__lede">Make it yours: Install → Style → Themes. Every theme below ships as a
-        plugin — one command away, same as everything else here.</p>
+      <p class="hero__lede">Community palettes, scanned releases, and verified downloads — one command away.</p>
     <% else %>
       <p class="page-subtitle">Plugin directory</p>
       <p class="hero__lede">Hosted, scanned, and revocable — every version is immutable, checksummed, and one
         command away. Discovery belongs on a web page. This is the web page.</p>
     <% end %>
     <div class="hero__install">
-      <span class="prompt">$</span><span>omarchy plugin add <span class="prompt">publisher/name</span></span>
+      <span class="prompt">$</span><span>omarchy <%= @package_type || "plugin" %> add <span class="prompt">publisher/name</span></span>
       <%= render "shared/copy_button", label: "Copy install command", variant: "copy-button--inline" %>
     </div>
     <div class="hero__stats">
       <div class="hero__stat"><b><%= @stats[:plugins] %></b><span>plugins</span></div>
+      <div class="hero__stat"><b><%= @stats[:themes] %></b><span>themes</span></div>
       <div class="hero__stat"><b><%= @stats[:publishers] %></b><span>publishers</span></div>
       <div class="hero__stat"><b><%= compact_number(@stats[:downloads]) %></b><span>downloads</span></div>
     </div>
@@ -29,8 +28,8 @@
       <div class="showcase__head">
         <div>
           <h2 class="showcase__title">A plugin for every dream, every desire</h2>
-          <p class="showcase__desc">Thousands of community plugins are available for Omarchy.
-            These are the ones the community installs most — don't find what you need?
+          <p class="showcase__desc">Explore community plugins and themes for Omarchy.
+            Don't find what you need?
             Just put your agent on the job, then share when done.</p>
         </div>
         <%= link_to directory_path(sort: "downloads"), class: "showcase__action" do %>
@@ -58,7 +57,7 @@
       </div>
       <div class="recent-band__row">
         <% @recent.each do |plugin| %>
-          <%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "recent-card" do %>
+          <%= link_to package_path(plugin), class: "recent-card" do %>
             <span class="recent-card__name"><span class="ns"><%= plugin.publisher.name %>/</span><%= plugin.name %></span>
             <span class="recent-card__summary"><%= plugin.summary %></span>
             <span class="recent-card__meta">v<%= plugin.latest_version %>
@@ -71,12 +70,19 @@
 <% end %>
 
 <section class="directory container" data-controller="search-focus">
+  <nav class="directory__filters" aria-label="Package type">
+    <%= link_to "Everything", directory_path(package_type: nil), class: "chip #{'chip--active' unless @package_type}" %>
+    <% Plugin::PACKAGE_TYPES.each do |type| %>
+      <%= link_to type.pluralize.capitalize, directory_path(package_type: type), class: "chip #{'chip--active' if @package_type == type}" %>
+    <% end %>
+  </nav>
   <%= form_with url: root_path, method: :get, class: "directory__bar" do %>
     <input type="search" name="q" value="<%= @query %>"
       placeholder="Search plugins… (try @publisher, tag:media, kind:bar)" aria-label="Search plugins"
       data-search-focus-target="input" aria-keyshortcuts="Control+K">
     <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
     <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
+    <% if @package_type %><input type="hidden" name="package_type" value="<%= @package_type %>"><% end %>
     <kbd class="directory__kbd" title="Focus search">Ctrl K</kbd>
     <div class="directory__sort">
       <% HomeController::SORTS.each_key do |sort| %>
@@ -104,8 +110,8 @@
     </nav>
   <% end %>
 
-  <% if @query.present? || @category || @tag %>
-    <p class="muted directory__count" role="status"><%= pluralize(@total, "plugin") %> found</p>
+  <% if @query.present? || @category || @tag || @package_type %>
+    <p class="muted directory__count" role="status"><%= pluralize(@total, @package_type || "package") %> found</p>
   <% end %>
 
   <% if @plugins.any? %>
@@ -115,7 +121,7 @@
   <% elsif @page > 1 %>
     <p class="muted">Nothing on this page — <%= link_to "back to the first page", directory_path %>.</p>
   <% else %>
-    <p class="muted"><% if @query.present? || @category || @tag %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", root_path %>.<% else %>No plugins published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
+    <p class="muted"><% if @query.present? || @category || @tag || @package_type %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", root_path %>.<% else %>No packages published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
   <% end %>
 
   <% if @page > 1 || @more %>

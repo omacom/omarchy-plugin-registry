@@ -210,6 +210,7 @@ module DataPlane
       end
 
       DataPlane.write("config.json", JSON.pretty_generate({
+        "packageTypes" => Plugin::PACKAGE_TYPES,
         "dl" => "#{DataPlane.base_url}/dl/{publisher}/{name}/{name}-{version}.tar.gz",
         "index" => "#{DataPlane.base_url}/index/{publisher}/{name}.json",
         "revocations" => "#{DataPlane.base_url}/revocations.json",
@@ -296,6 +297,7 @@ module DataPlane
           "publisher" => plugin.publisher.name,
           "name" => plugin.name,
           "id" => plugin.manifest_id,
+          "packageType" => plugin.package_type,
           "summary" => plugin.summary,
           "kinds" => plugin.kinds,
           "category" => plugin.category,
@@ -304,7 +306,10 @@ module DataPlane
           "downloads" => plugin.downloads_count
         }
       end
-      DataPlane.write("all.json", JSON.generate({ "plugins" => plugins }.merge(freshness(INDEX_TTL))))
+      # Old clients read only plugins; themes must never appear as executable
+      # plugin candidates. Both lists share one signature and generation.
+      themes, plugins = plugins.partition { |entry| entry["packageType"] == "theme" }
+      DataPlane.write("all.json", JSON.generate({ "plugins" => plugins, "themes" => themes }.merge(freshness(INDEX_TTL))))
     end
 
     # Migration map for installs made through the legacy marketplace: the
@@ -335,7 +340,8 @@ module DataPlane
       return nil unless path.exist? && signature.exist?
       content = path.read
       return nil unless Signer.verify_any?(content, signature.read)
-      JSON.parse(content).fetch("plugins", []).index_by { |e| "#{e['publisher']}.#{e['name']}" }
+      listing = JSON.parse(content)
+      (listing.fetch("plugins", []) + listing.fetch("themes", [])).index_by { |e| "#{e['publisher']}.#{e['name']}" }
     rescue JSON::ParserError
       nil
     end
@@ -438,6 +444,7 @@ module DataPlane
     def version_entry(version)
       {
         "id" => version.plugin.manifest_id,
+        "packageType" => version.plugin.package_type,
         "vers" => version.version,
         "sha256" => version.sha256,
         "size" => version.size_bytes,

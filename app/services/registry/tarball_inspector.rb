@@ -11,6 +11,9 @@ module Registry
     MAX_TARBALL_BYTES = 10.megabytes
     MAX_UNPACKED_BYTES = 50.megabytes
     MAX_ENTRIES = 2_000
+    MAX_THEME_TARBALL_BYTES = 50.megabytes
+    MAX_THEME_UNPACKED_BYTES = 150.megabytes
+    RESERVED_NAMES = %w[.registry-receipt.json .local-origin.json].freeze
     MANIFEST_NAME = "manifest.json"
     README_CANDIDATES = %w[README.md readme.md README Readme.md].freeze
     # Optional root preview image, first match wins in this order. Kept as full
@@ -22,7 +25,7 @@ module Registry
     MAX_SCAN_BYTES = 512.kilobytes
 
     attr_reader :manifest, :readme, :files, :contents, :digests, :truncated, :sha256, :size_bytes,
-      :preview_name, :preview_bytes, :payload_markers
+      :preview_name, :preview_bytes, :payload_markers, :modes
 
     def self.inspect_bytes(bytes)
       new(bytes).tap(&:inspect!)
@@ -35,10 +38,11 @@ module Registry
     def inspect!
       @size_bytes = @bytes.bytesize
       raise InvalidTarball, "tarball is empty" if @size_bytes.zero?
-      raise InvalidTarball, "tarball exceeds #{MAX_TARBALL_BYTES / 1.megabyte}MB limit" if @size_bytes > MAX_TARBALL_BYTES
+      raise InvalidTarball, "tarball exceeds #{MAX_THEME_TARBALL_BYTES / 1.megabyte}MB limit" if @size_bytes > MAX_THEME_TARBALL_BYTES
 
       @sha256 = Digest::SHA256.hexdigest(@bytes)
       @files = []
+      @modes = {}
       @contents = {}
       @payload_markers = {}
       @digests = {} # full-content SHA-256 per file — diffing must never rely on the truncated scan window
@@ -57,10 +61,11 @@ module Registry
         raise InvalidTarball, "too many entries" if entry_count > MAX_ENTRIES
 
         path = clean_path(entry.full_name)
+        raise InvalidTarball, "git metadata is not a release payload" if path.split("/").include?(".git")
         # Every entry's declared size counts against the cap BEFORE any type
         # skip — a "directory" with a payload still costs decompression work.
         unpacked += entry.header.size
-        raise InvalidTarball, "unpacked size exceeds limit" if unpacked > MAX_UNPACKED_BYTES
+        raise InvalidTarball, "unpacked size exceeds limit" if unpacked > MAX_THEME_UNPACKED_BYTES
 
         case
         when entry.directory?
@@ -91,6 +96,9 @@ module Registry
         raise InvalidTarball, "duplicate path in tarball: #{path}" if @contents.key?(path)
 
         @files << path
+        raise InvalidTarball, "reserved client metadata: #{path}" if RESERVED_NAMES.include?(path)
+        raise InvalidTarball, "privileged file mode: #{path}" unless (entry.header.mode & 0o6000).zero?
+        @modes[path] = entry.header.mode
         content = entry.read.to_s
         @digests[path] = Digest::SHA256.hexdigest(content)
         @truncated << path if content.bytesize > MAX_SCAN_BYTES
@@ -123,6 +131,10 @@ module Registry
 
       raise InvalidTarball, "#{MANIFEST_NAME} missing at tarball root" if manifest_json.nil?
       @manifest = parse_manifest(manifest_json)
+      unless @manifest["packageType"] == "theme"
+        raise InvalidTarball, "tarball exceeds #{MAX_TARBALL_BYTES / 1.megabyte}MB limit" if @size_bytes > MAX_TARBALL_BYTES
+        raise InvalidTarball, "unpacked size exceeds limit" if unpacked > MAX_UNPACKED_BYTES
+      end
       @readme = readme_content&.valid_encoding? ? readme_content : nil
       # Only one preview ships per plugin — a second candidate name is an
       # ambiguity (which one did the author mean?), so refuse it outright.

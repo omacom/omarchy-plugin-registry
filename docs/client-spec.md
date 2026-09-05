@@ -1,5 +1,10 @@
 # Client contract — `omarchy plugin` ⇄ plugins.omarchy.org
 
+This contract also serves `omarchy theme`. [packages.md](packages.md) defines the
+theme manifest, typed endpoints, data/config/state layout, per-file receipts,
+editable clones and migration rules. That extension supersedes the legacy
+plugin-only paths and receipt assumptions below.
+
 The registry-side contract for the Quattro CLI work. The client stays a thin
 fetch-verify-unpack; everything clever is server-side. Git installs remain the
 dev escape hatch behind `--unsafe`.
@@ -77,11 +82,13 @@ invisible in the desktop browser.
    `test/conformance/corpus/*.json` — run the same corpus against
    `omarchy-plugin-validate` in Quattro CI so the two validators can never
    silently diverge),
-   id-collision check, move to `~/.config/omarchy/plugins/<id>/`, land
+   id-collision check, move to `${XDG_DATA_HOME:-~/.local/share}/omarchy/plugins/<id>/`, land
    **disabled** (enable stays a separate consent step).
 5. Write an install receipt next to the manifest:
    `{"source": "registry", "publisher": ..., "name": ..., "version": ..., "sha256": ...}`.
-   No receipt = local dev plugin: never updated, never revoked.
+   Receipts also record registry origin, package type, optional version pin and
+   file hashes/modes. No receipt means no registry update or revocation; local
+   clones carry a separate origin record and are never automatically updated.
 6. Show the capability summary (`caps`) in the confirmation prompt.
 
 ## `omarchy plugin update`
@@ -98,7 +105,7 @@ empty almost always — document it as the one background network touch, with a
 config switch to disable). On a hit for an installed plugin@version:
 
 1. Disable the plugin immediately via the existing IPC.
-2. Rename `~/.config/omarchy/plugins/<id>` to `<id>.quarantined-<date>`.
+2. Move the package into the user state quarantine directory, outside discovery.
 3. `omarchy-notification-send` with the reason and a link to the plugin page.
 
 ## Publishing (CLI side)

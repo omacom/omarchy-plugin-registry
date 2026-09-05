@@ -3,8 +3,8 @@
 <% content_for :social, social_meta(
      title: "#{@plugin.full_name}@#{@version.version}",
      description: @version.manifest["description"].presence || @plugin.summary.presence || "#{@plugin.full_name} on the Omarchy plugin registry.",
-     image_path: og_plugin_path(@publisher.name, @plugin.name),
-     url_path: plugin_version_path(@publisher.name, @plugin.name, @version.version)) %>
+     image_path: og_package_path(@plugin),
+     url_path: package_version_path(@plugin, @version.version)) %>
 
 <%# Withdrawn / not-yet-cleared come from Registry::PluginNotices so the JSON
     response carries the identical warning. "Older version" is navigation
@@ -15,14 +15,14 @@
 <% elsif @latest && @version.version != @latest.version %>
   <div class="notice-banner notice-banner--warning">
     <strong>Older version.</strong> You are viewing v<%= @version.version %> —
-    the latest release is <%= link_to "v#{@latest.version}", plugin_path(@publisher.name, @plugin.name) %>.
+    the latest release is <%= link_to "v#{@latest.version}", package_path(@plugin) %>.
   </div>
 <% end %>
 
 <div class="page-head">
   <div class="container">
     <p class="eyebrow"><%= Array(@version.manifest["kinds"]).presence&.join(" · ") || @plugin.kinds.join(" · ") %></p>
-    <h1><span class="ns"><%= link_to @publisher.name, publisher_path(@publisher.name) %>/</span><%= link_to @plugin.name, plugin_path(@publisher.name, @plugin.name) %><span class="ns">@<%= @version.version %></span></h1>
+    <h1><span class="ns"><%= link_to @publisher.name, publisher_path(@publisher.name) %>/</span><%= link_to @plugin.name, package_path(@plugin) %><span class="ns">@<%= @version.version %></span></h1>
     <p class="summary"><%= @version.manifest["description"].presence || @plugin.summary %></p>
     <div class="page-head__row">
       <%= state_badge(@version.state) %>
@@ -39,8 +39,8 @@
   <article>
     <% if @version.published? && @plugin.active? %>
       <div class="install-strip" data-controller="clipboard"
-           data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %>">
-        <span class="install-strip__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %></span>
+           data-clipboard-text-value="<%= @plugin.install_command(@version.version) %>">
+        <span class="install-strip__text"><span class="prompt">$</span> <%= @plugin.install_command(@version.version) %></span>
         <%= render "shared/copy_button", label: "Copy pinned install command" %>
       </div>
       <% unless @latest && @version.version == @latest.version %>
@@ -106,7 +106,7 @@
             <% if sibling.version == @version.version %>
               <span class="v"><%= sibling.version %></span>
             <% else %>
-              <%= link_to sibling.version, plugin_version_path(@publisher.name, @plugin.name, sibling.version), class: "v" %>
+              <%= link_to sibling.version, package_version_path(@plugin, sibling.version), class: "v" %>
             <% end %>
             <span class="muted"><%= sibling.created_at.to_date %></span>
             <%= state_badge(sibling.state) unless sibling.published? %>

@@ -1,4 +1,15 @@
 class Plugin < ApplicationRecord
+  # Historical table/model names stay stable; both package types share names,
+  # accounts, quotas, review, immutable versions and revocations.
+  PACKAGE_TYPES = %w[plugin theme].freeze
+  validates :package_type, inclusion: { in: PACKAGE_TYPES }
+  attr_readonly :package_type
+
+  def theme? = package_type == "theme"
+  def install_command(version = nil)
+    "omarchy #{package_type} add #{full_name}#{"@#{version}" if version}"
+  end
+
   # security_holding: name burned after a malware takedown — page shows a notice,
   # nothing installable, name can never be resurrected.
   enum :state, { active: 0, quarantined: 1, security_holding: 2 }

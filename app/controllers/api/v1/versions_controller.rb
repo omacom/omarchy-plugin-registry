@@ -11,17 +11,17 @@ module Api
 
       before_action :authenticate_api_token!
 
-      MAX_BODY_BYTES = Registry::TarballInspector::MAX_TARBALL_BYTES
-
       def create
+        body_limit = request.path_parameters[:package_type] == "theme" ?
+          Registry::TarballInspector::MAX_THEME_TARBALL_BYTES : Registry::TarballInspector::MAX_TARBALL_BYTES
         # Cap before buffering: declared length is checked, and the read itself
         # is bounded so a lying Content-Length can't balloon memory either.
-        if request.content_length.to_i > MAX_BODY_BYTES
-          return render json: { error: "tarball exceeds #{MAX_BODY_BYTES / 1.megabyte}MB limit" }, status: :content_too_large
+        if request.content_length.to_i > body_limit
+          return render json: { error: "tarball exceeds #{body_limit / 1.megabyte}MB limit" }, status: :content_too_large
         end
-        body = request.body.read(MAX_BODY_BYTES + 1) || ""
-        if body.bytesize > MAX_BODY_BYTES
-          return render json: { error: "tarball exceeds #{MAX_BODY_BYTES / 1.megabyte}MB limit" }, status: :content_too_large
+        body = request.body.read(body_limit + 1) || ""
+        if body.bytesize > body_limit
+          return render json: { error: "tarball exceeds #{body_limit / 1.megabyte}MB limit" }, status: :content_too_large
         end
 
         publisher = Publisher.find_by!(name: params[:publisher])
@@ -30,16 +30,18 @@ module Api
           publisher: publisher,
           plugin_name: params[:plugin],
           tarball_bytes: body,
-          token: current_token
+          token: current_token,
+          package_type: request.path_parameters.fetch(:package_type)
         ).call
 
         render json: {
           plugin: version.plugin.full_name,
+          package_type: version.plugin.package_type,
           version: version.version,
           sha256: version.sha256,
           state: version.state,
           message: "Accepted — running the review pipeline. Clean versions go live after a short hold (~15 min).",
-          url: "#{DataPlane.base_url}/plugins/#{version.plugin.publisher.name}/#{version.plugin.name}"
+          url: "#{DataPlane.base_url}/#{version.plugin.package_type.pluralize}/#{version.plugin.full_name}"
         }, status: :created
       rescue ActiveRecord::RecordNotFound
         render json: { error: "unknown publisher #{params[:publisher]}" }, status: :not_found

@@ -1,4 +1,12 @@
 module ApplicationHelper
+  def package_path(package)
+    package.theme? ? theme_path(package.publisher.name, package.name) : plugin_path(package.publisher.name, package.name)
+  end
+
+  def package_version_path(package, version)
+    package.theme? ? theme_version_path(package.publisher.name, package.name, version) : plugin_version_path(package.publisher.name, package.name, version)
+  end
+
   def render_markdown(text, asset_base: nil)
     return "" if text.blank?
     html = Commonmarker.to_html(text,
@@ -71,14 +79,14 @@ module ApplicationHelper
     "#{DataPlane.base_url}#{path}"
   end
 
-  DEFAULT_META_DESCRIPTION = "The Omarchy plugin registry — hosted, scanned, revocable. Browse, install, and publish plugins for Omarchy.".freeze
+  DEFAULT_META_DESCRIPTION = "Browse, install, and publish plugins and themes for Omarchy. Versioned releases, automated scans, and verified downloads.".freeze
 
   # OpenGraph/Twitter tags with absolute URLs. Pages call this through
   # content_for(:social); the layout falls back to the site-wide card.
   def social_meta(title:, description:, image_path:, url_path:)
     safe_join([
       tag.meta(property: "og:type", content: "website"),
-      tag.meta(property: "og:site_name", content: "Omarchy Plugins"),
+      tag.meta(property: "og:site_name", content: "Omarchy Hub"),
       tag.meta(property: "og:title", content: title),
       tag.meta(property: "og:description", content: description),
       tag.meta(property: "og:url", content: absolute_url(url_path)),
@@ -96,7 +104,7 @@ module ApplicationHelper
   # always lands on its own first page.
   def directory_path(overrides = {})
     root_path({ q: @query.presence, sort: (@sort if @sort != "downloads"),
-                category: @category, tag: @tag }.merge(overrides).compact)
+                category: @category, tag: @tag, package_type: @package_type }.merge(overrides).compact)
   end
 
   CARD_RECENCY = 14.days

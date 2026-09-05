@@ -43,7 +43,13 @@ Rails.application.routes.draw do
   # on "/?format=json". Same action, same query parameters (q, sort, category,
   # tag, page); no second HTML directory to keep canonical.
   get "plugins.json", to: "home#index", as: :directory_json,
+    defaults: { format: "json", package_type: "plugin" }, format: false
+  get "packages.json", to: "home#index", as: :packages_json,
     defaults: { format: "json" }, format: false
+  get "themes", to: "home#index", as: :themes, defaults: { package_type: "theme" }
+  get "themes/:publisher/:name", to: "plugins#show", as: :theme, defaults: { package_type: "theme" }
+  get "themes/:publisher/:name/:version", to: "plugins#version", as: :theme_version,
+    defaults: { package_type: "theme" }, constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
   get "plugins/:publisher/:name", to: "plugins#show", as: :plugin
   # The version segment is dotted (semver), so the router would otherwise
   # swallow a ".json" suffix into :version and 404 instead of negotiating the
@@ -107,6 +113,10 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       post "plugins/:publisher/:plugin/versions", to: "versions#create",
+        defaults: { package_type: "plugin" },
+        constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} }
+      post "themes/:publisher/:plugin/versions", to: "versions#create",
+        defaults: { package_type: "theme" },
         constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} }
       post "device/code", to: "device#code"
       post "device/token", to: "device#token"
