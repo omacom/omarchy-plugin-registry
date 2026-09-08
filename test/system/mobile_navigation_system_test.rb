@@ -50,7 +50,7 @@ class MobileNavigationSystemTest < ApplicationSystemTestCase
     assert_equal "#browse", page.evaluate_script("window.location.hash")
     assert_selector ".mobile-nav__link.is-active[aria-current='location']", text: "Browse", count: 1
     assert_operator page.evaluate_script(
-      'Math.abs(document.querySelector("#browse").getBoundingClientRect().top)'
+      'Math.abs(document.querySelector("#browse").getBoundingClientRect().top - document.querySelector(".site-bar").getBoundingClientRect().bottom)'
     ), :<, 2
 
     within(".mobile-nav") { click_link "Home" }
@@ -142,7 +142,9 @@ class MobileNavigationSystemTest < ApplicationSystemTestCase
 
     within(".mobile-nav") { click_link "Browse" }
     assert_current_path root_path
-    assert_equal "#browse", page.evaluate_script("window.location.hash")
+    Selenium::WebDriver::Wait.new(timeout: 2).until do
+      page.evaluate_script("window.location.hash") == "#browse"
+    end
     assert_selector ".mobile-nav__link.is-active[aria-current='location']", text: "Browse", count: 1
   end
 

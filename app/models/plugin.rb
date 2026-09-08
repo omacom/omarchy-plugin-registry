@@ -69,7 +69,12 @@ class Plugin < ApplicationRecord
     versions.where.not(state: :rejected).order(version_sort_key: :desc).first
   end
 
-  def installable? = active? && versions.published.exists?
+  def installable?
+    return false unless active? && latest_version.present?
+    return self[:latest_size_bytes].present? if has_attribute?(:latest_size_bytes)
+
+    versions.published.where(version: latest_version).where.not(size_bytes: nil).exists?
+  end
 
   # Was this plugin ever released to the public? Yanked and revoked versions
   # keep their pages (users may hold installed copies and need the notice);

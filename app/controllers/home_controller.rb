@@ -1,5 +1,6 @@
 class HomeController < ApplicationController
   include ConditionalGet
+  include PluginCardData
   allow_unauthenticated_access
 
   # Computed per row from the versions table — plugins.updated_at is useless
@@ -97,6 +98,8 @@ class HomeController < ApplicationController
         .offset((@page - 1) * @per_page).limit(@per_page + 1).to_a
       @more = plugins.length > @per_page
       @plugins = plugins.first(@per_page)
+      @daily_installs = daily_installs_for(@plugins)
+      @latest_comments = latest_comments_for(@plugins)
       # The window count and cards come from one SQLite snapshot, so a concurrent
       # publication cannot make the JSON page contradict its own total.
       @total = plugins.first&.directory_total&.to_i || scope.unscope(:select).count
@@ -128,6 +131,8 @@ class HomeController < ApplicationController
       else
         []
       end
+      @wanted_daily_installs = daily_installs_for(@wanted)
+      @wanted_latest_comments = latest_comments_for(@wanted)
 
       @show_recent = true
       @card_recency_cutoff = ApplicationHelper::CARD_RECENCY.ago
@@ -148,7 +153,10 @@ class HomeController < ApplicationController
         [ plugin.id, plugin.try(:week_downloads).to_i, plugin.try(:upvotes_count).to_i,
           plugin.views_count, plugin.downloads_count ]
       end
-      freshen(@plugins, @wanted, wanted_signature, @recent, @query, @sort, @category, @tag,
+      freshen(@plugins, @daily_installs.sort, @latest_comments.sort.to_h.values,
+        @latest_comments.values.map(&:user), @wanted, wanted_signature, @wanted_daily_installs.sort,
+        @wanted_latest_comments.sort.to_h.values, @wanted_latest_comments.values.map(&:user),
+        @recent, @query, @sort, @category, @tag,
         @page, @per_page, @more, @total, @catalog_revision, @category_counts.sort,
         @tag_counts.sort, @result_category_counts.sort, @search_plan, @search_suggestions,
         @recent_total, @stats.values, last_modified: false)
@@ -173,11 +181,18 @@ class HomeController < ApplicationController
       Arel.sql("COALESCE(SUM(plugins.ratings_count), 0)"),
       Arel.sql("COALESCE(SUM(plugins.ratings_sum), 0)")
     )
-    window = 7.days.ago.to_date..Date.current
+    window = (PluginCardData::SPARK_DAYS - 1).days.ago.to_date..Date.current
     daily_facts = DailyDownload.where(date: window).pick(
-      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(daily_downloads.count), 0)")
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(daily_downloads.count), 0)"),
+      Arel.sql("MAX(daily_downloads.updated_at)")
     )
-    Digest::SHA256.hexdigest([ Date.current.iso8601, *facts, *daily_facts ].map(&:to_s).join("\0"))
+    comments = Comment.visible.joins(:plugin, :user).merge(Plugin.directory_visible)
+    comment_facts = comments.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("MAX(comments.updated_at)"), Arel.sql("MAX(users.updated_at)")
+    )
+    Digest::SHA256.hexdigest(
+      [ Date.current.iso8601, *facts, *daily_facts, *comment_facts ].map(&:to_s).join("\0")
+    )
   end
 
   # The web browser is deliberately one nine-card terminal window. Native

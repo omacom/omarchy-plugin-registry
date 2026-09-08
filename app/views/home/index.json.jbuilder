@@ -53,8 +53,20 @@ json.plugins @plugins do |plugin|
     json.new plugin_new?(plugin)
     json.upvotes plugin.try(:upvotes_count).to_i
     json.views plugin.views_count
-    json.verified plugin.try(:latest_size_bytes).present?
+    json.verified plugin.installable?
     json.size_bytes plugin.try(:latest_size_bytes)&.to_i
+    json.trend spark_series(plugin.id)
+    comment = @latest_comments[plugin.id]
+    comment_author = bounded_card_text(comment&.user&.name.presence || "someone", PluginCardData::COMMENT_AUTHOR_LIMIT)
+    comment_body = bounded_card_text(comment&.body, PluginCardData::COMMENT_PREVIEW_LIMIT)
+    if comment && comment_body.present?
+      json.latest_comment do
+        json.author comment_author.presence || "someone"
+        json.body comment_body
+      end
+    else
+      json.latest_comment nil
+    end
   end
 end
 

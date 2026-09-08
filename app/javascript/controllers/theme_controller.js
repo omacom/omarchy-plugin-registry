@@ -21,7 +21,8 @@ const LIVE_PROPERTIES = [
   "--ansi-08-slot", "--ansi-09-slot", "--ansi-10-slot", "--ansi-11-slot", "--ansi-12-slot",
   "--ansi-13-slot", "--ansi-14-slot", "--ansi-15-slot", "--terminal-cursor", "--accent-ink", "--cyan-ink", "--danger-ink",
   "--search-accent-ink", "--terminal-accent-readable", "--terminal-success-readable",
-  "--terminal-warning-readable", "--terminal-muted-readable"
+  "--terminal-warning-readable", "--terminal-muted-readable", "--brand-crest", "--brand-hover",
+  "--brand-lit", "--brand-mid", "--brand-dim"
 ]
 
 export default class extends Controller {
@@ -58,6 +59,13 @@ export default class extends Controller {
       if (this.barTarget.contains(event.target) || this.toggleTarget.contains(event.target)) return
       this.cancel()
     }
+    this.onFocusOut = () => {
+      requestAnimationFrame(() => {
+        if (this.barTarget.hidden) return
+        const focused = document.activeElement
+        if (!this.barTarget.contains(focused) && focused !== this.toggleTarget) this.cancel()
+      })
+    }
     this.onResize = () => {
       if (!this.barTarget.hidden) {
         this.loadPreviews()
@@ -72,6 +80,7 @@ export default class extends Controller {
       if (!document.hidden) this.pollOmarchyTheme()
     }
     window.addEventListener("resize", this.onResize)
+    this.element.addEventListener("focusout", this.onFocusOut)
     document.addEventListener("visibilitychange", this.onVisibilityChange)
     document.addEventListener("turbo:before-cache", this.beforeCache)
     if (this.mode === "system" && this.omarchyPayload) {
@@ -86,6 +95,7 @@ export default class extends Controller {
     document.removeEventListener("keydown", this.onKeydown)
     document.removeEventListener("click", this.onDocClick)
     window.removeEventListener("resize", this.onResize)
+    this.element.removeEventListener("focusout", this.onFocusOut)
     document.removeEventListener("visibilitychange", this.onVisibilityChange)
     document.removeEventListener("turbo:before-cache", this.beforeCache)
     window.clearInterval(this.omarchyTimer)
@@ -497,6 +507,8 @@ export default class extends Controller {
 
   applyLiveTheme(payload) {
     const colors = payload.colors
+    const light = this.relativeLuminance(colors.background) > 0.45
+    const brandEdge = light ? "#000000" : colors.foreground
     const properties = {
       "--bg": colors.background,
       "--cell": `color-mix(in srgb, ${colors.background} 96%, ${colors.foreground})`,
@@ -544,12 +556,17 @@ export default class extends Controller {
       "--terminal-accent-readable": this.readableThemeColor(colors.color4, colors.background, colors.foreground),
       "--terminal-success-readable": this.readableThemeColor(colors.color2, colors.background, colors.foreground),
       "--terminal-warning-readable": this.readableThemeColor(colors.color3, colors.background, colors.foreground),
-      "--terminal-muted-readable": this.readableThemeColor(colors.color7, colors.background, colors.foreground)
+      "--terminal-muted-readable": this.readableThemeColor(colors.color7, colors.background, colors.foreground),
+      "--brand-crest": `color-mix(in srgb, ${colors.color2} ${light ? 55 : 30}%, ${brandEdge})`,
+      "--brand-hover": `color-mix(in srgb, ${colors.color2} ${light ? 76 : 68}%, ${brandEdge})`,
+      "--brand-lit": colors.color2,
+      "--brand-mid": `color-mix(in srgb, ${colors.color2} 62%, ${colors.background})`,
+      "--brand-dim": `color-mix(in srgb, ${colors.color2} 30%, ${colors.background})`
     }
 
     this.clearLivePalette()
     Object.entries(properties).forEach(([property, value]) => document.documentElement.style.setProperty(property, value))
-    document.documentElement.style.colorScheme = this.relativeLuminance(colors.background) > 0.45 ? "light" : "dark"
+    document.documentElement.style.colorScheme = light ? "light" : "dark"
     document.documentElement.dataset.theme = "omarchy-live"
     this.syncThemeColor()
   }
@@ -593,5 +610,6 @@ export default class extends Controller {
   syncThemeColor() {
     const background = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", background)
+    document.dispatchEvent(new CustomEvent("registry:theme-change"))
   }
 }

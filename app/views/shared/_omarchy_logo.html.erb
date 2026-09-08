@@ -1,5 +1,19 @@
-<svg viewBox="0 0 1200 1200" fill="currentColor" shape-rendering="crispEdges"
+<svg viewBox="0 0 1200 1200" shape-rendering="crispEdges"
      class="<%= local_assigns[:class] || "omarchy-logo" %>" aria-hidden="true" focusable="false"
      xmlns="http://www.w3.org/2000/svg">
-  <path clip-rule="evenodd" fill-rule="evenodd" d="m1200 1200h-480v-80h400v-1040h-479.996v160h-400v720h720v-720h-80v-80h159.996v880h-400v160h-640v-1200h1200zm-1120-80h480v-80h-400l.004-400h-80.004zm0-560h80.004v-400h400v-80h-480.004z"/>
+  <defs>
+    <linearGradient id="omarchy-logo-bands" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1200">
+      <stop offset="0%" stop-color="var(--brand-crest)"/>
+      <stop offset="26.316%" stop-color="var(--brand-crest)"/>
+      <stop offset="26.316%" stop-color="var(--brand-hover)"/>
+      <stop offset="36.842%" stop-color="var(--brand-hover)"/>
+      <stop offset="36.842%" stop-color="var(--brand-lit)"/>
+      <stop offset="57.895%" stop-color="var(--brand-lit)"/>
+      <stop offset="57.895%" stop-color="var(--brand-mid)"/>
+      <stop offset="73.684%" stop-color="var(--brand-mid)"/>
+      <stop offset="73.684%" stop-color="var(--brand-dim)"/>
+      <stop offset="100%" stop-color="var(--brand-dim)"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#omarchy-logo-bands)" clip-rule="evenodd" fill-rule="evenodd" d="m1200 1200h-480v-80h400v-1040h-479.996v160h-400v720h720v-720h-80v-80h159.996v880h-400v160h-640v-1200h1200zm-1120-80h480v-80h-400l.004-400h-80.004zm0-560h80.004v-400h400v-80h-480.004z"/>
 </svg>

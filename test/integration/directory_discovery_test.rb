@@ -29,6 +29,13 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
+    assert_select "body[data-controller~='edge-waves']", count: 1 do
+      assert_select ".site-edge-waves[aria-hidden='true'][data-edge-waves-target='layer']", count: 1 do
+        assert_select "canvas[data-edge-waves-target='canvas']:empty", count: 1
+      end
+      assert_select "body > .motion-control[data-edge-waves-target='toggle'][data-action='edge-waves#toggle'][hidden]", text: "Pause background animation", count: 1
+      assert_select ".statusfoot__fx", count: 0
+    end
     assert_select "section.hero.hero--reveal[data-controller~='hero-reveal']", count: 1 do
       assert_select ".hero__command[translate='no']", count: 1 do
         assert_select ".visually-hidden", text: "registry@omarchy:~$ tree registry/", count: 1
@@ -39,9 +46,12 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
         end
       end
       assert_select "svg.hero__wm[viewBox='0 0 4131 950'][preserveAspectRatio='none'][shape-rendering='crispEdges']", count: 1 do
-        assert_select "rect", minimum: 100
+        assert_select "linearGradient#omarchy-wordmark-bands[gradientUnits='userSpaceOnUse'] stop", count: 10
+        assert_select "g[fill='url(#omarchy-wordmark-bands)'] rect", minimum: 100
       end
     end
+    assert_select "svg.fetch__logo linearGradient#omarchy-logo-bands stop", count: 10
+    assert_select "svg.fetch__logo path[fill='url(#omarchy-logo-bands)']", count: 1
     assert_select ".hero__copy > .lab", text: /signed public index/i, count: 0
   end
 
@@ -108,7 +118,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     assert_select ".index-browse__range[data-index-picker-target='resultRange']", text: /1–2.*\/.*2/m, count: 1
     assert_select ".index-picker__card", HomeController::PER_PAGE
     assert_select ".index-picker__card-head", count: 0
-    assert_select ".index-picker__card-artifact", text: /verified.*\S+.*v\S+/i
+    assert_select ".index-picker__card-flip--verified", text: /(new|updated)\s*\|\s*verified/i, minimum: 1
+    assert_select ".index-picker__card-secondary, .index-picker__card-publisher, .index-picker__card-artifact", count: 0
     assert_select "footer.index-picker__status", text: /nav.*home/i, count: 1
     assert_select ".index-picker__browse-all", count: 0
     assert_select "a.index-picker__home[data-action='index-picker#firstPage']", count: 1 do |links|
@@ -153,11 +164,11 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       first_at: 3.months.ago, last_at: 3.months.ago)
 
     get root_path(category: "other", sort: "name")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, uncategorized.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, uncategorized.name), count: 1
     assert_select ".index-browse__range", text: /1–1.*\/.*1/m
 
     get root_path(q: "category:other", sort: "name")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, uncategorized.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, uncategorized.name), count: 1
   end
 
   test "tag filter narrows to tagged plugins" do
@@ -174,15 +185,16 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       assert_select "a.index-picker__card-name[href=?][data-action*='sharePlugin'][data-share-label=?]",
         plugin_path(@acme.name, @weather.name), "Copy link to #{@weather.full_name}", count: 1
     end
-    assert_select ".index-picker__row[data-url=?] > a.index-picker__card-open[href=?]",
+    assert_select ".index-picker__row[data-url=?] a.index-picker__card-open[href=?]",
       plugin_path(@acme.name, @weather.name), plugin_path(@acme.name, @weather.name), count: 1
     assert_select ".index-picker__card-signals:not([aria-label])", text: /↓ 500.*0.*0/, count: 1 do
       assert_select ".visually-hidden", text: "500 downloads, 0 upvotes, 0 views", count: 1
       assert_select "svg.index-picker__upvote-glyph path", count: 1
       assert_select "svg.index-picker__view-glyph path + circle", count: 1
     end
-    assert_select ".index-picker__card-publisher", text: "acme"
-    assert_select ".index-picker__card-artifact", text: /verified.*1 B.*v1\.1\.0/i
+    assert_select ".index-picker__row .index-picker__card-flip--verified", text: /updated\s*\|\s*verified/i, count: 1
+    assert_select ".index-picker__row .index-picker__card-author[aria-label='Publisher: acme']", text: "acme", count: 1
+    assert_select ".index-picker__row .index-picker__card-secondary, .index-picker__row .index-picker__card-publisher, .index-picker__row .index-picker__card-artifact", count: 0
     assert_select ".index-picker__card-foot", text: /plugin:name/, count: 0
 
     get root_path(q: 'text:"volume control"')
@@ -222,7 +234,7 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       tags: [], summary: "Normalized identifier", downloads: 0,
       first_at: 2.months.ago, last_at: 2.months.ago)
     get root_path(q: "plugin:dashname")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, normalized.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, normalized.name), count: 1
     assert_select ".index-picker__card-foot", text: /plugin:name/, count: 0
   end
 
@@ -251,7 +263,7 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       tags: %w[clock], summary: "A complete clock dashboard", downloads: 0,
       first_at: 2.months.ago, last_at: 2.months.ago)
     get root_path(q: "clock dashboard")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, phrase_match.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, phrase_match.name), count: 1
     assert_select ".index-picker__card-foot", text: /text:clock dashboard/, count: 0
 
     fuzzy_only = create_published(publisher: @acme, name: "remote-tool", category: "other",
@@ -259,8 +271,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       first_at: 2.months.ago, last_at: 2.months.ago)
 
     get root_path(q: "weather")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, @weather.name), count: 1
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 0
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, @weather.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 0
 
     get root_path(q: "audio")
     assert_select ".index-picker__row", 1 do |rows|
@@ -271,11 +283,11 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     end
 
     get root_path(q: "wthr")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, @weather.name), count: 1
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 0
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, @weather.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 0
 
     get root_path(q: "zbr")
-    assert_select ".index-picker__row > a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 1
+    assert_select ".index-picker__row a.index-picker__card-open[href=?]", plugin_path(@acme.name, fuzzy_only.name), count: 1
   end
 
   test "search treats LIKE metacharacters literally and bounds long input" do
@@ -372,6 +384,7 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
 
   test "Most Wanted and Recently Added remain independent of Browse state" do
     DailyDownload.create!(plugin_version: @fresh.versions.order(:id).last, date: Date.current, count: 1_000)
+    @mixer.update!(state: :quarantined)
 
     get root_path
     assert_select ".recent-band[data-index-recent][data-controller~='recent-rotate'][data-controller~='plugin-share']:not([hidden])" do
@@ -381,18 +394,23 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       assert_select ".recent-band__count[aria-label*='7-day installs']", text: /3.*\/ stats/m, count: 1
       assert_select "a[href=?]", root_path(sort: "trending"), count: 1
     end
-    assert_select ".recent-card--master .recent-card__art--fallback[aria-hidden='true']", 1
+    assert_select ".recent-card--master .recent-card__art--fallback[aria-hidden='true']", 2
     assert_select ".recent-card--master" do
       assert_select "a.recent-card__open[href=?]", plugin_path(@rival.name, @fresh.name), count: 1
       assert_select "a.recent-card__name[href=?][data-action*='plugin-share#copy'][data-share-label=?]:not([aria-label])",
         plugin_path(@rival.name, @fresh.name), "Copy link to #{@fresh.full_name}", text: @fresh.name, count: 1
     end
-    assert_select ".recent-card--master .recent-card__signals:not([aria-label])", text: /new.*↓ 5.*0.*0/i do
-      assert_select ".visually-hidden", text: "New plugin, 5 downloads, 0 upvotes, 0 views", count: 1
+    assert_select ".recent-card--master[data-name='fresh'] .recent-card__signals:not([aria-label])", text: /↓ 5.*0.*0/i, count: 1 do
+      assert_select ".visually-hidden", text: "5 downloads, 0 upvotes, 0 views", count: 1
       assert_select "svg.index-picker__upvote-glyph path", count: 1
       assert_select "svg.index-picker__view-glyph path + circle", count: 1
     end
-    assert_select ".recent-card--master .recent-card__artifact", text: /verified.*1 B.*v1\.1\.0/i
+    assert_select ".recent-card--master[data-name='fresh'] .recent-card__badge--toggle", text: /new\s*\|\s*verified/i, count: 1
+    assert_select ".recent-card--master[data-name='fresh'] .recent-card__author", text: "rival", count: 1
+    assert_select ".recent-card:not(.recent-card--master)[data-name='mixer'] .recent-card__badge--status", text: /updated\s*\|\s*pending/i, count: 1
+    assert_select ".recent-card:not(.recent-card--master) .recent-card__author", minimum: 1
+    assert_select ".recent-card--master .recent-card__secondary", count: 2
+    assert_select ".recent-card--master .recent-card__summary", count: 2
     assert_select ".recent-stream[data-controller~='recent-stream'][data-controller~='plugin-share']" do
       assert_select "#recent-title", text: "Recently Added", count: 1
       assert_select ".recent-stream__count[aria-label=?]", "1 plugin first published in the last 14 days", text: /1.*\/ 14d/m, count: 1
@@ -448,17 +466,33 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "header exposes the navigation path and current section" do
+  test "compact Omarchy bar exposes the navigation and current section" do
     get root_path
 
+    assert_select "header.site-bar[data-controller~='theme'] > .nav" do
+      assert_select "a.nav__home[aria-label='Omarchy home'][href='https://omarchy.org/'] svg.nav__mark[viewBox='0 0 1200 1200']" do
+        assert_select "linearGradient#nav-mark-bands stop", count: 10
+        assert_select "path[fill='url(#nav-mark-bands)']", count: 1
+      end
+      assert_select ".nav__radio[data-controller='radio'][role='group'][aria-label='Omarchy radio']" do
+        assert_select "button.nav__radio-volume-button[data-radio-target='volume'][aria-keyshortcuts='ArrowUp ArrowDown'][aria-pressed='false']", count: 1
+        assert_select "button.nav__radio-track[data-radio-target='toggle'][data-action='radio#togglePlayback'][aria-pressed='false']" do
+          assert_select ".visually-hidden", text: "Kevin Koontz — We Can Fix Everything", count: 1
+          assert_select ".nav__radio-typed[data-radio-target='label']", count: 1
+        end
+        assert_select ".nav__radio-progress[data-radio-target='progress']", count: 1
+        assert_select ".nav__radio-skip, .nav__radio-time, .nav__radio-meter", count: 0
+      end
+    end
     assert_select "nav.nav__links[aria-label='Primary navigation']" do
       assert_select "a.nav__section--active[aria-current='page'][href='/']", text: "plugins", count: 1
       assert_select "button.theme-toggle[data-theme-target~='toggle'][aria-expanded='false']", text: /theme=tokyo-night/, count: 1
       assert_select "a.nav__account[href=?]", new_session_path, text: "sign-in →", count: 1
     end
+    assert File.exist?(Rails.root.join("public/music/kevin_koontz-we_can_fix_everything-1fd24e78693c7450.mp3"))
     assert_select "html[data-theme='tokyo-night']", count: 1
     assert_select "meta[name='theme-color'][content='#1a1b26']", count: 1
-    assert_select ".nav__brand, .nav__omacom, .nav__suffix, .nav__katakana", count: 0
+    assert_select ".nav__path > i, .nav__brand, .nav__omacom, .nav__suffix, .nav__katakana", count: 0
 
     get plugin_path("acme", "weather")
     assert_select "a.nav__section--active[aria-current='location'][href='/']", text: "plugins", count: 1

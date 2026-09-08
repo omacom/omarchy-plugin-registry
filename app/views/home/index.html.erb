@@ -111,12 +111,19 @@
         <% end %>
       </span>
     </div>
-    <div class="recent-row <%= 'recent-row--single' unless @wanted.many? %>" data-recent-rotate-target="row">
-      <%= render "home/recent_card", plugin: @wanted.first, master: true, delay_ms: 0 %>
+    <div class="recent-row <%= 'recent-row--single' unless @wanted.many? %> <%= 'recent-row--without-stack' if @wanted.size <= 2 %>"
+         style="--recent-master-count: <%= [@wanted.size, 2].min %>" data-recent-rotate-target="row">
+      <% @wanted.first(2).each_with_index do |plugin, index| %>
+        <%= render "home/recent_card", plugin:, master: true, delay_ms: 70 * index,
+              trend: spark_series(plugin.id, source: @wanted_daily_installs),
+              latest_comment: @wanted_latest_comments.fetch(plugin.id, nil) %>
+      <% end %>
       <% if @wanted.many? %>
         <div class="recent-stack" data-recent-rotate-target="stack">
-          <% @wanted.drop(1).each_with_index do |plugin, index| %>
-            <%= render "home/recent_card", plugin:, master: false, delay_ms: 70 * (index + 1) %>
+          <% @wanted.drop(2).each_with_index do |plugin, index| %>
+            <%= render "home/recent_card", plugin:, master: false, delay_ms: 70 * (index + 2),
+                  trend: spark_series(plugin.id, source: @wanted_daily_installs),
+                  latest_comment: @wanted_latest_comments.fetch(plugin.id, nil) %>
           <% end %>
         </div>
       <% end %>

@@ -120,10 +120,14 @@ module ApplicationHelper
                 category: @category, tag: @tag }.merge(overrides).compact)
   end
 
-  def spark_series(plugin_id)
-    return nil unless @daily_installs
+  def bounded_card_text(value, limit)
+    value.to_s.gsub(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/, "").each_char.take(limit).join
+  end
+
+  def spark_series(plugin_id, source: @daily_installs)
+    return nil unless source
     ((PluginCardData::SPARK_DAYS - 1).days.ago.to_date..Date.current).map do |day|
-      @daily_installs[[ plugin_id, day ]] || 0
+      source[[ plugin_id, day ]] || 0
     end
   end
 

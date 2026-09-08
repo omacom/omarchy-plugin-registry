@@ -147,11 +147,29 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     assert_selector ".theme-toggle", text: %r{theme=\s*system/velvet_night\.v2}
     assert_equal "omarchy-live", page.evaluate_script("document.documentElement.dataset.theme")
     assert_equal "#102030", page.evaluate_script("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()")
+    brand = page.evaluate_script <<~JS
+      (() => {
+        const colors = (selector) => [...document.querySelectorAll(selector)].map((stop) => getComputedStyle(stop).stopColor)
+        return {
+          property: document.documentElement.style.getPropertyValue("--brand-lit"),
+          nav: colors("#nav-mark-bands stop"),
+          hero: colors("#omarchy-wordmark-bands stop"),
+          fetch: colors("#omarchy-logo-bands stop")
+        }
+      })()
+    JS
+    assert_equal "#70c080", brand["property"]
+    assert_equal 10, brand["nav"].size
+    assert_equal 5, brand["nav"].uniq.size
+    assert_equal "rgb(112, 192, 128)", brand["nav"][4]
+    assert_equal brand["nav"], brand["hero"]
+    assert_equal brand["nav"], brand["fetch"]
 
     find(".theme-toggle").click
     assert_selector ".theme-picker", visible: true
     page.driver.browser.action.send_keys(:arrow_right).send_keys(:enter).perform
     assert_equal "catppuccin", page.evaluate_script("document.documentElement.dataset.theme")
+    assert_equal "", page.evaluate_script("document.documentElement.style.getPropertyValue('--brand-lit')")
     assert_equal "manual", page.evaluate_script("localStorage.getItem('registry-theme-mode')")
     assert_equal "catppuccin", page.evaluate_script("localStorage.getItem('registry-theme')")
 
@@ -270,6 +288,17 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     assert_selector ".theme-picker__item--selected[data-theme-value='catppuccin']", visible: true
     assert_equal "catppuccin", page.evaluate_script("document.activeElement.dataset.themeValue")
     assert_equal 0, page.evaluate_script("document.querySelectorAll('.theme-picker__item:not([tabindex=\"-1\"]):not(.theme-picker__item--selected)').length")
+  end
+
+  test "tabbing away closes the overlaid theme picker" do
+    visit root_path
+
+    find(".theme-toggle").click
+    assert_selector ".theme-picker", visible: true
+    page.driver.browser.action.send_keys(:tab).perform
+
+    assert_no_selector ".theme-picker", visible: true
+    refute page.evaluate_script("document.querySelector('.theme-picker').contains(document.activeElement)")
   end
 
   test "reopening after a distant preview restores focus before keyboard navigation" do

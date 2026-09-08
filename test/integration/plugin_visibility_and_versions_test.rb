@@ -30,6 +30,18 @@ class PluginVisibilityAndVersionsTest < ActionDispatch::IntegrationTest
     @released.versions.create!(version: "2.0.0", manifest: {}, sha256: "3" * 64, size_bytes: 100, state: :held)
   end
 
+  test "installability requires the current latest version to remain published" do
+    assert @released.installable?
+
+    latest = @released.versions.find_by!(version: "1.2.0")
+    latest.update!(state: :quarantined)
+    refute @released.reload.installable?
+
+    @released.refresh_latest_version!
+    assert_equal "1.0.0", @released.reload.latest_version
+    assert @released.installable?
+  end
+
   test "an unreleased plugin 404s publicly and for unrelated users" do
     get plugin_path("acme", "telemetry")
     assert_response :not_found

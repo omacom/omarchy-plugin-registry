@@ -86,7 +86,7 @@
       </div>
     <% end %>
 
-    <div class="boxtitle article-title"><span class="glyph" aria-hidden="true">┌─ </span><b>Description</b></div>
+    <div id="description" class="boxtitle article-title"><span class="glyph" aria-hidden="true">┌─ </span><b>Description</b></div>
     <div class="readme" data-controller="readme-code">
       <% if @plugin.readme.present? %>
         <%= render_markdown @plugin.readme, asset_base: readme_asset_base(@latest) %>
@@ -95,7 +95,7 @@
       <% end %>
     </div>
 
-    <section class="community">
+    <section id="community" class="community">
       <h3>Community</h3>
 
       <% if authenticated? %>

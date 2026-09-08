@@ -3,10 +3,19 @@ import { copyText } from "lib/clipboard"
 import { beginClipboardOperation, clipboardOperationIsCurrent } from "lib/clipboard_feedback"
 
 const WINDOW_SIZE = 9
+const WIDE_WINDOW_SIZE = 12
+const LARGE_WINDOW_SIZE = 15
+const MAX_WINDOW_SIZE = 18
 const COMPACT_WINDOW_SIZE = 6
 const GRID_COLUMNS = 3
+const WIDE_GRID_COLUMNS = 4
+const LARGE_GRID_COLUMNS = 5
+const MAX_GRID_COLUMNS = 6
 const MAX_JSON_BYTES = 512 * 1024
 const MAX_DESCRIPTION_LENGTH = 512
+const TREND_DAYS = 14
+const MAX_COMMENT_LENGTH = 2000
+const MAX_COMMENT_AUTHOR_LENGTH = 120
 const SORTS = new Set(["downloads", "trending", "rating", "updated", "newest", "name"])
 const SUGGESTION_TYPES = new Set(["plugin", "kind", "author", "tag", "category"])
 const MATCH_TYPES = new Set(["sorted", "plugin", "kind", "author", "tag", "category", "text"])
@@ -32,6 +41,9 @@ export default class extends Controller {
     this.page = Number(this.pickerTarget.dataset.indexPickerPageValue || 1)
     const renderedPerPage = Number(this.pickerTarget.dataset.indexPickerPerPageValue || WINDOW_SIZE)
     this.compactPageMedia = window.matchMedia("(max-width: 620px)")
+    this.widePageMedia = window.matchMedia("(min-width: 1440px)")
+    this.largePageMedia = window.matchMedia("(min-width: 1680px)")
+    this.maxPageMedia = window.matchMedia("(min-width: 1920px)")
     this.perPage = renderedPerPage
     this.total = Number(this.pickerTarget.dataset.indexPickerTotalValue || 0)
     this.more = this.pickerTarget.dataset.indexPickerMoreValue === "true"
@@ -66,7 +78,7 @@ export default class extends Controller {
     const storedBrowse = window.history.state?.registryBrowse || this.reloadedBrowseState()
     const storedPerPage = Number(storedBrowse?.perPage)
     const storedAnchor = Number(storedBrowse?.absoluteAnchor)
-    const hasStoredWindow = [COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(storedPerPage) &&
+    const hasStoredWindow = [COMPACT_WINDOW_SIZE, WINDOW_SIZE, WIDE_WINDOW_SIZE, LARGE_WINDOW_SIZE, MAX_WINDOW_SIZE].includes(storedPerPage) &&
       Number.isSafeInteger(storedAnchor) && storedAnchor >= 0
     const responsivePerPage = this.responsivePerPage()
     const responsivePage = hasStoredWindow ? Math.floor(storedAnchor / responsivePerPage) + 1 : this.page
@@ -91,7 +103,7 @@ export default class extends Controller {
     this.handleTurboLoad = this.turboLoad.bind(this)
     this.handleDocumentPointerdown = this.documentPointerdown.bind(this)
     this.handleSelectionChange = this.selectionChange.bind(this)
-    this.handleCompactPageChange = this.syncResponsivePageSize.bind(this)
+    this.handlePageSizeChange = this.syncResponsivePageSize.bind(this)
     this.handlePickerPointermove = () => this.pickerTarget.classList.add("is-pointer-mode")
     document.addEventListener("keydown", this.handleDocumentKeydown)
     document.addEventListener("pointerdown", this.handleDocumentPointerdown)
@@ -99,7 +111,10 @@ export default class extends Controller {
     document.addEventListener("turbo:before-cache", this.handleBeforeCache)
     document.addEventListener("turbo:load", this.handleTurboLoad)
     this.pickerTarget.addEventListener("pointermove", this.handlePickerPointermove)
-    this.compactPageMedia.addEventListener("change", this.handleCompactPageChange)
+    this.compactPageMedia.addEventListener("change", this.handlePageSizeChange)
+    this.widePageMedia.addEventListener("change", this.handlePageSizeChange)
+    this.largePageMedia.addEventListener("change", this.handlePageSizeChange)
+    this.maxPageMedia.addEventListener("change", this.handlePageSizeChange)
     window.addEventListener("popstate", this.handlePopstate, { capture: true })
 
     if (needsResponsiveLoad) {
@@ -123,7 +138,10 @@ export default class extends Controller {
     document.removeEventListener("turbo:before-cache", this.handleBeforeCache)
     document.removeEventListener("turbo:load", this.handleTurboLoad)
     this.pickerTarget.removeEventListener("pointermove", this.handlePickerPointermove)
-    this.compactPageMedia.removeEventListener("change", this.handleCompactPageChange)
+    this.compactPageMedia.removeEventListener("change", this.handlePageSizeChange)
+    this.widePageMedia.removeEventListener("change", this.handlePageSizeChange)
+    this.largePageMedia.removeEventListener("change", this.handlePageSizeChange)
+    this.maxPageMedia.removeEventListener("change", this.handlePageSizeChange)
     window.removeEventListener("popstate", this.handlePopstate, { capture: true })
     this.hideCopyStatus()
     window.clearTimeout(this.suggestionCloseTimer)
@@ -165,7 +183,10 @@ export default class extends Controller {
   }
 
   responsivePerPage() {
-    return this.compactPageMedia.matches ? COMPACT_WINDOW_SIZE : WINDOW_SIZE
+    if (this.compactPageMedia.matches) return COMPACT_WINDOW_SIZE
+    if (this.maxPageMedia.matches) return MAX_WINDOW_SIZE
+    if (this.largePageMedia.matches) return LARGE_WINDOW_SIZE
+    return this.widePageMedia.matches ? WIDE_WINDOW_SIZE : WINDOW_SIZE
   }
 
   syncResponsivePageSize() {
@@ -195,7 +216,7 @@ export default class extends Controller {
     const stored = window.history.state?.registryBrowse
     const storedPerPage = Number(stored?.perPage)
     const storedAnchor = Number(stored?.absoluteAnchor)
-    if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(storedPerPage) ||
+    if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE, WIDE_WINDOW_SIZE, LARGE_WINDOW_SIZE, MAX_WINDOW_SIZE].includes(storedPerPage) ||
         !Number.isSafeInteger(storedAnchor) || storedAnchor < 0) return
 
     const perPage = this.responsivePerPage()
@@ -220,8 +241,8 @@ export default class extends Controller {
     const page = Number.isSafeInteger(urlPage) && urlPage > 0 ? urlPage : 1
     this.selectionCleared = typeof stored.selectionCleared === "boolean" ? stored.selectionCleared : true
     const urlPerPage = Number(url.searchParams.get("per_page"))
-    const sourcePerPage = [COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(stored?.perPage) ? stored.perPage :
-      ([COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(urlPerPage) ? urlPerPage : WINDOW_SIZE)
+    const sourcePerPage = [COMPACT_WINDOW_SIZE, WINDOW_SIZE, WIDE_WINDOW_SIZE, LARGE_WINDOW_SIZE, MAX_WINDOW_SIZE].includes(stored?.perPage) ? stored.perPage :
+      ([COMPACT_WINDOW_SIZE, WINDOW_SIZE, WIDE_WINDOW_SIZE, LARGE_WINDOW_SIZE, MAX_WINDOW_SIZE].includes(urlPerPage) ? urlPerPage : WINDOW_SIZE)
     const storedAnchor = Number(stored?.absoluteAnchor)
     const absoluteAnchor = Number.isSafeInteger(storedAnchor) && storedAnchor >= 0 ?
       storedAnchor : (page - 1) * sourcePerPage
@@ -263,10 +284,6 @@ export default class extends Controller {
     if (event.isComposing) return
 
     const unmodified = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
-    if (unmodified && event.key === "Escape" && this.filtersExpanded) {
-      this.escapeFilters(event)
-      return
-    }
     if (unmodified && event.key === "Escape" && !this.suggestionsTarget.hidden) {
       event.preventDefault()
       this.closeSuggestions()
@@ -347,11 +364,8 @@ export default class extends Controller {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
     if (event.target.closest("dialog[open], .theme-picker:not([hidden])")) return
     if (event.key === "Escape") {
-      if (this.filtersExpanded) this.escapeFilters(event)
-      else {
-        event.preventDefault()
-        this.clearSelection()
-      }
+      event.preventDefault()
+      this.clearSelection()
       return
     }
     if (event.target.closest("input, textarea, select, [contenteditable]")) return
@@ -359,7 +373,11 @@ export default class extends Controller {
     const key = event.key.toLowerCase()
     const focusedRow = event.target.closest(".index-picker__row")
     const ordinaryControl = !focusedRow && event.target.closest("a, button, summary")
-    if (ordinaryControl && (event.key === "Enter" || event.key === " " || event.code === "Space")) return
+    const quickDetailControl = event.target.closest(
+      ".index-picker__card-flip, .index-picker__card-face--back a, .index-picker__card-face--back button"
+    )
+    if ((ordinaryControl || quickDetailControl) &&
+        (event.key === "Enter" || event.key === " " || event.code === "Space")) return
 
     const focusedIndex = focusedRow ? this.rowTargets.indexOf(focusedRow) : -1
     if (focusedIndex >= 0 && focusedIndex !== this.index) {
@@ -430,10 +448,6 @@ export default class extends Controller {
 
   dismissKeyHint(event) {
     if (event.key !== "Escape") return
-    if (this.filtersExpanded) {
-      this.escapeFilters(event)
-      return
-    }
     event.stopPropagation()
     event.preventDefault()
     event.currentTarget.classList.add("is-tooltip-dismissed")
@@ -506,13 +520,6 @@ export default class extends Controller {
       this.syncFilterLinks()
     }
     this.closeSortDisclosure(disclosure, { focus: true })
-  }
-
-  escapeFilters(event) {
-    event.preventDefault()
-    this.closeSuggestions()
-    this.toggleFilters(event)
-    this.filterToggleTarget.focus({ preventScroll: true })
   }
 
   async toggleFilters(event) {
@@ -784,8 +791,11 @@ export default class extends Controller {
     this.resizePageInput()
     this.pageTotalTarget.textContent = totalPages
     this.pageStatusTarget.setAttribute("aria-label", `Page ${this.page} of ${totalPages}`)
-    const pageSizeLabel = this.perPage === WINDOW_SIZE ? "nine" :
-      (this.perPage === COMPACT_WINDOW_SIZE ? "six" : String(this.perPage))
+    const pageSizeLabel = this.perPage === MAX_WINDOW_SIZE ? "eighteen" :
+      (this.perPage === LARGE_WINDOW_SIZE ? "fifteen" :
+        (this.perPage === WIDE_WINDOW_SIZE ? "twelve" :
+          (this.perPage === WINDOW_SIZE ? "nine" :
+            (this.perPage === COMPACT_WINDOW_SIZE ? "six" : String(this.perPage)))))
     this.previousTarget.setAttribute("aria-label", `Previous ${pageSizeLabel} plugin results`)
     this.nextTarget.setAttribute("aria-label", `Next ${pageSizeLabel} plugin results`)
     this.previousTarget.hidden = this.page <= 1
@@ -914,6 +924,8 @@ export default class extends Controller {
     const absoluteIndex = this.absoluteIndex(this.resultsTarget.querySelectorAll(".index-picker__row").length)
     link.className = "index-picker__row index-picker__card"
     link.id = `plugin-option-${this.page}-${absoluteIndex}`
+    link.dataset.controller = "card-flip"
+    link.dataset.action = "click->card-flip#toggle keydown->card-flip#keydown"
     link.dataset.url = plugin.url
     link.dataset.indexPickerTarget = "row"
     link.dataset.name = plugin.name
@@ -935,6 +947,16 @@ export default class extends Controller {
     link.dataset.downloads = plugin.downloads
     link.dataset.verified = plugin.verified
     link.dataset.sizeBytes = plugin.sizeBytes ?? ""
+    link.dataset.trend = JSON.stringify(plugin.trend)
+    link.dataset.latestCommentAuthor = plugin.latestComment?.author || ""
+    link.dataset.latestCommentBody = plugin.latestComment?.body || ""
+
+    const inner = document.createElement("div")
+    inner.className = "index-picker__card-inner"
+    const front = document.createElement("div")
+    front.className = "index-picker__card-face index-picker__card-face--front"
+    front.dataset.cardFlipTarget = "front"
+    const backId = `plugin-card-back-${this.page}-${absoluteIndex}`
 
     const open = document.createElement("a")
     open.className = "index-picker__card-open"
@@ -962,6 +984,14 @@ export default class extends Controller {
       fallback.append(label, summary)
       visual.append(fallback)
     }
+    const author = document.createElement("span")
+    author.className = "index-picker__card-author"
+    author.setAttribute("translate", "no")
+    author.setAttribute("aria-label", `Publisher: ${plugin.publisher}`)
+    const authorName = document.createElement("span")
+    authorName.textContent = plugin.publisher.toLowerCase()
+    author.append(authorName)
+    visual.append(author)
 
     const footer = document.createElement("span")
     footer.className = "index-picker__card-foot"
@@ -984,14 +1014,8 @@ export default class extends Controller {
     signals.className = "index-picker__card-signals"
     const signalDescription = document.createElement("span")
     signalDescription.className = "visually-hidden"
-    signalDescription.textContent = `${plugin.isNew ? "New plugin, " : ""}${plugin.downloads} download${plugin.downloads === 1 ? "" : "s"}, ${plugin.upvotes} upvote${plugin.upvotes === 1 ? "" : "s"}, ${plugin.views} view${plugin.views === 1 ? "" : "s"}`
+    signalDescription.textContent = `${plugin.downloads} download${plugin.downloads === 1 ? "" : "s"}, ${plugin.upvotes} upvote${plugin.upvotes === 1 ? "" : "s"}, ${plugin.views} view${plugin.views === 1 ? "" : "s"}`
     signals.append(signalDescription)
-    if (plugin.isNew) {
-      const badge = document.createElement("mark")
-      badge.textContent = "new"
-      badge.setAttribute("aria-hidden", "true")
-      signals.append(badge)
-    }
     const downloads = document.createElement("span")
     downloads.textContent = `↓ ${this.compactNumber(plugin.downloads)}`
     downloads.setAttribute("aria-hidden", "true")
@@ -1004,34 +1028,234 @@ export default class extends Controller {
     signals.append(downloads, upvotes, views)
     primary.append(title, signals)
 
-    const secondary = document.createElement("span")
-    secondary.className = "index-picker__card-secondary"
-    const publisher = document.createElement("span")
-    publisher.className = "index-picker__card-publisher"
-    publisher.textContent = plugin.publisher.toLowerCase()
-    publisher.setAttribute("translate", "no")
-    const artifact = document.createElement("b")
-    artifact.className = "index-picker__card-artifact"
-    artifact.setAttribute("translate", "no")
-    const verification = document.createElement("span")
-    verification.className = plugin.verified ? "is-verified" : "is-pending"
-    verification.setAttribute("aria-label", plugin.verified ?
-      "Verified artifact: passed registry review" : "Artifact verification pending")
-    verification.textContent = plugin.verified ? "Verified" : "Pending"
-    artifact.append(verification)
-    if (plugin.sizeBytes !== null) {
-      const size = document.createElement("span")
-      size.textContent = this.formatBytes(plugin.sizeBytes)
-      artifact.append(size)
-    }
-    const version = document.createElement("span")
-    version.textContent = plugin.latestVersion ? `v${plugin.latestVersion}` : "version pending"
-    artifact.append(version)
-    secondary.append(publisher, artifact)
-    footer.append(primary, secondary)
+    footer.append(primary)
 
-    link.append(open, visual, footer)
+    const flip = document.createElement("button")
+    flip.type = "button"
+    const verificationLabel = plugin.verified ? "Verified" : "Pending"
+    flip.className = `index-picker__card-flip index-picker__card-flip--${verificationLabel.toLowerCase()}`
+    flip.dataset.cardFlipTarget = "toggle"
+    flip.dataset.action = "card-flip#toggleButton"
+    flip.setAttribute("aria-expanded", "false")
+    flip.setAttribute("aria-controls", backId)
+    const lifecycleLabel = plugin.isNew ? "New" : "Updated"
+    flip.setAttribute("aria-label", `${lifecycleLabel}, ${verificationLabel.toLowerCase()} plugin. Show quick details for ${plugin.publisher}/${plugin.name}`)
+    const flipLifecycle = document.createElement("span")
+    flipLifecycle.className = `index-picker__card-flip-lifecycle${plugin.isNew ? " is-new" : ""}`
+    flipLifecycle.setAttribute("aria-hidden", "true")
+    flipLifecycle.textContent = lifecycleLabel
+    const flipSeparator = document.createElement("span")
+    flipSeparator.className = "index-picker__card-flip-separator"
+    flipSeparator.setAttribute("aria-hidden", "true")
+    flipSeparator.textContent = "|"
+    const flipStatus = document.createElement("span")
+    flipStatus.className = "index-picker__card-flip-status"
+    flipStatus.setAttribute("aria-hidden", "true")
+    flipStatus.textContent = verificationLabel
+    flip.append(flipLifecycle, flipSeparator, flipStatus)
+
+    front.append(open, visual, footer, flip)
+    inner.append(front, this.cardBack(plugin, backId))
+    link.append(inner)
     return link
+  }
+
+  cardBack(plugin, backId) {
+    const back = document.createElement("div")
+    back.id = backId
+    back.className = "index-picker__card-face index-picker__card-face--back"
+    back.dataset.cardFlipTarget = "back"
+    back.setAttribute("aria-hidden", "true")
+    back.setAttribute("inert", "")
+
+    const head = document.createElement("div")
+    head.className = "index-picker__card-back-head"
+    const identity = document.createElement("b")
+    identity.textContent = `${plugin.publisher.toLowerCase()}/${plugin.name}`
+    identity.setAttribute("translate", "no")
+    const close = document.createElement("button")
+    close.type = "button"
+    close.dataset.action = "card-flip#toggleButton"
+    close.setAttribute("aria-label", `Show front of ${plugin.publisher}/${plugin.name}`)
+    close.textContent = "← front"
+    head.append(identity, close)
+
+    const details = document.createElement("a")
+    details.className = "index-picker__card-action index-picker__card-details copy-button copy-button--labeled"
+    details.href = plugin.url
+    details.dataset.cardFlipAutofocus = "true"
+    const detailsTitle = document.createElement("span")
+    detailsTitle.textContent = "details"
+    details.append(detailsTitle, this.cardActionIcon("arrow"))
+
+    const actions = document.createElement("div")
+    actions.className = "index-picker__card-actions"
+    actions.append(details, this.cardCommand(plugin),
+      this.cardFact(plugin.latestVersion ? `v${plugin.latestVersion}` : "pending", `Version ${plugin.latestVersion || "pending"}`),
+      this.cardFact(plugin.publisher.toLowerCase(), `Publisher ${plugin.publisher}`))
+
+    const trendValues = plugin.trend.length ? plugin.trend : Array(14).fill(0)
+    const trendTotal = trendValues.reduce((total, value) => total + value, 0)
+    const stats = document.createElement("div")
+    stats.className = "index-picker__card-stats"
+    stats.setAttribute("role", "group")
+    stats.setAttribute("aria-label", `Install trend over the last ${trendValues.length} days: ${trendTotal} installs; ${plugin.downloads} downloads; ${plugin.upvotes} upvotes`)
+    const trend = document.createElement("span")
+    trend.className = "index-picker__card-stat index-picker__card-stat--trend"
+    const trendName = document.createElement("small")
+    trendName.textContent = "trend"
+    const bars = document.createElement("span")
+    bars.className = "index-picker__card-trend-bars"
+    bars.setAttribute("aria-hidden", "true")
+    const maximum = Math.max(...trendValues, 1)
+    trendValues.forEach((value) => {
+      const bar = document.createElement("i")
+      bar.style.setProperty("--trend-height", `${Math.max(Math.round(value / maximum * 100), 8)}%`)
+      bars.append(bar)
+    })
+    const trendGraphic = document.createElement("span")
+    trendGraphic.className = "index-picker__card-stat-graphic"
+    const trendNumber = document.createElement("b")
+    trendNumber.textContent = this.compactNumber(trendTotal)
+    trendGraphic.append(bars, trendNumber)
+    trend.append(trendName, trendGraphic)
+    stats.append(trend, this.cardStat("downloads", plugin.downloads, "download"),
+      this.cardStat("upvotes", plugin.upvotes, "upvote"))
+
+    const description = this.cardExcerpt("description", plugin.summary || "No plugin description provided.",
+      this.anchoredPluginUrl(plugin.url, "description"), "index-picker__card-excerpt")
+    const comment = plugin.latestComment ?
+      this.cardExcerpt(`latest comment · ${plugin.latestComment.author}`, plugin.latestComment.body,
+        this.anchoredPluginUrl(plugin.url, "community"), "index-picker__card-comment") :
+      this.emptyCardComment()
+
+    back.append(head, actions, stats, description, comment)
+    return back
+  }
+
+  cardExcerpt(label, content, url, className) {
+    const link = document.createElement("a")
+    link.className = className
+    link.href = url
+    link.dataset.cardFlipOverflow = "true"
+    const heading = document.createElement("small")
+    heading.textContent = label
+    const body = document.createElement("span")
+    body.textContent = content
+    link.append(heading, body)
+    return link
+  }
+
+  cardCommand(plugin) {
+    if (!plugin.installCommand) {
+      const unavailable = document.createElement("span")
+      unavailable.className = "index-picker__card-action index-picker__card-command index-picker__card-command--disabled"
+      unavailable.textContent = "unavailable"
+      return unavailable
+    }
+
+    const command = document.createElement("div")
+    command.className = "index-picker__card-command"
+    command.dataset.controller = "clipboard"
+    command.dataset.clipboardTextValue = plugin.installCommand
+    const copy = document.createElement("button")
+    copy.type = "button"
+    copy.className = "copy-button copy-button--labeled index-picker__card-action"
+    copy.dataset.clipboardTarget = "button"
+    copy.dataset.action = "clipboard#copy"
+    copy.dataset.copyDefaultLabel = "Copy install command"
+    copy.dataset.copyCopiedLabel = "Install command copied"
+    copy.setAttribute("aria-label", "Copy install command")
+    const copyLabel = document.createElement("span")
+    copyLabel.className = "copy-button__copy-label"
+    copyLabel.textContent = "copy"
+    const copiedLabel = document.createElement("span")
+    copiedLabel.className = "copy-button__done-label"
+    copiedLabel.textContent = "copied"
+    const tooltip = document.createElement("span")
+    tooltip.className = "copy-button__tooltip"
+    tooltip.setAttribute("role", "tooltip")
+    tooltip.setAttribute("aria-hidden", "true")
+    tooltip.textContent = "Copy install command"
+    copy.append(copyLabel, copiedLabel, this.cardActionIcon("copy"), this.cardActionIcon("check"), tooltip)
+    command.append(copy)
+    return command
+  }
+
+  cardFact(value, label) {
+    const fact = document.createElement("span")
+    fact.className = "index-picker__card-action index-picker__card-action--fact"
+    fact.textContent = value
+    fact.title = label
+    fact.setAttribute("aria-label", label)
+    fact.setAttribute("translate", "no")
+    return fact
+  }
+
+  cardStat(label, value, singular) {
+    const stat = document.createElement("span")
+    stat.className = "index-picker__card-stat"
+    stat.setAttribute("aria-label", `${value} ${value === 1 ? singular : `${singular}s`}`)
+    const heading = document.createElement("small")
+    heading.textContent = label
+    const metric = document.createElement("b")
+    if (label === "upvotes") {
+      metric.append(this.signalIcon("upvote"), ` ${this.compactNumber(value)}`)
+    } else {
+      metric.append(this.cardActionIcon("download"), ` ${this.compactNumber(value)}`)
+    }
+    stat.append(heading, metric)
+    return stat
+  }
+
+  cardActionIcon(kind) {
+    const namespace = "http://www.w3.org/2000/svg"
+    const icon = document.createElementNS(namespace, "svg")
+    icon.classList.add(kind === "check" ? "copy-button__check" : kind === "copy" ? "copy-button__copy" :
+      kind === "download" ? "index-picker__card-stat-icon" : "index-picker__card-action-icon")
+    icon.setAttribute("viewBox", "0 0 24 24")
+    icon.setAttribute("fill", "none")
+    icon.setAttribute("stroke", "currentColor")
+    icon.setAttribute("stroke-width", "2")
+    icon.setAttribute("stroke-linecap", "round")
+    icon.setAttribute("stroke-linejoin", "round")
+    icon.setAttribute("aria-hidden", "true")
+
+    if (kind === "copy") {
+      const rectangle = document.createElementNS(namespace, "rect")
+      rectangle.setAttribute("width", "14")
+      rectangle.setAttribute("height", "14")
+      rectangle.setAttribute("x", "8")
+      rectangle.setAttribute("y", "8")
+      rectangle.setAttribute("rx", "2")
+      rectangle.setAttribute("ry", "2")
+      const path = document.createElementNS(namespace, "path")
+      path.setAttribute("d", "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2")
+      icon.append(rectangle, path)
+    } else {
+      const path = document.createElementNS(namespace, "path")
+      path.setAttribute("d", kind === "check" ? "M20 6 9 17l-5-5" : kind === "download" ?
+        "M12 3v12M7 10l5 5 5-5M5 21h14" : "M5 12h14M13 6l6 6-6 6")
+      icon.append(path)
+    }
+    return icon
+  }
+
+  emptyCardComment() {
+    const comment = document.createElement("span")
+    comment.className = "index-picker__card-comment index-picker__card-comment--empty"
+    const label = document.createElement("small")
+    label.textContent = "latest comment"
+    const body = document.createElement("span")
+    body.textContent = "No user comments yet."
+    comment.append(label, body)
+    return comment
+  }
+
+  anchoredPluginUrl(url, anchor) {
+    const target = new URL(url, window.location.origin)
+    target.hash = anchor
+    return this.localUrl(target.href)
   }
 
   signalIcon(kind) {
@@ -1331,7 +1555,10 @@ export default class extends Controller {
   }
 
   gridColumns() {
-    return window.matchMedia("(max-width: 620px)").matches ? 1 : GRID_COLUMNS
+    if (this.compactPageMedia.matches) return 1
+    if (this.maxPageMedia.matches) return MAX_GRID_COLUMNS
+    if (this.largePageMedia.matches) return LARGE_GRID_COLUMNS
+    return this.widePageMedia.matches ? WIDE_GRID_COLUMNS : GRID_COLUMNS
   }
 
   syncFormFromUrl(url) {
@@ -1345,10 +1572,8 @@ export default class extends Controller {
       category: url.searchParams.get("category"),
       tag: url.searchParams.get("tag")
     })
-    if (this.hasActiveFilters()) {
-      this.filtersExpanded = true
-      this.syncFilterDisclosure()
-    }
+    this.filtersExpanded = this.hasActiveFilters()
+    this.syncFilterDisclosure()
     this.syncSortLinks()
     const page = Number(url.searchParams.get("page") || 1)
     this.syncRecentVisibility(Number.isSafeInteger(page) && page > 0 ? page : 1)
@@ -1598,7 +1823,10 @@ export default class extends Controller {
           typeof plugin.card.new !== "boolean" || !Number.isSafeInteger(plugin.card.upvotes) || plugin.card.upvotes < 0 ||
           !Number.isSafeInteger(plugin.card.views) || plugin.card.views < 0 || typeof plugin.card.verified !== "boolean" ||
           (plugin.card.size_bytes !== null && (!Number.isSafeInteger(plugin.card.size_bytes) || plugin.card.size_bytes < 0)) ||
-          plugin.card.verified !== (plugin.card.size_bytes !== null)) {
+          (plugin.card.verified && plugin.card.size_bytes === null) ||
+          !Array.isArray(plugin.card.trend) || plugin.card.trend.length !== TREND_DAYS ||
+          !plugin.card.trend.every((value) => Number.isSafeInteger(value) && value >= 0) ||
+          !this.validLatestComment(plugin.card.latest_comment)) {
         throw new TypeError("Invalid search plugin")
       }
 
@@ -1606,6 +1834,9 @@ export default class extends Controller {
       const expectedInstallCommand = `omarchy plugin add ${plugin.publisher}/${plugin.name}`
       if (plugin.install_command !== null && plugin.install_command !== expectedInstallCommand) {
         throw new TypeError("Invalid install command")
+      }
+      if ((plugin.install_command !== null) !== plugin.card.verified) {
+        throw new TypeError("Inconsistent plugin verification")
       }
 
       const pluginUrl = new URL(plugin.url, window.location.origin)
@@ -1648,6 +1879,16 @@ export default class extends Controller {
     }
   }
 
+  validLatestComment(comment) {
+    if (comment === null) return true
+    if (!comment || typeof comment !== "object" || Array.isArray(comment) ||
+        typeof comment.author !== "string" || !comment.author ||
+        Array.from(comment.author).length > MAX_COMMENT_AUTHOR_LENGTH ||
+        typeof comment.body !== "string" || !comment.body || Array.from(comment.body).length > MAX_COMMENT_LENGTH) return false
+
+    return !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(`${comment.author}${comment.body}`)
+  }
+
   pluginFromRow(row) {
     return {
       name: row.dataset.name,
@@ -1663,6 +1904,11 @@ export default class extends Controller {
       downloads: Number(row.dataset.downloads || 0),
       verified: row.dataset.verified === "true",
       sizeBytes: row.dataset.sizeBytes ? Number(row.dataset.sizeBytes) : null,
+      trend: this.parseTrend(row.dataset.trend),
+      latestComment: row.dataset.latestCommentBody ? {
+        author: row.dataset.latestCommentAuthor || "someone",
+        body: row.dataset.latestCommentBody
+      } : null,
       url: row.dataset.url,
       preview: row.dataset.previewUrl ? {
         url: row.dataset.previewUrl,
@@ -1690,6 +1936,8 @@ export default class extends Controller {
       downloads: plugin.downloads,
       verified: plugin.card.verified,
       sizeBytes: plugin.card.size_bytes,
+      trend: plugin.card.trend,
+      latestComment: plugin.card.latest_comment,
       url: this.localUrl(plugin.url),
       preview: plugin.preview?.card ? { ...plugin.preview.card, url: this.localUrl(plugin.preview.card.url) } : null,
       installCommand: plugin.install_command,
@@ -1697,23 +1945,19 @@ export default class extends Controller {
     }
   }
 
+  parseTrend(serialized) {
+    try {
+      const values = JSON.parse(serialized || "[]")
+      return Array.isArray(values) && values.length === TREND_DAYS &&
+        values.every((value) => Number.isSafeInteger(value) && value >= 0) ? values : Array(TREND_DAYS).fill(0)
+    } catch {
+      return Array(TREND_DAYS).fill(0)
+    }
+  }
+
   compactNumber(value) {
     return new Intl.NumberFormat("en", { notation: "compact", maximumSignificantDigits: 3 })
       .format(value).replace("K", "k")
-  }
-
-  formatBytes(value) {
-    if (value < 1024) return `${value} B`
-    const units = ["KB", "MB", "GB", "TB", "PB", "EB"]
-    let amount = value
-    let unit = "B"
-    for (const nextUnit of units) {
-      if (amount < 1024) break
-      amount /= 1024
-      unit = nextUnit
-    }
-    const number = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, useGrouping: false }).format(amount)
-    return `${number} ${unit}`
   }
 
   parseArray(value) {
@@ -1766,7 +2010,7 @@ export default class extends Controller {
       if (!stored || stored.url !== currentUrl || !stored.browse || typeof stored.browse !== "object") return null
       const perPage = Number(stored.browse.perPage)
       const absoluteAnchor = Number(stored.browse.absoluteAnchor)
-      if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE].includes(perPage) ||
+      if (![COMPACT_WINDOW_SIZE, WINDOW_SIZE, WIDE_WINDOW_SIZE, LARGE_WINDOW_SIZE, MAX_WINDOW_SIZE].includes(perPage) ||
           !Number.isSafeInteger(absoluteAnchor) || absoluteAnchor < 0 ||
           typeof stored.browse.selectionCleared !== "boolean") return null
       return { perPage, absoluteAnchor, selectionCleared: stored.browse.selectionCleared }
@@ -1786,6 +2030,7 @@ export default class extends Controller {
 
   updateHistory(mode) {
     const url = this.webUrl(this.page, this.loadedQuery)
+    if (["#browse", "#main-content"].includes(window.location.hash)) url.hash = window.location.hash
     this.syncMobileSectionLinks(url)
     if (mode === "none") return
     if (url.href === window.location.href) {

@@ -101,43 +101,86 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
+  <body data-controller="edge-waves">
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="rail">
-      <header class="band" data-controller="theme"
-              <%= tag.attributes("data-theme-omarchy-url-value": omarchy_sync_url) if omarchy_sync_url %>>
-        <div class="nav">
-          <%
-            plugins_nav_active = %w[home plugins publishers claims].include?(controller_path)
-            governance_nav_active = current_page?(governance_path) || controller_path == "audit_log"
-            publishing_nav_active = current_page?(publishing_path)
-            admin_nav_active = controller_path.start_with?("admin/")
-          %>
-          <nav class="nav__links" aria-label="Primary navigation">
-            <span class="nav__path">
-              <%= link_to "plugins", root_path, class: [ "nav__section", { "nav__section--active": plugins_nav_active } ], aria: (plugins_nav_active ? { current: current_page?(root_path) ? "page" : "location" } : {}) %><i aria-hidden="true">/</i>
-              <%= link_to "governance", governance_path, class: [ "nav__section", { "nav__section--active": governance_nav_active } ], aria: (governance_nav_active ? { current: (current_page?(governance_path) ? "page" : "location") } : {}) %><i aria-hidden="true">/</i>
-              <%= link_to "publishing", publishing_path, class: [ "nav__section", { "nav__section--active": publishing_nav_active } ], aria: (publishing_nav_active ? { current: "page" } : {}) %>
-              <% if authenticated? && Current.user&.admin? %>
-                <i aria-hidden="true">/</i><%= link_to "admin", admin_root_path, class: [ "nav__section", { "nav__section--active": admin_nav_active } ], aria: (admin_nav_active ? { current: current_page?(admin_root_path) ? "page" : "location" } : {}) %>
-              <% end %>
-            </span>
-            <button type="button" class="theme-toggle" data-theme-target="toggle" data-action="theme#toggle"
-                    aria-expanded="false" title="Choose color theme">
-              <i aria-hidden="true"></i><span class="theme-toggle__prefix">theme=</span><span class="theme-toggle__label" data-theme-target="toggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span><span class="theme-toggle__mobile-label" data-theme-target="mobileToggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span>
-            </button>
-            <% if authenticated? %>
-              <% account_nav_active = %w[dashboard orgs onboarding settings/two_factor settings/passkeys].include?(controller_path) %>
-              <%= link_to "account/dashboard →", dashboard_path, class: "nav__account",
-                    aria: (account_nav_active ? { current: (current_page?(dashboard_path) ? "page" : "location") } : {}) %>
-            <% else %>
-              <%= link_to "sign-in →", new_session_path, class: "nav__account", aria: (current_page?(new_session_path) ? { current: "page" } : {}) %>
+    <button type="button" class="motion-control" aria-label="Pause background animation" aria-pressed="false"
+            data-edge-waves-target="toggle" data-action="edge-waves#toggle" hidden>Pause background animation</button>
+    <div class="site-edge-waves" aria-hidden="true" data-edge-waves-target="layer">
+      <canvas data-edge-waves-target="canvas"></canvas>
+    </div>
+    <header class="site-bar" data-controller="site-bar theme"
+            <%= tag.attributes("data-theme-omarchy-url-value": omarchy_sync_url) if omarchy_sync_url %>>
+      <div class="nav">
+        <a href="https://omarchy.org/" class="nav__home" aria-label="Omarchy home">
+          <svg class="nav__mark" viewBox="0 0 1200 1200" aria-hidden="true">
+            <defs>
+              <linearGradient id="nav-mark-bands" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1200">
+                <stop offset="0%" stop-color="var(--brand-crest)"/>
+                <stop offset="26.316%" stop-color="var(--brand-crest)"/>
+                <stop offset="26.316%" stop-color="var(--brand-hover)"/>
+                <stop offset="36.842%" stop-color="var(--brand-hover)"/>
+                <stop offset="36.842%" stop-color="var(--brand-lit)"/>
+                <stop offset="57.895%" stop-color="var(--brand-lit)"/>
+                <stop offset="57.895%" stop-color="var(--brand-mid)"/>
+                <stop offset="73.684%" stop-color="var(--brand-mid)"/>
+                <stop offset="73.684%" stop-color="var(--brand-dim)"/>
+                <stop offset="100%" stop-color="var(--brand-dim)"/>
+              </linearGradient>
+            </defs>
+            <path fill="url(#nav-mark-bands)" fill-rule="evenodd" clip-rule="evenodd" d="m1200 1200h-480v-80h400v-1040h-479.996v160h-400v720h720v-720h-80v-80h159.996v880h-400v160h-640v-1200h1200zm-1120-80h480v-80h-400l.004-400h-80.004zm0-560h80.004v-400h400v-80h-480.004z"/>
+          </svg>
+        </a>
+        <%
+          plugins_nav_active = %w[home plugins publishers claims].include?(controller_path)
+          governance_nav_active = current_page?(governance_path) || controller_path == "audit_log"
+          publishing_nav_active = current_page?(publishing_path)
+          admin_nav_active = controller_path.start_with?("admin/")
+        %>
+        <nav class="nav__links" aria-label="Primary navigation">
+          <span class="nav__path">
+            <%= link_to "plugins", root_path, class: [ "nav__section", { "nav__section--active": plugins_nav_active } ], aria: (plugins_nav_active ? { current: current_page?(root_path) ? "page" : "location" } : {}) %>
+            <%= link_to "governance", governance_path, class: [ "nav__section", { "nav__section--active": governance_nav_active } ], aria: (governance_nav_active ? { current: (current_page?(governance_path) ? "page" : "location") } : {}) %>
+            <%= link_to "publishing", publishing_path, class: [ "nav__section", { "nav__section--active": publishing_nav_active } ], aria: (publishing_nav_active ? { current: "page" } : {}) %>
+            <% if authenticated? && Current.user&.admin? %>
+              <%= link_to "admin", admin_root_path, class: [ "nav__section", { "nav__section--active": admin_nav_active } ], aria: (admin_nav_active ? { current: current_page?(admin_root_path) ? "page" : "location" } : {}) %>
             <% end %>
-          </nav>
-        </div>
-        <%= render "shared/theme_picker" %>
-      </header>
+          </span>
+          <div class="nav__radio" data-controller="radio" role="group" aria-label="Omarchy radio">
+            <button type="button" class="nav__radio-volume-button" data-radio-target="volume"
+                    data-action="click->radio#toggleMute wheel->radio#volume:!passive keydown->radio#volumeKeydown"
+                    aria-pressed="false" aria-keyshortcuts="ArrowUp ArrowDown" aria-label="Mute Omarchy radio; volume 70 percent">
+              <svg class="nav__radio-volume nav__radio-volume--on" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19.25 4.75C21.1 6.61 22.25 9.17 22.25 12s-1.15 5.39-3 7.25M15.89 8.11A5.48 5.48 0 0 1 17.5 12a5.48 5.48 0 0 1-1.61 3.89M1.75 7.75H6l6.25-3.5v15.5L6 16.25H1.75z"/>
+              </svg>
+              <svg class="nav__radio-volume nav__radio-volume--off" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21.5 10-4.24 4.24m2.12-2.12L17.26 10m4.24 4.24L19.38 12M1.75 7.75H6l6.25-3.5v15.5L6 16.25H1.75z"/>
+              </svg>
+            </button>
+            <button type="button" class="nav__radio-track" data-radio-target="toggle"
+                    data-action="radio#togglePlayback" aria-pressed="false" aria-label="Play Omarchy radio">
+              <span class="visually-hidden">Kevin Koontz — We Can Fix Everything</span>
+              <span class="nav__radio-typed" aria-hidden="true" data-radio-target="label">Kevin Koontz — We Can Fix Everything</span>
+              <i class="nav__radio-cursor" aria-hidden="true"></i>
+            </button>
+            <span class="nav__radio-progress" aria-hidden="true" data-radio-target="progress"></span>
+          </div>
+          <button type="button" class="theme-toggle" data-theme-target="toggle" data-action="theme#toggle"
+                  aria-expanded="false" title="Choose color theme">
+            <i aria-hidden="true"></i><span class="theme-toggle__prefix">theme=</span><span class="theme-toggle__label" data-theme-target="toggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span><span class="theme-toggle__mobile-label" data-theme-target="mobileToggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span>
+          </button>
+          <% if authenticated? %>
+            <% account_nav_active = %w[dashboard orgs onboarding settings/two_factor settings/passkeys].include?(controller_path) %>
+            <%= link_to "account/dashboard →", dashboard_path, class: "nav__account nav__account--signed-in",
+                  aria: (account_nav_active ? { current: (current_page?(dashboard_path) ? "page" : "location") } : {}) %>
+          <% else %>
+            <%= link_to "sign-in →", new_session_path, class: "nav__account nav__account--sign-in", aria: (current_page?(new_session_path) ? { current: "page" } : {}) %>
+          <% end %>
+        </nav>
+      </div>
+      <%= render "shared/theme_picker" %>
+    </header>
 
+    <div class="rail <%= 'rail--directory' if controller_path == 'home' && action_name == 'index' %>">
       <% if authenticated? && Current.user&.recovery_requested_at %>
         <div class="notice-banner notice-banner--danger">
           <strong>Account recovery in progress.</strong>

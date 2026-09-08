@@ -193,7 +193,7 @@ namespace :registry do
       DailyDownload.upsert(
         { plugin_version_id: version.id, date: date, count: entry["count"].to_i },
         unique_by: [ :plugin_version_id, :date ],
-        on_duplicate: Arel.sql("count = excluded.count"))
+        on_duplicate: Arel.sql("count = excluded.count, updated_at = CURRENT_TIMESTAMP"))
       imported += 1
     end
     # Refresh the cached rollups from the ledger

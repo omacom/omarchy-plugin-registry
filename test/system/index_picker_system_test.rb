@@ -16,6 +16,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     end
   end
 
+  def open_filters
+    find(".index-search__filter-toggle").click unless page.has_css?(".index-console.is-filter-open", wait: 0)
+    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+  end
+
   test "hero tree reveal uses live theme colors and preserves layout and shadows" do
     visit root_path(sort: "name")
     assert_selector ".hero__command", text: "registry@omarchy:~$ tree registry/"
@@ -47,9 +52,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           commandOutAnimation: document.querySelector(".hero__command-visual").getAnimations()[0]?.animationName,
           tileAnimation: tile.getAnimations()[0]?.animationName,
           fetchAnimations: fetch.getAnimations({ subtree: true }).map((animation) => animation.animationName),
-          headerAnimations: document.querySelector("header.band").getAnimations({ subtree: false })
+          headerAnimations: document.querySelector(".site-bar").getAnimations({ subtree: false })
             .map((animation) => animation.animationName),
-          headerVisibility: getComputedStyle(document.querySelector("header.band")).visibility,
+          headerVisibility: getComputedStyle(document.querySelector(".site-bar")).visibility,
           promptWipeStart: getComputedStyle(promptReveal).clipPath,
           promptClip: getComputedStyle(prompt).clipPath,
           fetchClip: getComputedStyle(fetch).clipPath,
@@ -88,7 +93,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           cursorOpacity: getComputedStyle(document.querySelector(".hero__command-cursor")).opacity,
           revealAnimations: hero.getAnimations({ subtree: true })
             .filter((animation) => animation.animationName.startsWith("hero-")).length,
-          headerVisibility: getComputedStyle(document.querySelector("header.band")).visibility,
+          headerVisibility: getComputedStyle(document.querySelector(".site-bar")).visibility,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         }
         return { connected: Boolean(controller), before, themed, after }
@@ -101,8 +106,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal "hero-wordmark-build", metrics.dig("before", "tileAnimation")
     assert_includes metrics.dig("before", "fetchAnimations"), "hero-content-rise"
     assert_includes metrics.dig("before", "fetchAnimations"), "hero-content-wipe"
-    assert_includes metrics.dig("before", "headerAnimations"), "hero-navigation-fade"
-    assert_equal "hidden", metrics.dig("before", "headerVisibility")
+    assert_equal [], metrics.dig("before", "headerAnimations")
+    assert_equal "visible", metrics.dig("before", "headerVisibility")
     assert_equal "inset(0px 100% 0px 0px)", metrics.dig("before", "promptWipeStart")
     assert_operator metrics.dig("before", "delayMinimum"), :>=, 560
     assert_operator metrics.dig("before", "delayMaximum"), :>, metrics.dig("before", "delayMinimum")
@@ -113,7 +118,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_not_equal "none", metrics.dig("before", "fetchShadow")
     assert_equal 405, metrics.dig("before", "wordmarkWidth")
     assert_equal 95, metrics.dig("before", "wordmarkHeight")
-    assert_operator metrics.dig("before", "navigationGap"), :>=, 40
+    assert_operator metrics.dig("before", "navigationGap"), :>=, 32
     assert_operator metrics.dig("before", "wordmarkGap"), :>=, 40
     assert_equal "rgb(18, 52, 86)", metrics.dig("themed", "host")
     assert_equal "rgb(101, 67, 33)", metrics.dig("themed", "cursor")
@@ -162,8 +167,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           cursor: getComputedStyle(document.querySelector(".hero__command-cursor")).opacity,
           revealAnimations: hero.getAnimations({ subtree: true })
             .filter((animation) => animation.animationName.startsWith("hero-")).length,
-          headerVisibility: getComputedStyle(document.querySelector("header.band")).visibility,
-          headerAnimations: document.querySelector("header.band").getAnimations({ subtree: false })
+          headerVisibility: getComputedStyle(document.querySelector(".site-bar")).visibility,
+          headerAnimations: document.querySelector(".site-bar").getAnimations({ subtree: false })
             .filter((animation) => animation.animationName === "hero-navigation-fade").length,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         }
@@ -320,7 +325,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       } })
     JS
 
-    wanted_name = find(".recent-card--master .recent-card__name")
+    wanted_name = first(".recent-card--master .recent-card__name")
     wanted_url = wanted_name[:href]
     assert_equal "Copy link to acme/alpha", wanted_name["aria-label"]
     wanted_name.click
@@ -361,7 +366,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal duplicate_url, page.evaluate_script("window.__discoverySharedUrl")
     assert_current_path root_path(sort: "name")
 
-    find(".recent-card--master .recent-card__open").click
+    first(".recent-card--master .recent-card__open").click
     assert_current_path URI(wanted_url).path
   end
 
@@ -379,7 +384,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     find("body").send_keys("j")
     find("body").send_keys(:space)
     assert_equal 1, page.evaluate_script("window.__copyWrites.length")
-    find(".recent-card--master .recent-card__name").click
+    first(".recent-card--master .recent-card__name").click
     assert_equal 2, page.evaluate_script("window.__copyWrites.length")
 
     page.execute_script("window.__copyWrites[1].resolve()")
@@ -411,7 +416,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal initial_shadow, page.evaluate_script(
       "getComputedStyle(document.querySelector('.recent-stream__card')).boxShadow")
 
-    wanted_open = find(".recent-card--master .recent-card__open")
+    wanted_open = first(".recent-card--master .recent-card__open")
     wanted_path = URI(wanted_open[:href]).path
     wanted_open.click
     assert_current_path wanted_path
@@ -486,7 +491,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal before, after
   end
 
-  test "Most Wanted controls rotate one master and four Browse-proportioned cards without growing the band" do
+  test "Most Wanted controls rotate responsive master cards without growing the band" do
     publisher = Publisher.find_by!(name: "acme")
     2.times do |index|
       plugin = Plugin.create!(publisher:, name: "recent-extra-#{index}", summary: "Recent extra",
@@ -501,83 +506,120 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal "ArrowLeft", previous["aria-keyshortcuts"]
     assert_equal "ArrowRight", next_button["aria-keyshortcuts"]
     assert_selector ".recent-band__count", text: /5.*\/ stats/m
-    assert_selector ".recent-card", count: 5
-    assert_selector ".recent-stack .recent-card", count: 4
+    assert_selector ".recent-card", count: 5, visible: true
+    assert_selector ".recent-card--master", count: 2, visible: true
+    assert_selector ".recent-stack .recent-card", count: 3, visible: true
     assert_equal page.evaluate_script("getComputedStyle(document.querySelector('.recent-band .boxtitle > h2')).fontSize"),
       page.evaluate_script("getComputedStyle(document.querySelector('.recent-band__count')).fontSize")
     assert_equal page.evaluate_script("getComputedStyle(document.querySelector('.index-browse__range b')).color"),
       page.evaluate_script("getComputedStyle(document.querySelector('.recent-band__count small')).color")
+
+    first(".recent-card--master .recent-card__badge").click
+    assert_selector ".recent-card--master.is-flipped .index-picker__card-face--back[aria-hidden='false']"
+    assert_selector ".recent-card--master.is-flipped .index-picker__card-action", count: 4
+    assert_selector ".recent-card--master.is-flipped .index-picker__card-stat", count: 3
+    find(".recent-card--master.is-flipped .index-picker__card-details").send_keys(:escape)
+    assert_no_selector ".recent-card--master.is-flipped"
+    Selenium::WebDriver::Wait.new(timeout: 2).until do
+      page.evaluate_script("getComputedStyle(document.querySelector('.recent-card--master .index-picker__card-inner')).transform") == "none"
+    end
+
     master_layout = page.evaluate_script <<~JS
       (() => {
         const master = document.querySelector(".recent-card--master")
         const art = master.querySelector(".recent-card__art")
-        const summary = getComputedStyle(master.querySelector(".recent-card__summary"))
+        const visibleCards = [...document.querySelectorAll(".recent-card")]
+          .filter((card) => getComputedStyle(card).display !== "none")
         return {
           leftAligned: getComputedStyle(master).textAlign === "left",
           artFromRight: getComputedStyle(art).objectPosition === "100% 50%",
           unfadedArt: getComputedStyle(art).maskImage === "none" && parseFloat(getComputedStyle(art).opacity) === 1,
-          completeBars: [...document.querySelectorAll(".recent-card")].every((card) =>
+          completeCards: [...document.querySelectorAll(".recent-card")].every((card) =>
             card.querySelector(".recent-card__visual") && card.querySelector(".recent-card__foot") &&
-            card.querySelector(".recent-card__primary") && card.querySelector(".recent-card__secondary")),
+            card.querySelector(".recent-card__primary") && (card.classList.contains("recent-card--master") ?
+              card.querySelector(".recent-card__author") && card.querySelector(".recent-card__badge") :
+              card.querySelector(".recent-card__secondary"))),
           uniformBorders: new Set([...document.querySelectorAll(".recent-card")]
             .map((card) => getComputedStyle(card).borderTopWidth)).size === 1,
-          singleLineSummaryFade: summary.whiteSpace === "nowrap" && summary.overflowX === "hidden" &&
-            summary.maskImage.startsWith("linear-gradient"),
           recentHeight: document.querySelector(".recent-row").getBoundingClientRect().height,
-          smallCardHeights: [...document.querySelectorAll(".recent-stack .recent-card")]
-            .map((card) => card.offsetHeight),
-          smallArtHeights: [...document.querySelectorAll(".recent-stack .recent-card__visual")]
-            .map((art) => art.offsetHeight),
-          smallColumns: new Set([...document.querySelectorAll(".recent-stack .recent-card")]
-            .map((card) => card.offsetLeft)).size,
-          smallMetadataOnly: [...document.querySelectorAll(".recent-stack .recent-card")].every((card) => {
-            const signals = card.querySelector(".recent-card__signals")
-            const artifact = card.querySelector(".recent-card__artifact")
-            return card.querySelector(".recent-card__name") && card.querySelector(".recent-card__publisher") &&
-              getComputedStyle(signals).display === "none" && getComputedStyle(artifact).display === "none" &&
-              card.querySelector(".recent-card__foot").getBoundingClientRect().height <= 30
-          })
+          visibleCount: visibleCards.length,
+          masterCount: visibleCards.filter((card) => card.classList.contains("recent-card--master")).length,
+          equalMasterSizes: new Set(visibleCards.filter((card) => card.classList.contains("recent-card--master"))
+            .map((card) => `${card.offsetWidth}:${card.offsetHeight}`)).size === 1,
+          equalSmallSizes: new Set(visibleCards.filter((card) => !card.classList.contains("recent-card--master"))
+            .map((card) => `${card.offsetWidth}:${card.offsetHeight}`)).size === 1,
+          mixedSizes: Math.max(...visibleCards.map((card) => card.offsetWidth)) >
+            Math.min(...visibleCards.map((card) => card.offsetWidth)),
+          masterChecks: visibleCards.filter((card) => card.classList.contains("recent-card--master")).map((card) => ({
+            signals: getComputedStyle(card.querySelector(".recent-card__signals")).display,
+            secondary: getComputedStyle(card.querySelector(".recent-card__secondary")).display,
+            summary: getComputedStyle(card.querySelector(".recent-card__summary")).display,
+            author: Boolean(card.querySelector(".recent-card__author")),
+            badge: Boolean(card.querySelector(".recent-card__badge")),
+            foot: card.querySelector(".recent-card__foot").getBoundingClientRect().height
+          })),
+          masterPresentation: visibleCards.filter((card) => card.classList.contains("recent-card--master")).every((card) =>
+            getComputedStyle(card.querySelector(".recent-card__signals")).display !== "none" &&
+            getComputedStyle(card.querySelector(".recent-card__secondary")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__summary")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--toggle")).display !== "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--status")).display === "none" &&
+            card.querySelector(".recent-card__author") &&
+            card.querySelector(".recent-card__foot").getBoundingClientRect().height <= 30),
+          compactPresentation: visibleCards.filter((card) => !card.classList.contains("recent-card--master")).every((card) =>
+            getComputedStyle(card.querySelector(".recent-card__signals")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__secondary")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__summary")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--toggle")).display === "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--status")).display !== "none" &&
+            getComputedStyle(card.querySelector(".recent-card__author")).display !== "none" &&
+            card.querySelector(".recent-card__foot").getBoundingClientRect().height <= 30)
         }
       })()
     JS
     assert master_layout["leftAligned"]
     assert master_layout["artFromRight"]
     assert master_layout["unfadedArt"]
-    assert master_layout["completeBars"]
+    assert master_layout["completeCards"]
     assert master_layout["uniformBorders"]
-    assert master_layout["singleLineSummaryFade"]
     assert_in_delta 392, master_layout["recentHeight"], 0.5
-    assert_equal 1, master_layout["smallCardHeights"].map { |height| height.round(1) }.uniq.size
-    assert master_layout["smallArtHeights"].all? { |height| height >= 120 }
-    assert_equal 2, master_layout["smallColumns"]
-    assert master_layout["smallMetadataOnly"]
-    original = find(".recent-card--master .recent-card__name").text
+    assert_equal 5, master_layout["visibleCount"]
+    assert_equal 2, master_layout["masterCount"]
+    assert master_layout["equalMasterSizes"]
+    assert master_layout["equalSmallSizes"]
+    assert master_layout["mixedSizes"]
+    assert master_layout["masterPresentation"], master_layout.inspect
+    assert master_layout["compactPresentation"]
+    original = first(".recent-card--master .recent-card__name").text
 
     previous.click
-    assert_not_equal original, find(".recent-card--master .recent-card__name").text
+    assert_not_equal original, first(".recent-card--master .recent-card__name").text
     rotated_metadata = page.evaluate_script <<~JS
       (() => {
         const master = document.querySelector(".recent-card--master")
-        const small = [...document.querySelectorAll(".recent-stack .recent-card")]
+        const visible = [...document.querySelectorAll(".recent-card")]
+          .filter((card) => getComputedStyle(card).display !== "none")
         return {
+          fiveVisible: visible.length === 5,
+          twoMasters: visible.filter((card) => card.classList.contains("recent-card--master")).length === 2,
           masterSignals: [...master.querySelectorAll('.recent-card__signals > span[aria-hidden="true"]')]
             .every((node) => getComputedStyle(node).display !== "none"),
-          masterArtifact: [...master.querySelectorAll(".recent-card__artifact > span")]
-            .every((node) => getComputedStyle(node).display !== "none"),
-          smallDetailsHidden: small.every((card) =>
-            [...card.querySelectorAll('.recent-card__signals > span[aria-hidden="true"], .recent-card__artifact > span')]
-              .every((node) => getComputedStyle(node).display === "none"))
+          masterDecorations: Boolean(master.querySelector(".recent-card__badge") &&
+            master.querySelector(".recent-card__author") &&
+            getComputedStyle(master.querySelector(".recent-card__secondary")).display === "none"),
+          compactDetailsHidden: visible.filter((card) => !card.classList.contains("recent-card--master"))
+            .every((card) => getComputedStyle(card.querySelector(".recent-card__signals")).display === "none")
         }
       })()
     JS
-    assert rotated_metadata.values.all?
+    assert rotated_metadata.values.all?, rotated_metadata.inspect
     assert_equal "Show previous Most Wanted plugin", previous["aria-label"]
 
     next_button.click
-    assert_equal original, find(".recent-card--master .recent-card__name").text
+    assert_equal original, first(".recent-card--master .recent-card__name").text
 
     next_button.send_keys(:arrow_left)
-    assert_not_equal original, find(".recent-card--master .recent-card__name").text
+    assert_not_equal original, first(".recent-card--master .recent-card__name").text
     assert_no_selector ".recent-band__pause"
 
     aligned_right = page.evaluate_script <<~JS
@@ -589,6 +631,45 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     JS
     assert aligned_right
     assert_current_path root_path(sort: "name")
+  end
+
+  test "Most Wanted preserves focus when rotation or resize demotes an open master card" do
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+    page.driver.browser.manage.window.resize_to(1280, 800)
+    publisher = Publisher.find_by!(name: "acme")
+    2.times do |index|
+      plugin = Plugin.create!(publisher:, name: "focus-recent-#{index}", summary: "Focus fixture",
+        latest_version: "1.0.0", category: "other")
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: (index + 5).to_s * 64,
+        size_bytes: 1024, state: :published, published_at: Time.current)
+    end
+    visit root_path(sort: "name")
+    assert_selector ".recent-card--master", count: 2
+
+    second_master = all(".recent-card--master")[1]
+    focused_name = second_master["data-name"]
+    second_master.find(".recent-card__badge--toggle").click
+    assert_selector ".recent-card--master[data-name='#{focused_name}'].is-flipped"
+    second_master.find(".index-picker__card-details").send_keys(:arrow_left)
+    assert_no_selector ".recent-card[data-name='#{focused_name}'].is-flipped"
+    assert page.evaluate_script(<<~JS)
+      document.activeElement.matches(".recent-card:not(.recent-card--master)[data-name='#{focused_name}'] .recent-card__open")
+    JS
+    assert_selector ".recent-card--master", count: 2
+
+    second_master = all(".recent-card--master")[1]
+    focused_name = second_master["data-name"]
+    page.execute_script("arguments[0].focus()", second_master.find(".recent-card__badge--toggle"))
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 1100, height: 900, deviceScaleFactor: 1, mobile: false)
+    Selenium::WebDriver::Wait.new(timeout: 3).until do
+      page.evaluate_script(<<~JS)
+        document.activeElement.matches(".recent-card:not(.recent-card--master)[data-name='#{focused_name}'] .recent-card__open")
+      JS
+    end
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+    page.driver.browser.manage.window.resize_to(1280, 800)
   end
 
   test "mobile Most Wanted fits four preview cards below the master without exceeding the prior height" do
@@ -673,7 +754,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         }
       })()
     JS
-    assert_in_delta presentation["wanted"], presentation["recentlyAdded"], 1
+    assert_operator presentation["wanted"], :>, presentation["recentlyAdded"]
     refute_equal "none", presentation["shadow"]
     assert_in_delta 0, presentation["trendingAlignment"], 0.1
     assert presentation["fallbackMatches"]
@@ -794,7 +875,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       localStorage.removeItem("registry-theme-override-revision")
     JS
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
 
     palette = page.evaluate_script <<~JS
       (() => {
@@ -990,7 +1071,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     end
   end
 
-  test "header controls match section-heading type and the footer mark keeps its shadow across pages" do
+  test "header controls share compact bar type and the footer mark keeps its shadow across pages" do
     visit root_path(sort: "name")
 
     sizes = page.evaluate_script <<~JS
@@ -1002,9 +1083,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         footerShadow: getComputedStyle(document.querySelector(".statusfoot__omarchy-link")).filter
       }))()
     JS
-    assert_equal sizes["heading"], sizes["section"]
-    assert_equal sizes["heading"], sizes["account"]
-    assert_equal sizes["heading"], sizes["theme"]
+    assert_equal [ sizes["section"] ], sizes.values_at("section", "account", "theme").uniq
+    assert_operator sizes["section"].to_f, :<, sizes["heading"].to_f
     refute_equal "none", sizes["footerShadow"]
 
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
@@ -1017,7 +1097,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         theme: getComputedStyle(document.querySelector(".theme-toggle")).fontSize
       }))()
     JS
-    assert_equal [ responsive_sizes["heading"] ], responsive_sizes.values.uniq
+    assert_equal [ responsive_sizes["section"] ], responsive_sizes.values_at("section", "account", "theme").uniq
+    assert_operator responsive_sizes["section"].to_f, :<, responsive_sizes["heading"].to_f
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
 
     click_link "governance"
@@ -1195,11 +1276,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     JS
 
     visit root_path(sort: "name")
+    open_filters
     page.execute_script <<~JS
       const style = document.createElement("style")
       style.textContent = "*, *::before, *::after { transition: none !important; }"
       document.head.append(style)
-      document.querySelector(".index-search__filter-toggle").click()
       document.querySelector(".index-picker__category").classList.add("is-active")
       document.querySelector(".index-picker__row").classList.add("is-selected")
     JS
@@ -1207,7 +1288,13 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     ApplicationHelper::THEMES.each do |theme|
       page.execute_script("document.documentElement.dataset.theme = arguments[0]", theme)
       page.evaluate_script(contrast_script).each do |role, ratio|
-        threshold = role == "searchBorder" ? 3.0 : 4.5
+        threshold = if role == "searchBorder"
+          3.0
+        elsif %w[filterLabel category categoryCount].include?(role)
+          2.25 # These labels intentionally expose each theme's exact ANSI color02.
+        else
+          4.5
+        end
         failures << "#{theme} #{role}=#{ratio.round(2)}" if ratio < threshold
       end
     end
@@ -1288,9 +1375,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "registry category counts toggle live without moving the page or existing cards" do
     visit root_path(sort: "name")
-    assert_no_selector ".index-console.is-filter-open"
-    find(".index-search__filter-toggle").click
-    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+    open_filters
     assert_selector ".index-search__filter-toggle.is-active[aria-expanded='true']"
     page.execute_script <<~JS
       document.body.dataset.categoryNavigation = "live"
@@ -1349,13 +1434,14 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           searchLeft: searchEntry.left - search.left,
           searchRight: search.right - filterToggle.right,
           filterLeft: first.left - layer.left,
-          filterRight: layer.right - last.right,
+          widthSpread: Math.max(...filters.map((filter) => filter.getBoundingClientRect().width)) -
+            Math.min(...filters.map((filter) => filter.getBoundingClientRect().width)),
           activeMarker: getComputedStyle(document.querySelector("a.index-picker__category.is-active"), "::before").content
         }
       })()
     JS
-    assert_in_delta filter_insets["searchLeft"], filter_insets["filterLeft"], 0.1
-    assert_in_delta filter_insets["searchRight"], filter_insets["filterRight"], 0.1
+    assert_in_delta 5, filter_insets["filterLeft"], 0.1
+    assert_operator filter_insets["widthSpread"], :<, 0.2
     assert_equal "none", filter_insets["activeMarker"]
     Selenium::WebDriver::Wait.new(timeout: 2).until do
       page.evaluate_script("getComputedStyle(document.querySelector('.index-picker__category.is-active')).color") ==
@@ -1379,7 +1465,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "Search and filter controls share compact type, height, and shadows" do
     visit root_path(q: "clock", sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
 
     metrics = page.evaluate_script <<~JS
       (() => {
@@ -1415,11 +1501,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal 38, metrics["filterHeight"]
   end
 
-  test "filter options wrap before Security can be clipped on a narrowing desktop" do
+  test "filter options add compact equal-width rows as the viewport narrows" do
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
-      width: 1121, height: 900, deviceScaleFactor: 1, mobile: false)
+      width: 1440, height: 900, deviceScaleFactor: 1, mobile: false)
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
 
     filter_geometry = lambda do
       page.evaluate_script <<~JS
@@ -1431,6 +1517,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           const security = boxes.at(-1)
           return {
             rows: new Set(boxes.map((box) => Math.round(box.top))).size,
+            widthSpread: Math.max(...boxes.map((box) => box.width)) - Math.min(...boxes.map((box) => box.width)),
+            heights: new Set(boxes.map((box) => Math.round(box.height * 10) / 10)).size,
+            optionHeight: boxes[0].height,
+            layerHeight: layer.height,
             securityInside: security.right <= layer.right && security.left >= layer.left,
             allInside: boxes.every((box) => box.left >= layer.left && box.right <= layer.right &&
               box.top >= layer.top && box.bottom <= layer.bottom),
@@ -1443,19 +1533,28 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
     wide = filter_geometry.call
     assert_equal 1, wide["rows"]
+    assert_operator wide["widthSpread"], :<, 0.2
+    assert_equal 1, wide["heights"]
+    assert_in_delta 28, wide["optionHeight"], 0.1
+    assert_in_delta 38, wide["layerHeight"], 0.1
     assert wide["securityInside"]
     assert wide["allInside"]
-    assert_equal 0, wide["internalOverflow"]
+    assert_operator wide["internalOverflow"], :<=, 5
     assert_equal 0, wide["pageOverflow"]
 
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
-      width: 1120, height: 900, deviceScaleFactor: 1, mobile: false)
-    wrapped = filter_geometry.call
-    assert_equal 2, wrapped["rows"]
-    assert wrapped["securityInside"]
-    assert wrapped["allInside"]
-    assert_equal 0, wrapped["internalOverflow"]
-    assert_equal 0, wrapped["pageOverflow"]
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
+    Selenium::WebDriver::Wait.new(timeout: 2).until { page.evaluate_script("window.innerWidth") == 320 }
+    compact = filter_geometry.call
+    assert_equal 2, compact["rows"], compact.inspect
+    assert_operator compact["widthSpread"], :<, 0.2
+    assert_equal 1, compact["heights"]
+    assert_in_delta 44, compact["optionHeight"], 0.1
+    assert_in_delta 102, compact["layerHeight"], 0.1
+    assert compact["securityInside"]
+    assert compact["allInside"]
+    assert_operator compact["internalOverflow"], :<=, 5
+    assert_equal 0, compact["pageOverflow"]
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
@@ -1474,11 +1573,32 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     visit root_path(sort: "name")
     assert_selector ".index-search__filter-toggle[aria-expanded='false']"
     assert_no_selector ".index-console.is-filter-open"
-    find(".index-search__filter-toggle").click
-    find("body").send_keys(:escape)
+    filter_colors = page.evaluate_script <<~JS
+      (() => {
+        const probe = document.createElement("span")
+        probe.style.color = "var(--ansi-02)"
+        document.body.append(probe)
+        const expected = getComputedStyle(probe).color
+        probe.remove()
+        return {
+          expected,
+          toggle: getComputedStyle(document.querySelector(".index-search__filter-toggle")).color,
+          labels: [...document.querySelectorAll(".index-picker__filter-option")]
+            .map((option) => getComputedStyle(option).color),
+          counts: [...document.querySelectorAll(".index-picker__filter-option strong")]
+            .map((count) => getComputedStyle(count).color)
+        }
+      })()
+    JS
+    assert_equal filter_colors["expected"], filter_colors["toggle"]
+    assert (filter_colors["labels"] + filter_colors["counts"]).all? { |color| color == filter_colors["expected"] }
+
+    page.refresh
+    assert_selector ".index-search__filter-toggle[aria-expanded='false']"
     assert_no_selector ".index-console.is-filter-open"
-    assert_selector ".index-search__filter-toggle[aria-expanded='false']:focus"
     find(".index-search__filter-toggle").click
+    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+    assert_selector ".index-search__filter-toggle[aria-expanded='true']:focus"
     assert_selector "a.index-picker__category[data-category='developer-tools']", text: /development 1/i
     assert_no_selector "a.index-picker__category[data-category='developer-tools']", text: /developer-tools/i
     assert_selector "a.index-picker__tag[data-tag='security']", text: /security 1/i
@@ -1486,20 +1606,21 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
     find("a.index-picker__category[data-category='kids']").click
     assert_selector ".index-picker__row", count: 1, text: "playroom"
+    assert_selector "a.index-picker__category.is-active[data-category='kids']"
     assert_equal({ "sort" => "name", "category" => "kids" },
       Rack::Utils.parse_nested_query(URI(page.current_url).query))
-    assert_selector "a.index-picker__category.is-active[data-category='kids']"
 
-    find("body").send_keys(:escape)
+    find(".index-search__filter-toggle").click
     assert_no_selector ".index-console.is-filter-open"
     assert_selector ".index-search__filter-toggle[aria-expanded='false']:focus"
     assert_selector ".index-picker__row", count: 5
     assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
     assert_nil page.evaluate_script("document.querySelector('input[type=hidden][name=category]')?.value")
 
-    find(".index-search__filter-toggle").click
+    open_filters
     find("a.index-picker__tag[data-tag='security']").click
     assert_selector ".index-picker__row", count: 1, text: "forge"
+    assert_current_path root_path(sort: "name", tag: "security")
     assert_equal({ "sort" => "name", "tag" => "security" },
       Rack::Utils.parse_nested_query(URI(page.current_url).query))
     assert_selector "a.index-picker__tag.is-active[data-tag='security']"
@@ -1509,13 +1630,14 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
   end
 
-  test "Escape from focused Search closes filters and preserves the query" do
+  test "FILTER closes filters and preserves the focused Search query" do
     visit root_path(sort: "name")
     search = find("input[name='q']")
     search.set("ga")
     assert_selector ".index-search__suggestions:not([hidden]) [role='option']", text: /gamma/i
 
     find(".index-search__filter-toggle").click
+    open_filters
     find("a.index-picker__category[data-category='appearance']").click
     assert_selector ".index-console--has-context.is-filter-open"
     assert_selector "a.index-picker__category.is-active[data-category='appearance']"
@@ -1524,7 +1646,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
     search.click
     assert_selector ".index-search__suggestions:not([hidden]) [role='option']", text: /gamma/i
-    search.send_keys(:escape)
+    find(".index-search__filter-toggle").click
 
     assert_no_selector ".index-console.is-filter-open"
     assert_no_selector ".index-search__suggestions"
@@ -1537,7 +1659,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "a live response adds a category populated after the page was rendered" do
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
     assert_no_selector "a.index-picker__category[data-category='bars']"
 
     publisher = Publisher.find_by!(name: "acme")
@@ -1571,7 +1693,20 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "category links track pending search text before its request completes" do
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
+    page.execute_script <<~JS
+      window.__realFetch = window.fetch
+      window.fetch = (url, options = {}) => {
+        if (new URL(url).searchParams.get("q") !== "pending-query") return window.__realFetch(url, options)
+        return new Promise((resolve, reject) => {
+          const timer = window.setTimeout(() => window.__realFetch(url, options).then(resolve, reject), 300)
+          options.signal?.addEventListener("abort", () => {
+            window.clearTimeout(timer)
+            reject(new DOMException("Aborted", "AbortError"))
+          }, { once: true })
+        })
+      }
+    JS
     find("input[name='q']").set("pending-query")
 
     href = URI(find("a.index-picker__category[data-category='appearance']")["href"])
@@ -1581,7 +1716,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "a failed live category toggle restores its previous filter state" do
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => {
@@ -1618,7 +1753,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       }
     JS
 
-    find("body").send_keys(:escape)
+    find(".index-search__filter-toggle").click
     assert_selector "[data-index-picker-target='live']", text: /Search could not be updated/, visible: :all
     assert_selector ".index-console.is-filter-open"
     assert_selector ".index-search__filter-toggle.is-active[aria-expanded='true']:focus"
@@ -1665,7 +1800,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "typing during a pending category request keeps the new filter and search focus" do
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => {
@@ -1759,6 +1894,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     find("body").send_keys(:space)
     assert_equal "omarchy plugin add acme/alpha", page.evaluate_script("window.__copiedCommand")
     assert_selector ".index-picker__copy-status.is-visible", text: "Command copied"
+    sleep 0.15
     notice_geometry = page.evaluate_script <<~JS
       (() => {
         const notice = document.querySelector(".index-picker__copy-status")
@@ -2308,7 +2444,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           countHidden: document.querySelector(".index-search__result").hidden,
           clearHidden: document.querySelector(".index-search__clear").hidden,
           controlsRight: entry.right < reset.left && reset.right < shortcut.left && shortcut.right < filterToggle.left,
-          filterCollapsed: getComputedStyle(filter).display === "none",
+          filterVisible: getComputedStyle(filter).display !== "none",
+          filterHeight: filter.getBoundingClientRect().height,
           searchCardGap: firstCard.top - search.bottom
         }
       })()
@@ -2317,8 +2454,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert positions["countHidden"]
     assert positions["clearHidden"]
     assert positions["controlsRight"]
-    assert positions["filterCollapsed"]
-    assert_in_delta 7, positions["searchCardGap"], 0.1
+    refute positions["filterVisible"]
+    assert_equal 0, positions["filterHeight"]
+    assert_in_delta 14, positions["searchCardGap"], 0.1
     compact_counts = page.evaluate_script <<~JS
       (() => {
         const element = document.querySelector("[data-controller~='index-picker']")
@@ -2331,7 +2469,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "search cursor, result box, and frameless Browse stay legible" do
     visit root_path(q: "clock", sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
 
     find(".index-search__entry").click
     assert_equal "q", page.evaluate_script("document.activeElement.name")
@@ -2383,9 +2521,12 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const fetchRule = document.querySelector(".fetch__rule").getBoundingClientRect()
         const recentBottom = Math.max(...[...document.querySelectorAll(".recent-card")]
           .map((card) => card.getBoundingClientRect().bottom))
-        const cardMetadata = [".index-picker__card-publisher", ".index-picker__card-signals", ".index-picker__card-artifact"]
-          .map((selector) => document.querySelector(selector))
-        const newMarker = document.querySelector(".index-picker__card-signals mark")
+        const newMarker = document.querySelector(".index-picker__card-flip-lifecycle.is-new")
+        const floatingAuthor = document.querySelector(".index-picker__card-author")
+        const floatingAuthorStyle = getComputedStyle(floatingAuthor)
+        const floatingAuthorTextStyle = getComputedStyle(floatingAuthor.firstElementChild)
+        const floatingAuthorRect = floatingAuthor.getBoundingClientRect()
+        const compactCardFooterRect = document.querySelector(".index-picker__card-foot").getBoundingClientRect()
         const singleCaret = getComputedStyle(cursorElement).visibility === "hidden" && getComputedStyle(inputElement).caretColor !== "transparent"
         inputElement.blur()
         const cursorAnimation = getComputedStyle(cursorElement).animationName
@@ -2438,18 +2579,23 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           filterGridGap: gridElement.getBoundingClientRect().top - filterElement.getBoundingClientRect().bottom,
           cardGridGap: firstCard.top - gridElement.getBoundingClientRect().top,
           cardFooterGap: status.top - lastCard.bottom,
-          compactSearch: searchForm.height > filterElement.getBoundingClientRect().height &&
-            searchForm.height <= filterElement.getBoundingClientRect().height + 20,
+          compactSearch: searchForm.height <= 52 && filterElement.getBoundingClientRect().height >= 38,
           gridUnpadded: parseFloat(getComputedStyle(gridElement).paddingLeft) === 0 &&
             parseFloat(getComputedStyle(gridElement).paddingRight) === 0,
           cardsFillBrowse: Math.abs(firstCard.left - front.left) < 1 && Math.abs(thirdCard.right - front.right) < 1,
-          tallerCards: firstCard.height >= 250,
-          doubledCardFooter: document.querySelector(".index-picker__card-foot").getBoundingClientRect().height >= 62 &&
-            document.querySelector(".index-picker__card-foot").querySelectorAll(":scope > span").length === 2,
+          compactCards: firstCard.height >= 240 && firstCard.height <= 260,
+          compactCardFooter: document.querySelector(".index-picker__card-foot").getBoundingClientRect().height <= 30 &&
+            document.querySelector(".index-picker__card-foot").querySelectorAll(":scope > span").length === 1,
           noCardHeader: !document.querySelector(".index-picker__card-head"),
-          readableCardMetadata: new Set(cardMetadata.map((item) => getComputedStyle(item).fontSize)).size === 1 &&
-            new Set(cardMetadata.map((item) => getComputedStyle(item).color)).size === 1,
-          publisherWithoutSlash: !document.querySelector(".index-picker__card-publisher").textContent.endsWith("/"),
+          noSecondaryCardMetadata: !document.querySelector(
+            ".index-picker__card-secondary, .index-picker__card-publisher, .index-picker__card-artifact"
+          ),
+          floatingGradientAuthor: floatingAuthorRect.bottom <= compactCardFooterRect.top &&
+            floatingAuthorStyle.borderTopWidth === "0px" && floatingAuthorStyle.boxShadow === "none" &&
+            floatingAuthorStyle.backgroundColor !== "rgba(0, 0, 0, 0)" && floatingAuthorStyle.filter !== "none" &&
+            floatingAuthorTextStyle.backgroundImage.includes("linear-gradient") &&
+            floatingAuthorTextStyle.animationName === "card-author-gradient" &&
+            floatingAuthorStyle.fontSize === getComputedStyle(document.querySelector(".index-picker__card-name")).fontSize,
           cardSignalIcons: document.querySelector(".index-picker__upvote-glyph")?.tagName === "svg" &&
             document.querySelector(".index-picker__view-glyph")?.tagName === "svg" &&
             Boolean(document.querySelector(".index-picker__view-glyph circle")),
@@ -2457,13 +2603,13 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             getComputedStyle(newMarker).backgroundColor === "rgba(0, 0, 0, 0)",
           noShadow: getComputedStyle(frontElement).boxShadow === "none",
           neutralCategories: categoryColors.size === 1,
-          accentedCategoryCounts: categoryCountColors.size === 1 &&
-            [...categoryCountColors][0] !== [...categoryColors][0],
+          ansiCategoryText: categoryCountColors.size === 1 && categoryColors.size === 1 &&
+            [...categoryCountColors][0] === [...categoryColors][0] &&
+            [...categoryColors][0] === getComputedStyle(document.querySelector(".index-search__filter-toggle")).color,
           boxedCategoryFilters: categoryLinks.every((item) => {
             const style = getComputedStyle(item)
             return style.display === resetStyle.display && style.minHeight === resetStyle.minHeight &&
-              style.borderTopStyle === resetStyle.borderTopStyle && style.paddingLeft === resetStyle.paddingLeft &&
-              style.paddingRight === resetStyle.paddingRight && style.lineHeight === resetStyle.lineHeight
+              style.borderTopStyle === resetStyle.borderTopStyle && style.lineHeight === resetStyle.lineHeight
           }),
           categorySeparatorsRemoved: categoryLinks.every((item) =>
             getComputedStyle(item, "::after").content === "none"),
@@ -2501,23 +2647,23 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert metrics["balancedFooterInsets"]
     assert metrics["matchingFooterTypography"]
     assert metrics["matchingSectionHeadingGaps"]
-    assert_in_delta 7, metrics["filterGridGap"], 1.1, metrics.inspect
+    assert_in_delta 14, metrics["filterGridGap"], 1.1, metrics.inspect
     assert_in_delta 0, metrics["cardGridGap"], 0.1, metrics.inspect
-    assert_in_delta 7, metrics["filterCardGap"], 1.1, metrics.inspect
-    assert_in_delta 7, metrics["cardFooterGap"], 1.1
+    assert_in_delta 14, metrics["filterCardGap"], 1.1, metrics.inspect
+    assert_in_delta 14, metrics["cardFooterGap"], 1.1
     assert metrics["compactSearch"]
     assert metrics["gridUnpadded"]
     assert metrics["cardsFillBrowse"]
-    assert metrics["tallerCards"]
-    assert metrics["doubledCardFooter"]
+    assert metrics["compactCards"]
+    assert metrics["compactCardFooter"]
     assert metrics["noCardHeader"]
-    assert metrics["readableCardMetadata"]
-    assert metrics["publisherWithoutSlash"]
+    assert metrics["noSecondaryCardMetadata"]
+    assert metrics["floatingGradientAuthor"]
     assert metrics["cardSignalIcons"]
     assert metrics["newMarkerUnboxed"]
     assert metrics["noShadow"]
     assert metrics["neutralCategories"]
-    assert metrics["accentedCategoryCounts"]
+    assert metrics["ansiCategoryText"]
     assert metrics["boxedCategoryFilters"]
     assert metrics["categorySeparatorsRemoved"]
     assert metrics["uniformPanelBackgrounds"]
@@ -2612,7 +2758,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_field "q", with: "beta"
     assert_selector "[data-index-picker-target='live']", text: "Showing 1 plugin for “beta”.", visible: :all
     assert_operator page.evaluate_script(
-      'Math.abs(document.querySelector("#browse").getBoundingClientRect().top)'
+      'Math.abs(document.querySelector("#browse").getBoundingClientRect().top - document.querySelector(".site-bar").getBoundingClientRect().bottom)'
     ), :<, 2
 
     search = find("input[name='q']")
@@ -2670,7 +2816,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_selector "[data-index-picker-target='live']",
         text: "Showing #{count} #{count == 1 ? 'plugin' : 'plugins'} for “#{completion}”.", visible: :all
       assert_operator page.evaluate_script(
-        'Math.abs(document.querySelector("#browse").getBoundingClientRect().top)'
+        'Math.abs(document.querySelector("#browse").getBoundingClientRect().top - document.querySelector(".site-bar").getBoundingClientRect().bottom)'
       ), :<, 2
       search = find("input[name='q']")
     end
@@ -2683,18 +2829,51 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_selector "[data-index-picker-target='live']", text: "Showing 2 plugins for “text:clock”.", visible: :all
   end
 
-  test "server and live Browse cards format artifact sizes identically" do
-    Plugin.find_by!(name: "alpha").versions.published.first.update!(size_bytes: 12_345)
+  test "server and live Browse cards render compact lifecycle and verification badges identically" do
+    plugin = Plugin.find_by!(name: "alpha")
     visit root_path(sort: "name")
 
-    initial = find(".index-picker__row", text: "alpha").find(".index-picker__card-artifact").text.squish
-    assert_includes initial, "12.1 KB"
+    assert_equal "alpha", find(".index-picker__row[data-name='alpha'] .index-picker__card-name").text
+    assert_selector ".index-picker__row[data-name='alpha'] .index-picker__card-author", text: "acme", visible: :all
+    assert_no_selector ".index-picker__row[data-name='alpha'] .index-picker__card-author", visible: true
+    find("body").send_keys(:arrow_right)
+    assert_selector ".index-picker__row.is-selected[data-name='alpha'] .index-picker__card-author", visible: true
+    find("body").send_keys(:escape)
+    assert_no_selector ".index-picker__row[data-name='alpha'] .index-picker__card-author", visible: true
+    find(".index-picker__row[data-name='alpha']").hover
+    assert_selector ".index-picker__row[data-name='alpha'] .index-picker__card-author", text: "acme", visible: true
+    assert_no_selector ".index-picker__card-secondary, .index-picker__card-publisher, .index-picker__card-artifact"
+    assert_selector ".index-picker__row[data-name='alpha'] .index-picker__card-flip--verified",
+      text: /new\s*\|\s*verified/i, visible: true
 
-    find("input[name='q']").set("alpha")
+    search = find("input[name='q']")
+    search.set("alpha")
     assert_current_path root_path(q: "alpha", sort: "name")
     assert_selector ".index-picker__row", count: 1
-    dynamic = find(".index-picker__row", text: "alpha").find(".index-picker__card-artifact").text.squish
-    assert_equal initial, dynamic
+    assert_equal "alpha", find(".index-picker__row[data-name='alpha'] .index-picker__card-name").text
+    assert_selector ".index-picker__row[data-name='alpha'] .index-picker__card-author", text: "acme", visible: :all
+    assert_no_selector ".index-picker__card-secondary, .index-picker__card-publisher, .index-picker__card-artifact"
+    assert_selector ".index-picker__card-flip--verified", text: /new\s*\|\s*verified/i, visible: true
+    search.send_keys(:escape)
+    find(".index-picker__row .index-picker__card-flip").click
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-actions .index-picker__card-action", count: 4
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stats .index-picker__card-stat", count: 3
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command .copy-button__copy"
+    find(".index-picker__row.is-flipped .index-picker__card-details").send_keys(:escape)
+    assert_no_selector ".index-picker__row.is-flipped"
+
+    plugin.update!(state: :quarantined)
+    search = find("input[name='q']")
+    search.set("beta")
+    assert_current_path root_path(q: "beta", sort: "name")
+    assert_selector ".index-picker__row[data-name='beta']", count: 1
+    search = find("input[name='q']")
+    search.set("alpha")
+    assert_current_path root_path(q: "alpha", sort: "name")
+    assert_selector ".index-picker__row[data-name='alpha']", count: 1
+    assert_selector ".index-picker__card-flip--pending", text: /new\s*\|\s*pending/i, visible: true
+    page.refresh
+    assert_selector ".index-picker__card-flip--pending", text: /new\s*\|\s*pending/i, visible: true
   end
 
   test "live search updates cards, query plan, and keyboard selection" do
@@ -2710,7 +2889,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_selector ".index-picker__row", text: "gamma"
     assert_no_selector ".index-picker__row", text: "beta"
     assert_selector ".index-picker__row[data-name='alpha'] .index-picker__card-signals .visually-hidden",
-      text: "New plugin, 30 downloads, 0 upvotes, 0 views", visible: :all
+      text: "30 downloads, 0 upvotes, 0 views", visible: :all
     accessibility_names = page.driver.browser.execute_cdp("Accessibility.getFullAXTree").fetch("nodes")
       .filter_map { |node| node.dig("name", "value") }
     assert accessibility_names.any? { |name| name.include?("30 downloads, 0 upvotes, 0 views") }
@@ -2818,6 +2997,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "footer key hints expose themed dismissible tooltips" do
     visit root_path(sort: "name")
+    find("body").send_keys(:escape)
     hint = find(".index-picker__key-hint[aria-describedby='browse-hint-enter']")
     page.execute_script("arguments[0].scrollIntoView({ block: 'center' })", hint)
     hint.hover
@@ -2840,11 +3020,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     hint.send_keys(:arrow_right)
     assert_selector ".index-picker__row.is-selected", text: "alpha"
 
-    find(".index-search__filter-toggle").click
-    assert_selector ".index-console.is-filter-open"
+    open_filters
+    page.execute_script("arguments[0].focus()", hint)
     hint.send_keys(:escape)
-    assert_no_selector ".index-console.is-filter-open"
-    assert_selector ".index-search__filter-toggle[aria-expanded='false']:focus"
+    assert_selector ".index-console.is-filter-open"
+    assert_equal "hidden", page.evaluate_script("getComputedStyle(arguments[0]).visibility", tooltip)
   end
 
   test "sort options slide open and dismiss from the arrow or outside" do
@@ -2872,8 +3052,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       (() => {
         const properties = [
           "backgroundColor", "borderTopColor", "borderTopStyle", "boxShadow", "color",
-          "fontFamily", "fontSize", "fontWeight", "letterSpacing", "lineHeight", "minHeight", "paddingLeft",
-          "paddingRight", "textTransform"
+          "fontFamily", "fontSize", "fontWeight", "lineHeight", "minHeight", "textTransform"
         ]
         const styles = (element) => {
           const style = getComputedStyle(element)
@@ -2895,8 +3074,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         }
       })()
     JS
-    assert_equal control_styles["normalFilter"], control_styles["normalSort"]
-    assert_equal control_styles["activeFilter"], control_styles["activeSort"]
+    assert_equal control_styles["normalFilter"].except("color"), control_styles["normalSort"].except("color")
+    assert_equal control_styles["activeFilter"].except("color"), control_styles["activeSort"].except("color")
     assert_in_delta 38, control_styles["panelHeight"], 0.5
 
     summary.send_keys(:space)
@@ -3126,13 +3305,13 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     end
 
     visit root_path(sort: "name")
-    expected = all(".index-picker__row").first.text
+    expected = find(".index-picker__row", match: :first).find(".index-picker__card-name").text
     page.execute_script <<~JS
       document.querySelector(".index-picker").dispatchEvent(new WheelEvent("wheel", {
         deltaY: 100, bubbles: true, cancelable: true
       }))
     JS
-    assert_equal expected, find(".index-picker__row.is-selected").text
+    assert_equal expected, find(".index-picker__row.is-selected .index-picker__card-name").text
     assert_current_path root_path(sort: "name")
 
     visit root_path(sort: "name")
@@ -3158,7 +3337,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_operator page.evaluate_script("window.scrollY"), :>, scroll_before
 
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
     page.execute_script <<~JS
       window.__realFetch = window.fetch
       window.fetch = (url, options = {}) => new Promise((resolve, reject) => {
@@ -3459,7 +3638,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "malformed Security facet counts fail closed without replacing Browse" do
     visit root_path(sort: "name")
-    find(".index-search__filter-toggle").click
+    open_filters
     original_names = all(".index-picker__row .index-picker__card-name").map(&:text)
     page.execute_script <<~JS
       window.__realFetch = window.fetch
@@ -3492,6 +3671,50 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_equal original_names, all(".index-picker__row .index-picker__card-name").map(&:text)
       assert_selector ".index-console.is-filter-open"
       assert_equal({ "sort" => "name" }, Rack::Utils.parse_nested_query(URI(page.current_url).query))
+    end
+  end
+
+  test "malformed trend and latest-comment card projections fail closed" do
+    visit root_path(sort: "name")
+    original_names = all(".index-picker__row .index-picker__card-name").map(&:text)
+    page.execute_script <<~JS
+      window.__realCardProjectionFetch = window.fetch
+      window.fetch = async (url, options = {}) => {
+        const requested = new URL(url instanceof Request ? url.url : url, window.location.origin)
+        const mutation = requested.searchParams.get("q")
+        if (!mutation?.startsWith("bad-card-")) return window.__realCardProjectionFetch(url, options)
+
+        const source = new URL(requested)
+        source.searchParams.delete("q")
+        const response = await window.__realCardProjectionFetch(source, options)
+        const payload = await response.json()
+        payload.query.q = mutation
+        const card = payload.plugins[0].card
+        if (mutation === "bad-card-verified-without-size") card.size_bytes = null
+        if (mutation === "bad-card-pending-with-command") card.verified = false
+        if (mutation === "bad-card-trend-missing") delete card.trend
+        if (mutation === "bad-card-trend-short") card.trend.pop()
+        if (mutation === "bad-card-trend-negative") card.trend[0] = -1
+        if (mutation === "bad-card-trend-fraction") card.trend[0] = 0.5
+        if (mutation === "bad-card-comment-array") card.latest_comment = []
+        if (mutation === "bad-card-comment-long") card.latest_comment = { author: "user", body: "x".repeat(2001) }
+        if (mutation === "bad-card-comment-control") card.latest_comment = { author: "bad\\u0000name", body: "hello" }
+        return new Response(JSON.stringify(payload), {
+          status: 200, headers: { "Content-Type": "application/json" }
+        })
+      }
+    JS
+
+    %w[
+      bad-card-verified-without-size bad-card-pending-with-command bad-card-trend-missing bad-card-trend-short bad-card-trend-negative bad-card-trend-fraction
+      bad-card-comment-array bad-card-comment-long bad-card-comment-control
+    ].each do |query|
+      page.execute_script("document.querySelector('[data-index-picker-target=live]').textContent = ''")
+      find("input[name='q']").set(query)
+      assert_selector "[data-index-picker-target='live']", text: /Search could not be updated/, visible: :all
+      assert_selector ".index-picker[data-search-stale='true']"
+      assert_equal original_names, all(".index-picker__row .index-picker__card-name").map(&:text)
+      assert_current_path root_path(sort: "name")
     end
   end
 
@@ -3678,7 +3901,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       JS
   end
 
-  test "mobile browse compacts controls, exposes two filter rows, and aligns terminal navigation" do
+  test "mobile browse compacts controls, wraps filters, and aligns terminal navigation" do
     publisher = Publisher.find_by!(name: "acme")
     [
       [ "mobile-desktop", "desktop", [] ],
@@ -3723,8 +3946,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const heroBefore = getComputedStyle(heroHeadElement, "::before")
         const heroAfter = getComputedStyle(heroHeadElement, "::after")
         return {
-          layersHidden: [...document.querySelectorAll(".index-browse-layer, .index-picker__layer-head")]
-            .every((element) => getComputedStyle(element).display === "none"),
+          filtersVisible: getComputedStyle(document.querySelector(".index-picker__layer-head")).display !== "none",
           pickerBorder: parseFloat(getComputedStyle(picker).borderTopWidth),
           pickerShadow: getComputedStyle(picker).boxShadow,
           cardHeight: card.getBoundingClientRect().height,
@@ -3758,10 +3980,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert metrics["layersHidden"]
+    refute metrics["filtersVisible"]
     assert_equal 0, metrics["pickerBorder"]
     assert_equal "none", metrics["pickerShadow"]
-    assert_in_delta 276, metrics["cardHeight"], 0.5
+    assert_in_delta 360, metrics["cardHeight"], 0.5
     assert_operator metrics["nameSize"], :>=, 13
     assert_equal "1", metrics["recentArtOpacity"]
     assert_equal 6, metrics["cards"]
@@ -3784,8 +4006,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert metrics["compactLogoRemoved"]
     assert_equal 0, metrics["overflow"]
 
-    find(".index-search__filter-toggle").click
-    assert_selector ".index-console.is-filter-open .index-picker__layer-head"
+    open_filters
     filter_layout = page.evaluate_script <<~JS
       (() => {
         const layer = document.querySelector(".index-picker__layer-head")
@@ -3798,6 +4019,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           options: options.length,
           rows: rows.length,
           touchTargets: boxes.every((box) => box.height >= 44),
+          equalWidths: Math.max(...boxes.map((box) => box.width)) - Math.min(...boxes.map((box) => box.width)) < 0.2,
           allInside: boxes.every((box) => box.left >= layerBox.left && box.right <= layerBox.right &&
             box.top >= layerBox.top && box.bottom <= layerBox.bottom),
           contentInside: options.every((option) => {
@@ -3813,8 +4035,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       })()
     JS
     assert_equal 10, filter_layout["options"]
-    assert_equal 2, filter_layout["rows"]
+    assert_equal 4, filter_layout["rows"]
     assert filter_layout["touchTargets"]
+    assert filter_layout["equalWidths"]
     assert filter_layout["allInside"]
     assert filter_layout["contentInside"]
     assert_equal 0, filter_layout["internalOverflow"]
@@ -3899,7 +4122,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     JS
     assert narrow_layout["searchOneRow"]
     assert narrow_layout["searchDistinct"]
-    assert_equal 2, narrow_layout["filterRows"]
+    assert_equal 5, narrow_layout["filterRows"]
     assert narrow_layout["filterContentInside"]
     assert_operator narrow_layout["heroHeight"], :>=, 32
     assert_operator narrow_layout["heroHeight"], :<=, 36
@@ -4059,8 +4282,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_in_delta 0, sort_layout["alignedRight"], 0.1, sort_layout.inspect
     assert sort_layout["targets"]
     assert sort_layout["distinct"]
-    assert_equal sort_layout["normalFilter"], sort_layout["normalSort"]
-    assert_equal sort_layout["activeFilter"], sort_layout["activeSort"]
+    assert_equal sort_layout["normalFilter"].except("color"), sort_layout["normalSort"].except("color")
+    assert_equal sort_layout["activeFilter"].except("color"), sort_layout["activeSort"].except("color")
     assert_equal 0, sort_layout["overflow"]
 
     visit root_path(sort: "name")
@@ -4181,7 +4404,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal({ "q" => "responsive-", "sort" => "name", "page" => "2" },
       Rack::Utils.parse_nested_query(URI(page.current_url).query))
 
-    find("a[aria-label='Next six plugin results']").click
+    next_page = find("a[aria-label='Next six plugin results']")
+    page.execute_script("arguments[0].scrollIntoView({ block: 'center' })", next_page)
+    next_page.click
     assert_selector ".index-picker__row", count: 3
     assert_selector ".index-browse__range", text: /13–15.*\/.*15/m
     assert_equal({ "q" => "responsive-", "sort" => "name", "page" => "3" },
@@ -4311,9 +4536,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       window.fetch = (url, options = {}) => {
         const request = new URL(url, window.location.origin)
         if (request.searchParams.get("per_page") === "6") {
-          return new Promise((resolve) => window.setTimeout(() => resolve(new Response("{}", {
-            status: 200, headers: { "Content-Type": "application/json" }
-          })), 120))
+          return new Promise((resolve) => {
+            window.__resolveFailedCompactFetch = () => resolve(new Response("{}", {
+              status: 200, headers: { "Content-Type": "application/json" }
+            }))
+          })
         }
         return window.__realResponsiveFetch(url, options)
       }
@@ -4322,6 +4549,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 900, deviceScaleFactor: 1, mobile: false)
     assert_selector ".index-picker[aria-busy='true']"
+    page.execute_script("window.__resolveFailedCompactFetch()")
     assert_selector ".index-picker[data-search-stale='true']"
     assert_selector ".index-picker__card", count: 9
     assert_equal original_names, all(".index-picker__row .index-picker__card-name").map(&:text)
@@ -4348,6 +4576,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.go_forward
     assert_current_path root_path(sort: "name")
     assert_selector ".index-picker__row", count: 3
+    assert_no_selector ".index-console.is-filter-open"
+    assert_selector ".index-search__filter-toggle[aria-expanded='false']"
   end
 
   test "back and forward restore query, tag, and sort state" do
@@ -4387,17 +4617,54 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       (() => {
         const width = document.documentElement.clientWidth
         const selectors = [".index-search", ".index-picker", ".index-picker__status"]
+        const pagination = document.querySelector(".index-picker__pagination")
+        const previous = pagination.querySelector("[data-index-picker-target='previous']")
+        const next = pagination.querySelector("[data-index-picker-target='next']")
+        previous.hidden = false
+        next.hidden = false
+        const navBox = pagination.getBoundingClientRect()
+        const formBox = pagination.querySelector(".index-picker__page-form").getBoundingClientRect()
+        const previousBox = previous.getBoundingClientRect()
+        const nextBox = next.getBoundingClientRect()
+        const pageStyle = getComputedStyle(pagination.querySelector(".index-picker__page"))
+        const arrowStyle = getComputedStyle(previous)
         return {
           overflow: document.documentElement.scrollWidth - width,
           inside: selectors.every((selector) => {
             const rect = document.querySelector(selector).getBoundingClientRect()
             return rect.left >= -0.5 && rect.right <= width + 0.5
-          })
+          }),
+          pageCentered: Math.abs((formBox.left + formBox.right) / 2 - (navBox.left + navBox.right) / 2),
+          previousCentered: Math.abs((previousBox.left + previousBox.right) / 2 - (navBox.left + formBox.left) / 2),
+          nextCentered: Math.abs((nextBox.left + nextBox.right) / 2 - (formBox.right + navBox.right) / 2),
+          arrowFont: arrowStyle.fontSize,
+          arrowWeight: arrowStyle.fontWeight,
+          pageFont: pageStyle.fontSize,
+          pageWeight: pageStyle.fontWeight
         }
       })()
     JS
     assert_equal 0, metrics["overflow"]
     assert metrics["inside"]
+    assert_in_delta 0, metrics["pageCentered"], 0.1
+    assert_in_delta 0, metrics["previousCentered"], 0.1
+    assert_in_delta 0, metrics["nextCentered"], 0.1
+
+    page.driver.browser.manage.window.resize_to(1400, 900)
+    Selenium::WebDriver::Wait.new(timeout: 3).until do
+      page.evaluate_script("document.querySelector('.index-picker').dataset.indexPickerPerPageValue === '9'")
+    end
+    wide_type = page.evaluate_script <<~JS
+      (() => {
+        const previous = document.querySelector("[data-index-picker-target='previous']")
+        previous.hidden = false
+        const arrowStyle = getComputedStyle(previous)
+        const pageStyle = getComputedStyle(document.querySelector(".index-picker__page"))
+        return { arrowFont: arrowStyle.fontSize, arrowWeight: arrowStyle.fontWeight,
+          pageFont: pageStyle.fontSize, pageWeight: pageStyle.fontWeight }
+      })()
+    JS
+    assert_equal metrics.slice("arrowFont", "arrowWeight", "pageFont", "pageWeight"), wide_type
   ensure
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end
@@ -4426,6 +4693,161 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end
 
+  test "wider viewports reveal more Browse cards and mix two or three Most Wanted masters with compact cards" do
+    publisher = Publisher.find_by!(name: "acme")
+    2.times do |index|
+      plugin = Plugin.create!(publisher:, name: "viewport-extra-#{index}", summary: "Viewport extra",
+        latest_version: "1.0.0", category: "other")
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: (index + 7).to_s * 64,
+        size_bytes: 1024, state: :published, published_at: Time.current)
+    end
+
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 1280, height: 900, deviceScaleFactor: 1, mobile: false)
+    visit root_path(sort: "name")
+
+    [ [ 1280, 9, 3, 2 ], [ 1440, 12, 4, 2 ], [ 1680, 15, 5, 2 ], [ 1920, 18, 6, 3 ] ].each do |width, per_page, columns, masters|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 900, deviceScaleFactor: 1, mobile: false)
+      Selenium::WebDriver::Wait.new(timeout: 3).until do
+        page.evaluate_script("Number(document.querySelector('.index-picker').dataset.indexPickerPerPageValue)") == per_page
+      end
+      layout = page.evaluate_script <<~JS
+        (() => {
+          const discovery = document.querySelector(".index-console").getBoundingClientRect()
+          const hero = document.querySelector(".hero").getBoundingClientRect()
+          return {
+            cards: document.querySelectorAll(".index-picker__card").length,
+            columns: getComputedStyle(document.querySelector(".index-picker__grid")).gridTemplateColumns.split(" ").length,
+            wantedCards: [...document.querySelectorAll(".recent-card")]
+              .filter((card) => getComputedStyle(card).display !== "none").length,
+            masters: document.querySelectorAll(".recent-card--master").length,
+            compactCards: document.querySelectorAll(".recent-stack .recent-card:not(.recent-card--master)").length,
+            discoveryWidth: discovery.width,
+            heroWidth: hero.width,
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+          }
+        })()
+      JS
+      assert_equal per_page, layout["cards"], "card window at #{width}px"
+      assert_equal columns, layout["columns"], "grid columns at #{width}px"
+      assert_equal 5, layout["wantedCards"], "Most Wanted cards at #{width}px"
+      assert_equal masters, layout["masters"], "Most Wanted master cards at #{width}px"
+      assert_equal 5 - masters, layout["compactCards"], "Most Wanted compact cards at #{width}px"
+      assert_operator layout["discoveryWidth"], :>=, layout["heroWidth"]
+      assert_equal 0, layout["overflow"]
+    end
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
+  test "small Most Wanted catalogs do not reserve an empty compact-card column" do
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 1920, height: 900, deviceScaleFactor: 1, mobile: false)
+    visit root_path(sort: "name")
+
+    assert_selector ".recent-card--master", count: 3
+    assert_selector ".recent-row.recent-row--without-stack .recent-stack[hidden]", visible: :all
+    page.execute_script("document.querySelectorAll('.recent-card').forEach((card) => card.getAnimations().forEach((animation) => animation.finish()))")
+    assert_in_delta 0, page.evaluate_script(<<~JS), 0.1
+      document.querySelector(".recent-row").getBoundingClientRect().right -
+        [...document.querySelectorAll(".recent-card--master")].at(-1).getBoundingClientRect().right
+    JS
+
+    Plugin.find_by!(name: "gamma").update!(state: :security_holding)
+    visit root_path(sort: "name")
+    assert_selector ".recent-card--master", count: 2
+    assert_selector ".recent-row.recent-row--without-stack .recent-stack[hidden]", visible: :all
+    page.execute_script("document.querySelectorAll('.recent-card').forEach((card) => card.getAnimations().forEach((animation) => animation.finish()))")
+    assert_in_delta 0, page.evaluate_script(<<~JS), 0.1
+      document.querySelector(".recent-row").getBoundingClientRect().right -
+        [...document.querySelectorAll(".recent-card--master")].at(-1).getBoundingClientRect().right
+    JS
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
+  test "Browse quick details flip to four matching actions three boxed stats and stacked text previews" do
+    plugin = Plugin.find_by!(name: "alpha")
+    plugin.update!(summary: "A long plugin description with useful setup context. " * 9)
+    commenter = User.create!(email_address: "latest-comment@example.com", name: "Latest User")
+    Comment.create!(plugin:, user: commenter, body: "A detailed user comment about daily use and configuration. " * 10)
+    version = plugin.versions.published.first
+    PluginCardData::SPARK_DAYS.times do |index|
+      version.daily_downloads.create!(date: Date.current - index, count: index + 1)
+    end
+
+    visit root_path(q: "plugin:alpha", sort: "name")
+    row = find(".index-picker__row", text: "alpha")
+    assert_selector ".index-picker__card-flip.index-picker__card-flip--verified",
+      text: /verified/i, visible: true
+    assert_equal "visible", page.evaluate_script(
+      "getComputedStyle(document.querySelector('.index-picker__row .index-picker__card-flip')).visibility"
+    )
+
+    find("body").send_keys(:arrow_right)
+    assert_selector ".index-picker__row.is-selected .index-picker__card-flip", visible: true
+    find(".index-picker__row.is-selected .index-picker__card-flip").click
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-face--back[aria-hidden='false']"
+    assert page.evaluate_script("document.querySelector('.index-picker__row .index-picker__card-face--front').hasAttribute('inert')")
+    assert page.evaluate_script("document.activeElement.matches('.index-picker__row .index-picker__card-details')")
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-actions .index-picker__card-action", count: 4
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-details.copy-button", text: /details/i
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-details svg", count: 1
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-action--fact", text: /v1\.0\.0/i, count: 1
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-action--fact", text: /acme/i, count: 1
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stats .index-picker__card-stat", count: 3
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stat--trend .index-picker__card-trend-bars i", count: PluginCardData::SPARK_DAYS
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stats[aria-label*='105 installs'][aria-label*='30 downloads'][aria-label*='0 upvotes']"
+    assert_no_selector ".index-picker__row.is-flipped .index-picker__card-stats[aria-label*='views']"
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stat", text: /downloads.*30/im, count: 1
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-stat", text: /upvotes.*0/im, count: 1
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command[data-clipboard-text-value='omarchy plugin add acme/alpha'] button.copy-button--labeled",
+      text: /copy/i
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command .copy-button__copy"
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command .copy-button__check", visible: :all
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-comment", text: /latest comment.*Latest User.*detailed user comment/im
+    assert page.evaluate_script(<<~JS)
+      [...document.querySelectorAll(".index-picker__row [data-card-flip-overflow]")]
+        .every((element) => element.classList.contains("is-overflowing"))
+    JS
+
+    page.execute_script <<~JS
+      window.__flippedCommand = null
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (text) => { window.__flippedCommand = text } }
+      })
+    JS
+    page.execute_script("document.querySelector('.index-picker__row.is-flipped .index-picker__card-command button').click()")
+    assert_equal "omarchy plugin add acme/alpha", page.evaluate_script("window.__flippedCommand")
+    Selenium::WebDriver::Wait.new(timeout: 1).until do
+      page.evaluate_script("document.querySelector('.index-picker__row.is-flipped .index-picker__card-command button').classList.contains('copy-button--done')")
+    end
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command button.copy-button--done", text: /copied/i
+    assert_selector ".index-picker__row.is-flipped .index-picker__card-command button.copy-button--done .copy-button__check", visible: true
+
+    find(".index-picker__row.is-flipped .index-picker__card-command button").send_keys(:escape)
+    assert_no_selector ".index-picker__row.is-flipped"
+    assert page.evaluate_script("document.activeElement.matches('.index-picker__row .index-picker__card-flip')")
+    Selenium::WebDriver::Wait.new(timeout: 2).until do
+      page.evaluate_script("getComputedStyle(document.querySelector('.index-picker__row .index-picker__card-inner')).transform") == "none"
+    end
+
+    find(".index-picker__row .index-picker__card-flip").click
+    page.execute_script("document.querySelector('.index-picker__row.is-flipped .index-picker__card-excerpt').click()")
+    assert_current_path plugin_path("acme", "alpha")
+    assert_equal "description", URI(page.current_url).fragment
+
+    page.go_back
+    assert_selector ".index-picker__row", text: "alpha"
+    find(".index-picker__row", text: "alpha").hover
+    find(".index-picker__row .index-picker__card-flip").click
+    page.execute_script("document.querySelector('.index-picker__row.is-flipped .index-picker__card-comment').click()")
+    assert_current_path plugin_path("acme", "alpha")
+    assert_equal "community", URI(page.current_url).fragment
+  end
+
   test "escape clears live search without leaving the index" do
     visit root_path(sort: "name")
 
@@ -4441,5 +4863,35 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_current_path root_path(sort: "name")
     assert_no_selector ".index-query-plan"
     assert_no_selector ".index-console--has-context"
+  end
+
+  test "Browse cards use search borders and ANSI color 02 counters" do
+    visit root_path(sort: "name")
+
+    colors = page.evaluate_script <<~JS
+      (() => {
+        const expected = getComputedStyle(document.documentElement).getPropertyValue("--ansi-02").trim()
+        const colorOf = (element) => getComputedStyle(element).color
+        const searchBorder = getComputedStyle(document.querySelector(".index-search")).borderTopColor
+        return {
+          expected,
+          searchBorder,
+          cardBorders: [...document.querySelectorAll(".index-picker__card")]
+            .map((card) => getComputedStyle(card).borderTopColor),
+          browse: [...document.querySelectorAll(".index-picker__card-signals > span[aria-hidden='true']")].map(colorOf),
+          master: [...document.querySelectorAll(".recent-card--master .recent-card__signals > span[aria-hidden='true']")].map(colorOf)
+        }
+      })()
+    JS
+    expected_rgb = "rgb(158, 206, 106)"
+    assert_equal "#9ece6a", colors["expected"]
+    assert colors["cardBorders"].all? { |border| border == colors["searchBorder"] }
+    assert_equal [ expected_rgb, expected_rgb, expected_rgb ] * 3, colors["browse"]
+    assert_equal [ expected_rgb, expected_rgb, expected_rgb ] * 2, colors["master"]
+
+    visit publisher_path("acme")
+    assert_equal expected_rgb, page.evaluate_script(
+      "getComputedStyle(document.querySelector('.plugin-card__meta .dl')).color"
+    )
   end
 end

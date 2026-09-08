@@ -62,8 +62,8 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal "omarchy plugin add acme/weather", entry["install_command"]
     assert_equal "http://registry.test/plugins/acme/weather", entry["url"]
     assert_equal({ "type" => "sorted", "value" => "downloads" }, entry["match"])
-    assert_equal({ "new" => false, "upvotes" => 0, "views" => 0, "verified" => true, "size_bytes" => 2048 },
-      entry["card"])
+    assert_equal({ "new" => false, "upvotes" => 0, "views" => 0, "verified" => true, "size_bytes" => 2048,
+      "trend" => [ 0 ] * PluginCardData::SPARK_DAYS, "latest_comment" => nil }, entry["card"])
     assert_equal({ "parse" => "none", "scope" => "directory", "match" => "sorted" }, body["plan"])
     assert_empty body["suggestions"]
 
@@ -83,6 +83,60 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     assert_equal 1, body["page"]["number"]
     assert_equal 1, body["page"]["total"]
     refute body["page"]["more"]
+  end
+
+  test "directory cards expose bounded trends and only the latest visible user comment" do
+    user = User.create!(email_address: "card-comment@example.com", name: "Card Commenter")
+    assert_not Comment.new(plugin: @weather, user:, body: "bad\vcomment").valid?
+    assert_not Comment.new(plugin: @weather, user:, body: "bad\u0085comment").valid?
+    user.name = "bad\0author"
+    assert_not user.valid?
+    user.name = "Card Commenter"
+    visible = Comment.create!(plugin: @weather, user:, body: "The latest visible field report.", created_at: 2.hours.ago)
+    Comment.create!(plugin: @weather, user:, body: "Moderated newer comment.", created_at: 1.hour.ago,
+      hidden_at: 30.minutes.ago)
+    @v11.daily_downloads.create!(date: 2.days.ago.to_date, count: 3)
+    @v11.daily_downloads.create!(date: Date.current, count: 7)
+
+    get directory_json_path(q: "plugin:weather")
+    card = body["plugins"].sole["card"]
+    assert_equal PluginCardData::SPARK_DAYS, card["trend"].length
+    assert_equal 3, card["trend"][-3]
+    assert_equal 7, card["trend"].last
+    assert_equal({ "author" => "Card Commenter", "body" => visible.body }, card["latest_comment"])
+
+    get root_path(q: "plugin:weather")
+    assert_select ".index-picker__row[data-controller~='card-flip'][data-trend]", count: 1 do
+      assert_select ".index-picker__card-face--front[data-card-flip-target='front']", count: 1
+      assert_select ".index-picker__card-face--back[data-card-flip-target='back'][aria-hidden='true'][inert]", count: 1
+      assert_select ".index-picker__card-actions" do
+        assert_select ".index-picker__card-action", count: 4
+        assert_select ".index-picker__card-details.copy-button[href=?]", plugin_path("acme", "weather"), count: 1
+        assert_select ".index-picker__card-command .copy-button--labeled .copy-button__copy", count: 1
+        assert_select ".index-picker__card-command .copy-button--labeled .copy-button__check", count: 1
+        assert_select ".index-picker__card-action--fact", text: "v1.1.0", count: 1
+        assert_select ".index-picker__card-action--fact", text: "acme", count: 1
+      end
+      assert_select ".index-picker__card-excerpt[href=?]", plugin_path("acme", "weather", anchor: "description"), count: 1
+      assert_select ".index-picker__card-comment[href=?]", plugin_path("acme", "weather", anchor: "community"),
+        text: /Card Commenter.*latest visible field report/im, count: 1
+      assert_select ".index-picker__card-stats" do
+        assert_select ".index-picker__card-stat", count: 3
+        assert_select ".index-picker__card-stat--trend .index-picker__card-trend-bars i", count: PluginCardData::SPARK_DAYS
+        assert_select ".index-picker__card-stat", text: /downloads.*500/im, count: 1
+        assert_select ".index-picker__card-stat", text: /upvotes.*0/im, count: 1
+      end
+      assert_select ".index-picker__card-command[data-clipboard-text-value=?]",
+        "omarchy plugin add acme/weather", count: 1
+    end
+
+    visible.update_columns(body: "\u0085\u0085\u0085")
+    user.update_columns(name: "\u0085")
+    get directory_json_path(q: "plugin:weather")
+    assert_nil body["plugins"].sole.dig("card", "latest_comment")
+    get root_path(q: "plugin:weather")
+    assert_select ".index-picker__row .index-picker__card-comment--empty", text: /No user comments yet/i, count: 1
+    assert_select ".index-picker__row a.index-picker__card-comment", count: 0
   end
 
   test "Security facet counts distinct directory-visible plugins only" do
@@ -227,6 +281,36 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     refute_equal revision, body["catalog_revision"], "counter writes without updated_at must invalidate catalog snapshots"
   end
 
+  test "catalog revisions bind the complete 14-day card trend and latest visible comment" do
+    get directory_json_path
+    revision = body["catalog_revision"]
+
+    daily = @v11.daily_downloads.create!(date: 10.days.ago.to_date, count: 4)
+    get directory_json_path
+    refute_equal revision, body["catalog_revision"]
+    revision = body["catalog_revision"]
+
+    daily.update!(count: 5)
+    get directory_json_path
+    refute_equal revision, body["catalog_revision"]
+    revision = body["catalog_revision"]
+
+    user = User.create!(email_address: "revision-comment@example.com", name: "Revision Author")
+    comment = Comment.create!(plugin: @weather, user:, body: "A revision-bound comment.")
+    get directory_json_path
+    refute_equal revision, body["catalog_revision"]
+    revision = body["catalog_revision"]
+
+    user.update!(name: "Renamed Revision Author")
+    get directory_json_path
+    refute_equal revision, body["catalog_revision"]
+    revision = body["catalog_revision"]
+
+    comment.hide!(actor: user)
+    get directory_json_path
+    refute_equal revision, body["catalog_revision"]
+  end
+
   test "trending revisions bind daily downloads and the rolling window" do
     get directory_json_path(sort: "trending")
     revision = body["catalog_revision"]
@@ -295,7 +379,7 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
     get root_path(per_page: 100)
     assert_response :success
     assert_select ".index-picker__row", HomeController::PER_PAGE
-    assert_select ".index-picker__row > a.index-picker__card-open[href]", HomeController::PER_PAGE
+    assert_select ".index-picker__row a.index-picker__card-open[href]", HomeController::PER_PAGE
   end
 
   # --- plugin detail -------------------------------------------------------

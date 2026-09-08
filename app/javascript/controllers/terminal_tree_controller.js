@@ -71,7 +71,7 @@ export default class extends Controller {
       const bounds = preferred.getBoundingClientRect()
       const replacement = available
         .map(({ section, index }) => ({ index, bounds: section.getBoundingClientRect() }))
-        .find(({ index, bounds: candidate }) => index > this.preferredIndex && candidate.bottom > 0 &&
+        .find(({ index, bounds: candidate }) => index > this.preferredIndex && candidate.bottom > marker &&
           candidate.top > bounds.top + 1 && candidate.top <= window.innerHeight * 0.35)
       const preferenceSettling = performance.now() < this.preferredUntil
       const movedToAnotherSection = !preferenceSettling && (replacement || activeIndex > this.preferredIndex ||
