@@ -118,7 +118,7 @@ class BrowseApiTest < ActionDispatch::IntegrationTest
 
     get root_path(per_page: 100)
     assert_response :success
-    assert_select ".plugin-grid .plugin-card", 24
+    assert_select "#directory-grid .plugin-card", 24
   end
 
   # --- plugin detail -------------------------------------------------------

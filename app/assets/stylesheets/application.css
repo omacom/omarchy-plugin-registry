@@ -1,178 +1,145 @@
-/* plugins.omarchy.org — Omacom design system (docs/DESIGN.md).
-   Paper + ink, one pink, mono body, hairline rules, square corners. */
+/* plugins.omarchy.org — Omarchy site design system, ported 1-1 from
+   omacom/omarchy-site src/styles.css ("base" layer).
+   Theme tokens (--t-*) live in omarchy-themes.css (all 22 site themes);
+   this file maps them to semantic --color-* names and styles every
+   component in the site's idiom: Geist/JetBrains Mono, square corners,
+   hairline rules, elevation rings, brand accents.
+   NOTE: omarchy-themes.css must stay @imported FIRST — the theme files are
+   the --t-* token source for everything below. */
+
+@import "./omarchy-themes.css";
 
 /* ---------- Fonts ---------- */
 
 @font-face {
-  font-display: swap; font-family: "Clash Grotesk"; font-style: normal; font-weight: 400;
-  src: url("ClashGrotesk-Regular.woff2") format("woff2");
+  font-display: swap; font-family: "Geist Variable"; font-style: normal; font-weight: 100 900;
+  src: url("Geist-Variable.woff2") format("woff2-variations");
 }
 @font-face {
-  font-display: swap; font-family: "Clash Grotesk"; font-style: normal; font-weight: 500;
-  src: url("ClashGrotesk-Medium.woff2") format("woff2");
+  font-display: swap; font-family: "JetBrains Mono Variable"; font-style: normal; font-weight: 100 800;
+  src: url("JetBrainsMono-Variable.woff2") format("woff2-variations");
 }
 @font-face {
-  font-display: swap; font-family: "Clash Grotesk"; font-style: normal; font-weight: 600;
-  src: url("ClashGrotesk-Semibold.woff2") format("woff2");
-}
-@font-face {
-  font-display: swap; font-family: "JetBrains Mono"; font-style: normal; font-weight: 400;
-  src: url("JetBrainsMono-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-display: swap; font-family: "JetBrains Mono"; font-style: normal; font-weight: 700;
-  src: url("JetBrainsMono-Bold.woff2") format("woff2");
-}
-@font-face {
-  font-display: swap; font-family: "JetBrains Mono"; font-style: normal; font-weight: 800;
-  src: url("JetBrainsMono-ExtraBold.woff2") format("woff2");
+  font-display: swap; font-family: "JetBrains Mono Variable"; font-style: italic; font-weight: 100 800;
+  src: url("JetBrainsMono-Variable.woff2") format("woff2-variations");
 }
 
-/* ---------- Tokens ---------- */
+/* ---------- Semantic tokens (omarchy-site @theme inline) ---------- */
 
 :root {
-  --ink: #0d0826;
-  --paper: #f8f5f2;
-  --surface: #ffffff;
-  --surface-tint: #f3edf2;
-  --surface-dark: #110c2e;
-  --pink: #ff8aff;
-  --magenta: #ed4cc8;
-  --pink-pale: #ffbeff;
+  --font-sans: "Geist Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
 
-  --hairline: rgba(13, 8, 38, 0.9);
-  --hairline-soft: rgba(13, 8, 38, 0.18);
-  --hairline-on-dark: rgba(248, 245, 242, 0.9);
-  --hairline-on-dark-soft: rgba(248, 245, 242, 0.2);
+  --color-bg-deep: var(--t-bg-deep);
+  --color-bg: var(--t-bg);
+  --color-surface: var(--t-surface);
+  --color-surface-2: var(--t-surface-2);
+  --color-border-subtle: var(--t-border-subtle);
+  --color-border-strong: var(--t-border-strong);
+  --color-text: var(--t-text);
+  --color-text-secondary: var(--t-text-secondary);
+  --color-text-muted: var(--t-text-muted);
+  --color-brand: var(--t-brand);
+  --color-brand-soft: var(--t-brand-soft);
+  --color-primary: var(--t-brand);
+  --color-primary-foreground: var(--t-brand-ink);
+  --color-destructive: oklch(0.723 0.159 10.3);
+  --color-ring: var(--t-brand);
 
-  --text: var(--ink);
-  --text-soft: rgba(13, 8, 38, 0.75);
-  --text-muted: rgba(13, 8, 38, 0.55);
-  --text-inverse: var(--paper);
-  --text-inverse-soft: rgba(248, 245, 242, 0.75);
-
-  --success: #237a59;
-  --warning: #9a6a1d;
-  --danger: #c23232;
-  --accent-soft: rgba(237, 76, 200, 0.12);
-  --success-soft: rgba(35, 122, 89, 0.12);
-  --warning-soft: rgba(154, 106, 29, 0.14);
-  --danger-soft: rgba(194, 50, 50, 0.12);
-  --info: #4d5bc9;
-
-  --bg: var(--paper);
-  --btn-bg: var(--ink);
-  --btn-fg: var(--paper);
-  --code-bg: var(--ink);
-  --code-fg: var(--paper);
-
-  --sans: "Clash Grotesk", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
-
-  --rule-shadow: 0 1px 0 var(--ink);
-  --rule-shadow-on-dark: 0 1px 0 var(--paper);
-  --glow: 0 0 14px rgba(237, 76, 200, 0.8), 0 0 26px rgba(237, 76, 200, 0.6);
-  --glow-filter: drop-shadow(0 0 14px rgba(237, 76, 200, 0.8)) drop-shadow(0 0 26px rgba(237, 76, 200, 0.6));
+  /* Registry accents derived from the site palette */
+  --color-success: var(--t-brand);
+  --color-warning: oklch(0.787 0.137 50.6);
+  --color-info: oklch(0.719 0.132 264.2);
+  --success-soft: color-mix(in srgb, var(--t-brand) 14%, transparent);
+  --warning-soft: color-mix(in srgb, oklch(0.787 0.137 50.6) 14%, transparent);
+  --danger-soft: color-mix(in srgb, var(--color-destructive) 12%, transparent);
 
   --ease: cubic-bezier(0.19, 1, 0.22, 1);
-  --transition: 0.25s var(--ease);
-  --container: 1280px;
+  --transition: 150ms ease-out;
+  --container: 72rem; /* max-w-6xl, like omarchy.org */
   --gutter: clamp(16px, 4vw, 24px);
-  /* Text alignment for full-bleed bands (header, flashes, notices): the same
-     inset the centered .container gives its content */
+  --nav-h: calc(3.5rem + env(safe-area-inset-top, 0px));
   --bleed-pad: max(var(--gutter), calc(50% - var(--container) / 2 + var(--gutter)));
-}
-
-/* Dark mode — Tokyo Night ground. The ink/paper role-swap produced one flat
-   blue mass divided by near-white rules; Omarchy's flagship desktop theme is
-   Tokyo Night, so dark mode borrows its LAYERS instead: division comes from
-   surface tone (chrome < ground < raised < lifted), rules are quiet blue-gray,
-   and the print double-rule is off. Brand accents (pink/magenta) unchanged;
-   physical ink/paper tokens stay fixed for components that need them (QR). */
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Tokyo Night layers */
-    --tn-chrome: #16161e;        /* the frame: header, footer, dark bands */
-    --tn-ground: #1a1b26;        /* the page */
-    --tn-raised: #1f2335;        /* cards and panels */
-    --tn-lifted: #292e42;        /* hover, chips, inline code */
-
-    --bg: var(--tn-ground);
-    --surface: var(--tn-raised);
-    --surface-tint: var(--tn-lifted);
-    --magenta: #ff8aff;          /* bright pink comes out at night */
-
-    --btn-bg: #c0caf5;
-    --btn-fg: var(--tn-chrome);
-
-    /* Rules are TONE, not light */
-    --hairline: #3b4261;
-    --hairline-soft: #24283b;
-    --hairline-on-dark: #3b4261;
-    --hairline-on-dark-soft: #292e42;
-
-    --text: #c0caf5;
-    --text-soft: #a9b1d6;
-    --text-muted: #565f89;
-    --text-inverse: #c0caf5;
-    --text-inverse-soft: #a9b1d6;
-
-    --success: #9ece6a;
-    --warning: #e0af68;
-    --danger: #f7768e;
-    --success-soft: rgba(158, 206, 106, 0.13);
-    --warning-soft: rgba(224, 175, 104, 0.13);
-    --danger-soft: rgba(247, 118, 142, 0.13);
-    --info: #7aa2f7;
-
-    --code-bg: var(--tn-chrome);
-    --code-fg: #c0caf5;
-
-    /* The letterpress double-rule reads as glare on a dark ground */
-    --rule-shadow: none;
-    --rule-shadow-on-dark: none;
-  }
 }
 
 /* ---------- Reset-ish ---------- */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Snap on page navigation: no smooth scroll-up animation when Turbo swaps
+   pages (e.g. directory pager). In-page jumps that want smoothing opt in
+   explicitly (see search-focus scrollIntoView). */
+html { scroll-behavior: auto; }
+
+html, body { min-height: 100%; }
+
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--mono);
+  margin: 0;
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-mono);
   font-size: 15px;
   line-height: 1.55;
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  display: flex; flex-direction: column; min-height: 100dvh;
 }
+body > main { flex: 1; }
 
 img, svg { max-width: 100%; display: block; }
 
-/* Form controls do NOT inherit text color — left alone they render the UA's
-   black, which disappears on dark surfaces */
-input, textarea, select { color: var(--text); }
-::placeholder { color: var(--text-muted); opacity: 1; }
+/* No 300ms double-tap-zoom wait on anything you can press */
+a, button, input, select, textarea, [role="button"] { touch-action: manipulation; }
 
-h1, h2, h3 { font-family: var(--sans); line-height: 1.2; font-weight: 500; letter-spacing: -0.01em; text-wrap: balance; }
-h1 { font-size: clamp(34px, 5vw, 56px); }
+input, textarea, select { color: var(--text, var(--color-text)); }
+::placeholder { color: var(--color-text-muted); opacity: 1; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance;
+}
+h1 { font-size: clamp(34px, 5vw, 56px); letter-spacing: -0.02em; }
 h2 { font-size: clamp(24px, 3vw, 34px); }
-h3 { font-size: 21px; font-weight: 600; line-height: 1.25; }
-h4 { font-family: var(--mono); font-size: 16px; font-weight: 700; line-height: 1.3; }
+h3 { font-size: 21px; line-height: 1.25; }
+h4 { font-family: var(--font-mono); font-size: 16px; font-weight: 700; line-height: 1.3; }
 
-a { color: inherit; text-decoration-color: var(--magenta); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color var(--transition); }
-a:hover { color: var(--magenta); }
+/* Keep anchor offsets synchronized with the sticky bar height. */
+[id] { scroll-margin-top: var(--nav-h); }
 
-code, pre { font-family: var(--mono); }
-code { background: var(--surface-tint); padding: 0.1em 0.35em; font-size: 0.93em; }
-pre { background: var(--code-bg); color: var(--code-fg); padding: 16px 20px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--t-brand); outline-offset: 2px; }
+
+code, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.86em; background: var(--color-surface-2);
+  padding: 0.15em 0.4em; color: var(--color-text);
+}
+pre {
+  background: var(--color-bg-deep); box-shadow: var(--t-elevation);
+  padding: 1em 1.25em; overflow-x: auto; font-size: 13px; line-height: 1.6;
+}
+pre code { background: none; padding: 0; font-size: 13px; }
+pre::-webkit-scrollbar { height: 8px; }
+pre::-webkit-scrollbar-thumb { background: var(--t-scroll-thumb); }
 /* The markdown renderer inlines its own code background — the brand one wins */
-.readme pre { background: var(--code-bg) !important; }
-pre code { background: none; padding: 0; }
+.readme pre { background: var(--color-bg-deep) !important; }
 
-::selection { background: var(--pink); color: var(--ink); }
+/* Old Omacom classes removed with the chrome rewrite — no shims needed.
+   (An earlier draft kept display:contents shims here; they broke layout by
+   dissolving structural boxes, so they were deleted outright.) */
 
-:focus-visible { outline: 2px solid var(--magenta); outline-offset: 2px; }
+::selection { background: var(--t-selection); color: var(--color-text); }
+
+/* Theme switches must not animate: every color would tween independently */
+.no-transitions, .no-transitions * { transition: none !important; }
+
+.img-outlined { outline: 1px solid var(--t-img-outline); outline-offset: -1px; }
+.ring-elevation { box-shadow: var(--t-elevation); }
+.ring-elevation-hover { transition-property: box-shadow, background-color; transition-duration: 150ms; transition-timing-function: ease-out; }
+.ring-elevation-hover:hover { box-shadow: var(--t-elevation-hover); }
 
 .readme p, .prose p { text-wrap: pretty; }
 
@@ -180,173 +147,440 @@ pre code { background: none; padding: 0; }
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
+/* Skip link: visible on focus only (layout paints it inline). */
+body > a[href="#main"]:focus { transform: none !important; background: var(--color-surface); }
+
 /* ---------- Utility ---------- */
 
 .container { max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
 
+/* Registry section label. Headings inside .prose keep the site's treatment. */
 .eyebrow {
-  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
-  text-transform: uppercase; color: var(--magenta);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--color-brand);
 }
-.section-dark .eyebrow { color: var(--pink); }
 
-.muted { color: var(--text-muted); }
+.muted { color: var(--color-text-muted); }
+.summary { max-width: 60ch; color: var(--color-text-secondary); }
+.lede { color: var(--color-text-secondary); margin-bottom: 40px; max-width: 62ch; }
+.ns { color: var(--color-text-muted); font-weight: 400; }
+.prompt { color: var(--color-brand); }
+.hint { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; }
 
-/* ---------- Buttons ---------- */
+/* Prose links: reserved underline, brand on hover (omarchy-site .prose).
+   Scoped to content zones only — footer chrome (.omarchy-footer__link) and
+   cards/nav carry their own link treatment and must never inherit this. */
+.prose a:not(.omarchy-footer__link), .readme a, .content-page p a, .comment p a, .sidebar dd a {
+  color: var(--color-text);
+  text-decoration: underline; text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 3px; text-decoration-skip-ink: auto;
+  transition: text-decoration-color var(--transition);
+}
+.prose a:not(.omarchy-footer__link):hover, .readme a:hover, .content-page p a:hover, .comment p a:hover, .sidebar dd a:hover {
+  text-decoration-color: var(--color-brand);
+}
+
+/* ---------- Buttons (omarchy-site buttonVariants) ---------- */
 
 .button, button.button, input[type="submit"].button {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--btn-bg); color: var(--btn-fg);
-  font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
-  text-transform: uppercase; text-decoration: none; line-height: 1;
-  border: 0; border-radius: 10px; padding: 14px 18px; cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  flex-shrink: 0; user-select: none; white-space: nowrap;
+  background: var(--color-primary); color: var(--color-primary-foreground);
+  font-family: var(--font-mono); font-size: 14px; font-weight: 500;
+  text-decoration: none; line-height: 1;
+  border: 1px solid transparent; border-radius: 0; padding: 0 16px; height: 40px; cursor: pointer;
+  outline: none;
+  transition: background-color var(--transition), border-color var(--transition),
+    color var(--transition), transform var(--transition);
 }
-.button:hover { background: var(--pink); color: var(--ink); }
-.section-dark .button { background: var(--paper); color: var(--ink); }
-.section-dark .button:hover { background: var(--pink); }
-.button--ghost, button.button--ghost, input[type="submit"].button--ghost { background: transparent; color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline); }
-.button--ghost:hover, button.button--ghost:hover { background: var(--btn-bg); color: var(--btn-fg); }
-.button--danger, button.button--danger { background: var(--danger); color: var(--paper); }
-.button--small, button.button--small { padding: 9px 12px; font-size: 12px; }
+.button:hover { background: color-mix(in oklch, var(--color-primary), white 14%); color: var(--color-primary-foreground); }
+.button:active { transform: scale(0.96); }
+.button--ghost, button.button--ghost, input[type="submit"].button--ghost {
+  background: transparent; color: var(--color-text);
+}
+.button--ghost:hover { background: var(--color-surface-2); color: var(--color-text); }
+.button--danger, button.button--danger {
+  background: color-mix(in srgb, var(--color-destructive) 10%, transparent);
+  color: var(--color-destructive);
+}
+.button--danger:hover {
+  background: color-mix(in srgb, var(--color-destructive) 20%, transparent);
+  color: var(--color-destructive);
+}
+.button--small, button.button--small { height: 32px; padding: 0 10px; font-size: 12px; }
 
 /* ---------- Copy button ---------- */
 
 .copy-button {
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; background: transparent; color: inherit;
-  border: 1px solid var(--hairline-on-dark-soft);
-  padding: 6px; border-radius: 6px; flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  padding: 6px; border-radius: 0; flex-shrink: 0;
   transition: color var(--transition), border-color var(--transition);
 }
 .copy-button svg { width: 14px; height: 14px; }
 .copy-button__check { display: none; }
 .copy-button--done .copy-button__copy { display: none; }
 .copy-button--done .copy-button__check { display: block; }
-.copy-button:hover { color: var(--pink); border-color: var(--pink); }
-/* Confirmation mint is fixed — the button always sits on a code-dark surface,
-   except the --inline variant which borrows the page's soft rule */
-.copy-button--done, .copy-button--done:hover { color: #6fdbaf; border-color: #6fdbaf; }
-.copy-button--inline { border-color: var(--hairline-soft); margin-left: 6px; vertical-align: middle; }
+.copy-button:hover { color: var(--color-brand); border-color: var(--color-brand); }
+.copy-button--done, .copy-button--done:hover { color: var(--color-brand); border-color: var(--color-brand); }
+.copy-button--inline { border-color: var(--color-border-subtle); margin-left: 6px; vertical-align: middle; }
 .codeblock { position: relative; }
 .readme .codeblock { margin-bottom: 1em; }
 .readme .codeblock pre { margin-bottom: 0; }
 .copy-button--floating {
   position: absolute; top: 8px; right: 8px;
-  background: var(--code-bg); color: var(--code-fg); opacity: 0.55;
+  background: var(--color-bg-deep); color: var(--color-text); opacity: 0.55;
 }
 .codeblock:hover .copy-button--floating, .copy-button--floating:focus-visible { opacity: 1; }
-.copy-button--inline.copy-button--done { color: var(--success); border-color: var(--success); }
+.copy-button--inline.copy-button--done { color: var(--color-success); border-color: var(--color-success); }
 
 /* ---------- Badges ---------- */
 
 .badge {
-  display: inline-block; border-radius: 9999px; padding: 5px 12px;
-  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-  background: var(--accent-soft); color: var(--magenta);
+  display: inline-block; border-radius: 0; padding: 5px 12px;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  background: var(--color-brand-soft); color: var(--color-brand);
 }
-.badge--ok { background: var(--success-soft); color: var(--success); }
-.badge--warning { background: var(--warning-soft); color: var(--warning); }
-.badge--danger { background: var(--danger-soft); color: var(--danger); }
+.badge--ok { background: var(--success-soft); color: var(--color-success); }
+.badge--warning { background: var(--warning-soft); color: var(--color-warning); }
+.badge--danger { background: var(--danger-soft); color: var(--color-destructive); }
 
-/* ---------- Header ---------- */
+/* ---------- Header (omarchy-site SiteHeader, 1-1) ---------- */
 
-.site-header {
-  border-bottom: 1px solid var(--hairline);
-  box-shadow: var(--rule-shadow);
-  background: var(--bg);
+.omarchy-header { position: sticky; top: 0; z-index: 100; }
+.omarchy-bar {
+  padding-top: env(safe-area-inset-top);
+  background-color: color-mix(in srgb,
+    var(--nav-ground, var(--color-bg))
+    calc(var(--nav-surface, 0) * var(--nav-fill, 1) * 90%), transparent);
+  backdrop-filter: blur(calc(var(--nav-surface, 0) * 12px));
 }
-.site-header__inner {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px 24px; flex-wrap: wrap;
-  padding-block: 18px;
+/* With the sheet down, the bar wears the sheet ground, not the section's. */
+.omarchy-bar--sheet { background-color: color-mix(in srgb, var(--color-bg) 95%, transparent); backdrop-filter: blur(12px); }
+.omarchy-bar__inner {
+  margin-inline: auto; max-width: var(--container);
+  display: flex; align-items: center; gap: 12px;
+  height: 56px; height: 3.5rem; padding-inline: var(--gutter);
 }
-.site-header__brand { display: flex; align-items: center; gap: 14px; text-decoration: none; }
-.site-header__logo { height: 26px; width: auto; color: var(--text); }
-.site-header__wordmark { font-family: var(--sans); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
-.site-header__wordmark em { font-style: normal; color: var(--magenta); }
-.site-header__nav { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; }
-.site-header__nav a:not(.button) {
-  font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
-  text-transform: uppercase; text-decoration: none;
+.omarchy-brand { display: flex; align-items: center; text-decoration: none; }
+.omarchy-brand__mark { width: 22px; height: 22px; flex-shrink: 0; }
+.omarchy-nav { display: none; align-items: center; }
+.omarchy-nav a {
+  padding: 6px 12px; font-size: 14px; white-space: nowrap; text-decoration: none;
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition);
 }
-.site-header__nav a:not(.button):hover { color: var(--magenta); }
+.omarchy-nav a:hover { background: var(--color-surface-2); color: var(--color-text); }
+.omarchy-nav a[aria-current="page"] { color: var(--color-text); background: var(--color-surface-2); }
+@media (min-width: 640px) {
+  .omarchy-nav { display: flex; }
+}
+.omarchy-bar__actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.omarchy-bar__icons { display: none; align-items: center; gap: 4px; }
+@media (min-width: 640px) {
+  .omarchy-bar__icons { display: flex; }
+}
+.omarchy-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  position: relative; height: 32px; width: 32px;
+  background: transparent; border: 0; border-radius: 0; cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition), transform var(--transition);
+  text-decoration: none;
+}
+.omarchy-iconbtn:hover { color: var(--color-text); }
+.omarchy-iconbtn svg { width: 20px; height: 20px; }
+/* Icon tooltips (main-site TooltipContent idiom: dark bubble below the
+   button, label + kbd, sideOffset 10). Colors invert with the theme via
+   --color-bg/--color-text, same as bg-foreground/text-background. */
+.omarchy-tip { position: relative; display: inline-flex; }
+.omarchy-tip__bubble {
+  position: absolute; top: calc(100% + 10px); left: 50%; translate: -50% 0;
+  display: none; align-items: center; gap: 6px; white-space: nowrap;
+  background: var(--color-text); color: var(--color-bg);
+  font-size: 12px; padding: 6px 12px 6px 12px; border-radius: 6px;
+  box-shadow: var(--t-elevation); z-index: 400; pointer-events: none;
+}
+.omarchy-tip__bubble::before {
+  content: ""; position: absolute; top: -4px; left: 50%; translate: -50% 0;
+  width: 10px; height: 10px; rotate: 45deg; border-radius: 2px;
+  background: var(--color-text);
+}
+.omarchy-tip__bubble kbd {
+  border: 1px solid currentColor; opacity: 0.75; border-radius: 4px;
+  padding: 0 4px; font-family: var(--font-mono); font-size: 11px;
+}
+.omarchy-tip:hover > .omarchy-tip__bubble,
+.omarchy-tip:focus-within > .omarchy-tip__bubble { display: inline-flex; }
+@media (prefers-reduced-motion: no-preference) {
+  .omarchy-tip__bubble { animation: omarchy-tip-in 150ms ease-out; }
+  @keyframes omarchy-tip-in { from { opacity: 0; transform: scale(0.95); } }
+}
+/* Language popover (main-site switcher idiom, server-rendered). */
+.omarchy-lang {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 400;
+  width: 288px; max-width: calc(100vw - 32px); max-height: 70svh; overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55); padding: 8px;
+}
+.omarchy-lang__title { display: block; padding: 8px 12px; font-size: 14px; color: var(--color-text-muted); }
+.omarchy-lang nav a {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  font-size: 14px; text-decoration: none; color: var(--color-text);
+}
+.omarchy-lang nav a:hover { background: var(--color-surface-2); }
+.omarchy-lang nav a[aria-current] { background: var(--color-surface-2); }
+.omarchy-install {
+  display: none; align-items: center; height: 32px; padding: 0 16px;
+  background: var(--color-primary); color: var(--color-primary-foreground);
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  transition: background-color var(--transition), transform var(--transition);
+}
+.omarchy-install:hover { background: color-mix(in oklch, var(--color-primary), white 14%); color: var(--color-primary-foreground); }
+.omarchy-install:active { transform: scale(0.96); }
+@media (min-width: 640px) {
+  .omarchy-install { display: inline-flex; }
+}
+/* Registry auth lives beside Install: same bar, quieter treatment. */
+.omarchy-auth {
+  display: none; align-items: center; height: 32px; padding: 0 12px;
+  font-size: 13px; text-decoration: none; color: var(--color-text-secondary);
+}
+.omarchy-auth:hover { background: var(--color-surface-2); color: var(--color-text); }
+@media (min-width: 640px) {
+  .omarchy-auth { display: inline-flex; }
+}
+.omarchy-menu-toggle { display: inline-flex; }
+.omarchy-bar__icons--mobile { display: flex; align-items: center; gap: 4px; }
+@media (min-width: 640px) {
+  .omarchy-menu-toggle { display: none; }
+  .omarchy-bar__icons--mobile { display: none; }
+}
+/* Menu toggle swaps hamburger for a close cross while the sheet is down
+   (main-site MenuBarsIcon fold, server-rendered). */
+.omarchy-toggle--close { display: none; }
+.omarchy-header[data-menu="open"] .omarchy-toggle--menu { display: none; }
+.omarchy-header[data-menu="open"] .omarchy-toggle--close { display: inline-flex; }
+/* Mobile sheet + scrim (omarchy-site menu, same breakpoint) */
+.omarchy-scrim {
+  position: absolute; inset-inline: 0; top: var(--nav-h); height: 100svh;
+  background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px);
+}
+.omarchy-menu {
+  position: absolute; inset-inline: 0; top: var(--nav-h);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-bg) 95%, transparent);
+  backdrop-filter: blur(12px);
+}
+.omarchy-menu nav {
+  margin-inline: auto; max-width: var(--container);
+  display: flex; flex-direction: column; padding: 8px var(--gutter);
+}
+.omarchy-menu nav > a, .omarchy-menu nav > button {
+  padding: 12px 0; font-size: 15px; text-align: left;
+  color: var(--color-text-secondary); text-decoration: none;
+  background: none; border: 0; font-family: var(--font-mono); cursor: pointer;
+}
+/* Sheet rows with a leading square icon (main-site rows). */
+.omarchy-menu__row { display: flex; align-items: center; gap: 10px; }
+.omarchy-menu__row svg { width: 20px; height: 20px; }
+.omarchy-menu__actions {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px;
+  border-top: 1px solid var(--color-border-subtle); padding: 16px 0 8px;
+}
+.omarchy-menu__actions .button { flex: 1; }
 
-/* ---------- Flash ---------- */
+/* The header mark draws itself on hover/focus (omarchy-site mark-draw). */
+.mark-draw path { stroke-dasharray: 1; }
+@keyframes mark-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes mark-draw-back { from { stroke-dashoffset: -1; } to { stroke-dashoffset: 0; } }
+.mark-draw-trigger:is(:hover, :focus-visible) .mark-draw path {
+  animation: mark-draw 650ms cubic-bezier(0.45, 0, 0.25, 1) both;
+}
+.mark-draw-trigger:is(:hover, :focus-visible) .mark-draw path:nth-of-type(2) {
+  animation-duration: 110ms; animation-delay: 250ms; animation-timing-function: ease-out;
+}
+.mark-draw-trigger:is(:hover, :focus-visible) .mark-draw path:nth-of-type(3) {
+  animation-duration: 470ms; animation-delay: 360ms;
+}
+.mark-draw-trigger:is(:hover, :focus-visible) .mark-draw path:nth-of-type(4) {
+  animation-name: mark-draw-back; animation-duration: 70ms; animation-delay: 540ms;
+}
+.mark-draw-trigger:is(:hover, :focus-visible) .mark-draw path:nth-of-type(5) {
+  animation-name: mark-draw-back; animation-duration: 70ms; animation-delay: 600ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-draw path { animation: none !important; }
+}
 
-.flashes { border-bottom: 1px solid var(--hairline-soft); }
+/* ---------- Theme picker (omarchy-site ThemePicker deck) ---------- */
+
+.omarchy-theme-overlay {
+  position: fixed; inset: 0; z-index: 300; isolation: isolate;
+  background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px);
+}
+.omarchy-theme-dialog {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  outline: none; touch-action: none;
+}
+.omarchy-theme-deck { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; pointer-events: none; }
+.omarchy-theme-card { position: absolute; width: min(68vw, 46rem); }
+@media (min-width: 640px) {
+  .omarchy-theme-card { width: min(72vw, 46rem); }
+}
+.omarchy-theme-card__button { pointer-events: auto; display: block; width: 100%; cursor: pointer; background: none; border: 0; padding: 0; }
+.omarchy-theme-card__frame { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55); background: var(--color-brand); }
+.omarchy-theme-card__frame--back { background: #71717a; }
+.omarchy-theme-card__inner { background: #000; }
+.omarchy-theme-card__img { width: 100%; aspect-ratio: 1800 / 1012; object-fit: cover; user-select: none; }
+.omarchy-theme-spacer { visibility: hidden; width: min(68vw, 46rem); aspect-ratio: 1800 / 1012; }
+@media (min-width: 640px) {
+  .omarchy-theme-spacer { width: min(72vw, 46rem); }
+}
+.omarchy-theme-name {
+  position: relative; margin-top: 6px; padding: 14px 16px; cursor: pointer;
+  background: none; border: 0;
+  font-family: var(--font-sans); font-size: 24px; font-weight: 600; letter-spacing: -0.02em;
+  color: var(--t-text); -webkit-text-stroke: 2px var(--t-bg); paint-order: stroke fill;
+  transition: filter var(--transition);
+}
+.omarchy-theme-name:hover { filter: brightness(1.25); }
+.omarchy-theme-name--light { color: var(--t-bg); -webkit-text-stroke: 2px var(--t-text); }
+.omarchy-theme-arrow {
+  position: absolute; top: 50%; translate: 0 -50%;
+  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; cursor: pointer;
+  border: 1px solid var(--color-border-subtle); background: var(--color-bg); color: var(--color-text);
+  transition: background-color var(--transition);
+}
+.omarchy-theme-arrow:hover { background: var(--color-surface-2); }
+.omarchy-theme-arrow--prev { left: 12px; }
+.omarchy-theme-arrow--next { right: 12px; }
+@media (min-width: 640px) {
+  .omarchy-theme-arrow--prev { left: 24px; }
+  .omarchy-theme-arrow--next { right: 24px; }
+}
+.omarchy-theme-arrow svg { width: 20px; height: 20px; }
+/* First-run hint (omarchy-site picker notice) */
+.omarchy-hint {
+  position: fixed; top: 104px; right: 16px; z-index: 200; width: 288px;
+  animation: notice-in 300ms ease-out both;
+}
+@media (min-width: 640px) {
+  .omarchy-hint { top: 68px; }
+}
+html[data-nav-menu="open"] .omarchy-hint { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .omarchy-hint { animation: none; }
+}
+@keyframes notice-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+.omarchy-hint__card { position: relative; background: var(--color-surface); box-shadow: var(--t-elevation); }
+.omarchy-hint__open {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%;
+  padding: 16px 40px 16px 16px; text-align: left; cursor: pointer;
+  background: none; border: 0; color: var(--color-text); font-family: var(--font-mono);
+  transition: background-color var(--transition);
+}
+.omarchy-hint__open:hover { background: var(--color-surface-2); }
+.omarchy-hint__open svg { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; color: var(--color-brand); }
+.omarchy-hint__title { display: block; font-family: var(--font-sans); font-size: 14px; font-weight: 500; }
+.omarchy-hint__body { display: block; margin-top: 4px; font-size: 13px; line-height: 1.55; color: var(--color-text-secondary); }
+.omarchy-hint__dismiss {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  background: none; border: 0; cursor: pointer; color: var(--color-text-muted);
+  transition: color var(--transition);
+}
+.omarchy-hint__dismiss:hover { color: var(--color-text); }
+.omarchy-hint__dismiss svg { width: 16px; height: 16px; }
+
+/* ---------- Flash + notice banners ---------- */
+
+.flashes { border-bottom: 1px solid var(--color-border-subtle); }
 .flash { padding: 12px var(--bleed-pad); font-size: 13px; }
-.flash--notice { background: var(--surface-tint); }
-.flash--alert { background: var(--danger-soft); color: var(--danger); }
+.flash--notice { background: var(--color-surface-2); }
+.flash--alert { background: var(--danger-soft); color: var(--color-destructive); }
+.notice-banner { padding: 14px var(--bleed-pad); font-size: 13px; border-bottom: 1px solid var(--color-border-subtle); }
+.notice-banner--danger { background: var(--danger-soft); color: var(--color-destructive); }
+.notice-banner--warning { background: var(--warning-soft); color: var(--color-warning); }
 
-/* ---------- Dark sections (with noise) ---------- */
+/* ---------- Hero (PageHeading idiom: wordmark + brand subtitle) ---------- */
 
-.section-dark {
-  background: url("noise-dark.png") left top / 300px var(--ink);
-  color: var(--text-inverse);
+.hero { padding: 64px 0 56px; }
+.hero__inner { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero__wordmark { width: min(59.5%, 26.775rem); margin-bottom: 12px; color: var(--t-field-lit); }
+.hero .page-subtitle {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--color-brand);
 }
-.section-light { background: url("noise-light.png") left top / 300px var(--paper); }
-
-/* ---------- Hero ---------- */
-
-.hero { padding: 72px 0 64px; }
-.hero h1 { margin: 10px 0 18px; max-width: 17em; }
-.hero p { max-width: 52em; color: var(--text-inverse-soft); }
-.hero .glow-mark { height: 64px; width: auto; color: var(--pink); filter: var(--glow-filter); margin-bottom: 28px; }
-.hero__stats { display: flex; gap: 48px; margin-top: 40px; flex-wrap: wrap; }
-.hero__stat b { display: block; font-family: var(--sans); font-size: 44px; font-weight: 500; line-height: 1; }
-.hero__stat span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-inverse-soft); }
-.hero__install { margin-top: 40px; display: inline-block; max-width: 100%; overflow-x: auto; white-space: nowrap; background: rgba(0,0,0,0.35); border: 1px solid var(--hairline-on-dark-soft); padding: 14px 20px; font-size: 14px; }
-.hero__install .prompt { color: var(--pink); }
+@media (min-width: 640px) {
+  .hero .page-subtitle { font-size: 14px; }
+}
+.hero__lede { margin-top: 16px; max-width: 42rem; color: var(--color-text-secondary); font-size: 15px; line-height: 1.65; text-wrap: pretty; }
+.hero__install {
+  margin-top: 28px; display: inline-flex; align-items: center; gap: 10px; max-width: 100%;
+  background: var(--color-bg-deep); box-shadow: var(--t-elevation);
+  padding: 14px 20px; font-size: 14px; overflow-x: auto; white-space: nowrap;
+}
+.hero__stats { display: flex; gap: 48px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+.hero__stat b { display: block; font-family: var(--font-sans); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
+.hero__stat span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
 
 /* ---------- Directory ---------- */
 
 /* padding-block, NOT the shorthand — these classes share an element with
    .container and the shorthand would wipe its inline gutter */
-.directory { padding-block: 48px 80px; }
-.directory__bar { display: flex; gap: 16px; align-items: center; margin-bottom: 32px; flex-wrap: wrap; }
+.directory { padding-block: 40px 80px; }
+.directory__bar { display: flex; gap: 16px; align-items: center; margin-bottom: 28px; flex-wrap: wrap; }
 .directory__bar input[type="search"] {
-  flex: 1; min-width: 240px; font-family: var(--mono); font-size: 15px;
-  padding: 13px 16px; border: 1px solid var(--hairline); background: var(--surface);
-  border-radius: 0; outline-color: var(--magenta);
+  flex: 1; min-width: 240px; font-family: var(--font-mono); font-size: 15px;
+  padding: 12px 16px; height: 44px;
+  border: 1px solid var(--color-border-strong); background: var(--color-surface);
+  border-radius: 0; outline: none; color: var(--color-text);
 }
+.directory__bar input[type="search"]:focus-visible { outline: 2px solid var(--t-brand); outline-offset: 2px; }
 .directory__kbd {
-  font-family: var(--mono); font-size: 11px; color: var(--text-muted);
-  border: 1px solid var(--hairline-soft); padding: 4px 7px; white-space: nowrap;
-  align-self: center;
+  font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted);
+  border: 1px solid var(--color-border-subtle); padding: 4px 7px; white-space: nowrap;
+  align-self: center; border-radius: 0;
 }
 .directory__sort { display: flex; gap: 8px; flex-wrap: wrap; }
-.directory__count { font-size: 13px; margin: -16px 0 20px; }
-.directory__sort a { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; text-decoration: none; padding: 8px 12px; }
-.directory__sort a.active { background: var(--btn-bg); color: var(--btn-fg); }
+.directory__count { font-size: 13px; margin: -12px 0 20px; }
+.directory__sort a {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
+  text-decoration: none; padding: 8px 12px; color: var(--color-text-secondary);
+}
+.directory__sort a:hover { color: var(--color-text); background: var(--color-surface-2); }
+.directory__sort a.active { background: var(--color-primary); color: var(--color-primary-foreground); }
 
-/* Category chips + tag chips share one look: pill, hairline, mono caps */
+/* Filter chips: square, hairline, mono caps — the site's square idiom */
 .directory__filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
-  text-decoration: none; padding: 7px 12px; border-radius: 9999px;
-  border: 1px solid var(--hairline-soft); color: var(--text-soft);
-  transition: border-color var(--transition), color var(--transition), background var(--transition);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.03em;
+  text-decoration: none; padding: 7px 12px; border-radius: 0;
+  border: 1px solid var(--color-border-strong); color: var(--color-text-secondary);
+  transition: border-color var(--transition), color var(--transition), background-color var(--transition);
 }
-.chip:hover { border-color: var(--magenta); color: var(--magenta); }
-.chip--active { background: var(--btn-bg); color: var(--btn-fg); border-color: var(--btn-bg); }
-.chip--active:hover { background: var(--pink); color: var(--ink); border-color: var(--pink); }
+.chip:hover { border-color: var(--color-brand); color: var(--color-brand); }
+.chip--active { background: var(--color-primary); color: var(--color-primary-foreground); border-color: var(--color-primary); }
+.chip--active:hover { background: color-mix(in oklch, var(--color-primary), white 14%); color: var(--color-primary-foreground); border-color: transparent; }
 .chip__count { color: inherit; opacity: 0.6; }
 
-.plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 20px; }
+.plugin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px 16px; row-gap: 28px; }
 /* ---------- Recently-added band ----------
-   Its own full-bleed band between hero and directory: what's inside it is a
-   showcase, NOT part of the searchable/filterable results below. Compact
-   cards on a tinted ground make that read at a glance. */
-.recent-band {
-  background: var(--surface-tint);
-  border-bottom: 1px solid var(--hairline); box-shadow: var(--rule-shadow);
-  padding-block: 22px 26px;
-}
+   Its own band between hero and directory: what's inside it is a showcase,
+   NOT part of the searchable/filterable results below. */
+.recent-band { background: var(--color-surface); border-block: 1px solid var(--color-border-subtle); padding-block: 22px 26px; }
 .recent-band__head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.recent-band__more { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; color: var(--text-muted); }
-.recent-band__more:hover { color: var(--magenta); }
+.recent-band__more {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  text-decoration: none; color: var(--color-text-muted);
+}
+.recent-band__more:hover { color: var(--color-brand); }
 /* One row, always — narrow viewports scroll sideways instead of wrapping */
 .recent-band__row {
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(min(260px, 80vw), 1fr);
@@ -354,64 +588,103 @@ pre code { background: none; padding: 0; }
 }
 .recent-card {
   display: flex; flex-direction: column; gap: 6px;
-  background: var(--surface); border: 1px solid var(--hairline);
+  background: var(--color-bg); border: 1px solid var(--color-border-subtle);
   padding: 14px 16px; text-decoration: none; font-size: 13px;
-  transition: background var(--transition);
+  transition: background-color var(--transition);
 }
-.recent-card:hover { background: var(--bg); color: inherit; }
-.recent-card__name { font-family: var(--sans); font-size: 16px; font-weight: 600; }
-.recent-card__name .ns { color: var(--text-muted); font-weight: 400; }
+.recent-card:hover { background: var(--color-surface-2); color: inherit; }
+.recent-card__name { font-family: var(--font-sans); font-size: 16px; font-weight: 600; }
 .recent-card__summary {
-  color: var(--text-soft); overflow: hidden; display: -webkit-box;
+  color: var(--color-text-secondary); overflow: hidden; display: -webkit-box;
   -webkit-line-clamp: 1; -webkit-box-orient: vertical;
 }
-.recent-card__meta { font-size: 12px; color: var(--text-muted); }
-.recent-card__meta .diamond { color: var(--magenta); }
+.recent-card__meta { font-size: 12px; color: var(--color-text-muted); }
 .directory__pager { justify-content: center; align-items: center; margin-top: 32px; }
 
+/* Directory + publisher cards (omarchy-site PluginCard, 1-1) */
 .plugin-card {
-  border: 1px solid var(--hairline); background: var(--surface);
-  padding: 24px; display: flex; flex-direction: column; gap: 10px;
-  text-decoration: none; transition: background var(--transition);
+  position: relative; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--color-surface); box-shadow: var(--t-elevation); border-radius: 0;
+  text-decoration: none;
+  transition-property: box-shadow, background-color; transition-duration: 150ms; transition-timing-function: ease-out;
 }
-.plugin-card:hover { background: var(--surface-tint); color: inherit; }
-/* Full-bleed media strip above the text block; fixed aspect so mixed source
-   shapes can't ragged the grid */
+.plugin-card:hover { box-shadow: var(--t-elevation-hover); color: inherit; }
 .plugin-card__preview {
-  margin: -24px -24px 8px; width: calc(100% + 48px); max-width: none;
-  /* height:auto so the width/height ATTRIBUTES (kept for layout stability)
-     yield to the fixed card ratio */
-  height: auto; aspect-ratio: 16 / 9; object-fit: cover;
-  border-bottom: 1px solid var(--hairline);
-  background: var(--surface-tint);
+  width: 100%; aspect-ratio: 16 / 9; object-fit: cover; height: auto;
+  outline: 1px solid var(--t-img-outline); outline-offset: -1px;
+  background: var(--color-bg-deep);
 }
 /* No screenshot yet: a quiet monogram keeps the grid uniform without faking
    variety — one accent, per the design system */
 .plugin-card__preview--fallback {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 16 / 9; background: var(--color-bg-deep);
+  font-family: var(--font-mono); font-size: 30px; font-weight: 600; color: var(--color-text-muted);
 }
-.plugin-card__monogram {
-  font-family: var(--sans); font-size: 56px; font-weight: 600;
-  color: var(--text-muted); opacity: 0.5; text-transform: uppercase; letter-spacing: 0.02em;
+.plugin-card__body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 16px; }
+.plugin-card__head { display: flex; align-items: center; gap: 6px; }
+.plugin-card h3 { font-size: 14px; font-weight: 500; font-family: var(--font-sans); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plugin-card p {
+  font-size: 13px; line-height: 1.55; color: var(--color-text-secondary); text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.plugin-card__preview--fallback .diamond { color: var(--magenta); font-size: 18px; }
-.plugin-card h3 { font-size: 18px; }
-.plugin-card h3 .ns { color: var(--text-muted); font-weight: 400; }
-.plugin-card p { font-size: 13px; color: var(--text-soft); flex: 1; }
-.plugin-card__meta { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); }
-.plugin-card__meta .diamond { color: var(--magenta); }
+.plugin-card__meta {
+  margin-top: auto; padding-top: 6px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 12px; color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.plugin-card__meta svg { width: 12px; height: 12px; }
+.plugin-card__stat { display: inline-flex; align-items: center; gap: 4px; }
+.plugin-card__verified { width: 16px; height: 16px; flex-shrink: 0; color: var(--color-brand); }
+
+/* ---------- Showcase sections (omarchy.org homepage idiom) ----------
+   SectionHeading: 24-28px semibold tracking-tight title, 15px secondary
+   description, underline action link; same rail geometry as the directory. */
+.showcase { border-top: 1px solid var(--color-border-subtle); padding-block: 48px; }
+.showcase__head { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 16px; }
+.showcase__title { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+@media (min-width: 640px) {
+  .showcase__title { font-size: 28px; }
+}
+.showcase__desc { margin-top: 8px; max-width: 36rem; font-size: 15px; line-height: 1.6; color: var(--color-text-secondary); text-wrap: pretty; }
+.showcase__action {
+  display: none; flex-shrink: 0; align-items: center; gap: 8px; min-height: 40px; padding-block: 8px;
+  font-size: 14px; font-weight: 500; white-space: nowrap; color: var(--color-text);
+  text-decoration: underline; text-underline-offset: 4px;
+  transition: color var(--transition);
+}
+.showcase__action:hover { color: var(--color-brand); }
+@media (min-width: 640px) {
+  .showcase__action { display: inline-flex; }
+}
+.showcase__grid { margin-top: 24px; }
+@media (min-width: 1024px) {
+  .showcase__grid { margin-top: 40px; }
+}
+.showcase__actions { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 640px) {
+  .showcase__actions { display: none; }
+}
+
+/* ---------- Plugin install strip (above the readme, no scroll needed) --- */
+.install-strip {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--color-bg-deep); border: 1px solid var(--color-border-subtle);
+  padding: 12px 12px 12px 16px; margin-bottom: 28px; font-size: 13px;
+}
+.install-strip__text { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; }
+.install-strip .prompt { color: var(--color-brand); }
 
 /* ---------- Plugin page ---------- */
 
-.page-head { padding: 48px 0 32px; border-bottom: 1px solid var(--hairline); box-shadow: var(--rule-shadow); }
+.page-head { padding: 48px 0 32px; border-bottom: 1px solid var(--color-border-subtle); }
 .page-head h1 { font-size: clamp(28px, 4vw, 40px); margin: 8px 0 10px; overflow-wrap: anywhere; }
-.page-head h1 .ns { color: var(--text-muted); font-weight: 400; }
-.page-head .summary { max-width: 60ch; color: var(--text-soft); }
 .page-head__chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .page-head__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
 
 .plugin-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 64px; padding-block: 40px 80px; }
-/* Readme + community stay readable when the container stretches to 1280 */
+/* Readme + community stay readable when the container stretches */
 .plugin-layout article { max-width: 75ch; min-width: 0; }
 @media (max-width: 900px) {
   .plugin-layout { grid-template-columns: minmax(0, 1fr); gap: 40px; }
@@ -423,78 +696,107 @@ pre code { background: none; padding: 0; }
 
 .plugin-preview {
   display: block; width: 100%; padding: 0; margin-bottom: 28px;
-  border: 1px solid var(--hairline); background: var(--surface);
+  border: 0; background: var(--color-surface); box-shadow: var(--t-elevation);
   cursor: zoom-in;
 }
-.plugin-preview img { width: 100%; height: auto; }
+.plugin-preview img { width: 100%; height: auto; outline: 1px solid var(--t-img-outline); outline-offset: -1px; }
 .plugin-preview--static { cursor: default; max-width: 640px; max-height: 480px; overflow-y: auto; }
 
 .lightbox {
-  border: 1px solid var(--hairline); padding: 0;
-  background: var(--surface); max-width: min(92vw, 1400px); max-height: 88vh;
+  border: 0; padding: 0; box-shadow: var(--t-elevation);
+  background: var(--color-surface); max-width: min(92vw, 1400px); max-height: 88vh;
   /* The global margin-0 reset kills the <dialog> UA centering — restore it */
-  margin: auto; position: fixed; inset: 0;
+  margin: auto; position: fixed; inset: 0; color: var(--color-text);
 }
-.lightbox::backdrop { background: rgba(13, 8, 38, 0.82); }
+.lightbox::backdrop { background: rgb(0 0 0 / 0.55); backdrop-filter: blur(2px); }
 .lightbox img { max-width: 100%; max-height: calc(88vh - 2px); object-fit: contain; }
 .lightbox__close {
   position: absolute; top: 8px; right: 8px; z-index: 1;
-  width: 36px; height: 36px; line-height: 1; font-size: 22px; font-family: var(--mono);
-  background: var(--ink); color: var(--paper); border: 1px solid var(--hairline-on-dark-soft);
+  width: 36px; height: 36px; line-height: 1; font-size: 22px; font-family: var(--font-mono);
+  background: var(--color-bg-deep); color: var(--color-text); border: 1px solid var(--color-border-subtle);
   cursor: pointer;
 }
-.lightbox__close:hover { background: var(--pink); color: var(--ink); }
+.lightbox__close:hover { background: var(--color-surface-2); }
 
-.readme h1, .readme h2, .readme h3 { margin: 1.4em 0 0.5em; }
+/* ---------- Readme (omarchy-site .prose, 1-1) ---------- */
+
+.readme, .prose { font-size: 15px; line-height: 1.65; color: var(--color-text-secondary); }
+.prose { max-width: 720px; }
+.readme h1, .readme h2, .readme h3, .prose h2, .prose h3 {
+  color: var(--color-text); font-weight: 600; letter-spacing: -0.01em; margin: 2em 0 0.6em;
+}
 .readme h1:first-child, .readme h2:first-child { margin-top: 0; }
-.readme p, .readme ul, .readme ol, .readme pre, .readme table { margin-bottom: 1em; }
-.readme ul { padding-left: 1.4em; list-style: none; }
-.readme ul li::before { content: "\25C6"; color: var(--magenta); display: inline-block; width: 1.4em; margin-left: -1.4em; font-size: 0.8em; }
-.readme ol { padding-left: 1.6em; }
-.readme table { border-collapse: collapse; width: 100%; font-size: 13px; }
-.readme th, .readme td { border: 1px solid var(--hairline-soft); padding: 8px 10px; text-align: left; }
+.prose h2 { font-size: 20px; }
+.prose h3, .readme h3 { font-size: 17px; }
+.readme p, .readme ul, .readme ol, .readme pre, .readme table, .prose p, .prose ul, .prose ol { margin-bottom: 1em; }
+.readme ul, .prose ul { padding-left: 1.4em; list-style: square; }
+.readme ol, .prose ol { padding-left: 1.6em; list-style: decimal; }
+.readme li, .prose li { margin-bottom: 0.35em; }
+.readme li::marker, .prose li::marker { color: var(--color-text-muted); }
+.readme img, .readme video { max-width: 100%; height: auto; margin: 1.25em 0; }
+.readme blockquote, .prose blockquote {
+  border-left: 2px solid var(--color-brand); margin: 1.25em 0;
+  padding: 0.25em 0 0.25em 1.25em; color: var(--color-text-muted);
+}
+.readme hr, .prose hr { border: 0; border-top: 1px solid var(--color-border-subtle); margin: 2em 0; }
+.readme table, .prose table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.readme th, .readme td, .prose th, .prose td { border: 1px solid var(--color-border-subtle); padding: 8px 10px; text-align: left; }
+.prose th { color: var(--color-text); font-family: var(--font-sans); font-weight: 600; background: var(--color-surface); }
+.prose h2 { margin: 1.6em 0 0.5em; }
+.prose .statement { line-height: 2.2; font-size: 17px; margin: 1.5em 0; }
+.term {
+  text-decoration: none; padding-bottom: 0.15em;
+  border-bottom: 1px dotted var(--color-brand);
+}
 
-.sidebar { display: flex; flex-direction: column; gap: 28px; font-size: 13px; }
-.sidebar section { border-top: 1px solid var(--hairline); padding-top: 14px; }
-.sidebar h4 { text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; margin-bottom: 10px; }
-.install-cmd { background: var(--ink); color: var(--paper); padding: 10px 10px 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 10px; max-width: 560px; }
+/* ---------- Sidebar ---------- */
+
+.sidebar { display: flex; flex-direction: column; gap: 16px; font-size: 13px; }
+.sidebar section { background: var(--color-surface); border: 1px solid var(--color-border-subtle); padding: 14px 16px; }
+.sidebar h4 { text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; margin-bottom: 10px; }
+/* Legacy sidebar install block — kept for cached HTML only; the command now
+   lives in .install-strip above the readme. */
+.install-cmd {
+  background: var(--color-bg-deep); color: var(--color-text);
+  border: 1px solid var(--color-border-subtle);
+  padding: 10px 10px 10px 14px; font-size: 13px;
+  display: flex; align-items: center; gap: 10px; max-width: 560px;
+}
 .install-cmd__text { flex: 1; overflow-x: auto; white-space: nowrap; }
-.install-cmd .prompt { color: var(--pink); }
+.install-cmd .prompt { color: var(--color-brand); }
 .sidebar dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
-.sidebar dt { color: var(--text-muted); }
+.sidebar dt { color: var(--color-text-muted); }
 .sidebar dd { text-align: right; overflow-wrap: anywhere; }
 .sidebar .source-link { display: inline-flex; align-items: center; gap: 6px; vertical-align: bottom; }
 .sidebar .source-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 .capability-rows { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.capability-rows__label { display: block; color: var(--text-muted); margin-bottom: 2px; }
+.capability-rows__label { display: block; color: var(--color-text-muted); margin-bottom: 2px; }
 .capability-rows__items { list-style: none; }
 .capability-rows__items li { overflow-wrap: anywhere; padding: 1px 0; }
-.capability-rows__more summary { cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 2px 0; }
-.capability-rows__more summary:hover { color: var(--magenta); }
+.capability-rows__more summary { cursor: pointer; color: var(--color-text-muted); font-size: 12px; padding: 2px 0; }
+.capability-rows__more summary:hover { color: var(--color-brand); }
 .capabilities__note { margin-top: 12px; font-size: 12px; }
 
 .version-list { list-style: none; }
-.version-list .v { text-decoration: none; }
-a.v:hover { color: var(--magenta); }
-.version-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--hairline-soft); }
-.version-list .v { font-weight: 700; }
+.version-list .v { text-decoration: none; font-weight: 700; }
+a.v:hover { color: var(--color-brand); }
+.version-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--color-border-subtle); }
 
 /* ---------- Community ---------- */
 
-.community { margin-top: 48px; border-top: 1px solid var(--hairline); box-shadow: var(--rule-shadow); padding-top: 20px; }
+.community { margin-top: 48px; border-top: 1px solid var(--color-border-subtle); padding-top: 20px; }
 .community h3 { margin-bottom: 18px; }
 .rate-widget { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; }
 .rate-widget .eyebrow { margin-right: 8px; }
-.rate-diamond { background: none; border: 0; cursor: pointer; font-size: 20px; color: var(--hairline-soft); transition: color var(--transition); padding: 2px; }
-.rate-diamond.active, .rate-diamond:hover { color: var(--magenta); }
-.rating-summary .diamond { color: var(--magenta); }
-.comment { border-bottom: 1px solid var(--hairline-soft); padding: 14px 0; font-size: 14px; }
+.rate-diamond { background: none; border: 0; cursor: pointer; font-size: 20px; color: var(--color-border-strong); transition: color var(--transition); padding: 2px; }
+.rate-diamond.active, .rate-diamond:hover { color: var(--color-brand); }
+.comment { border-bottom: 1px solid var(--color-border-subtle); padding: 14px 0; font-size: 14px; }
 .comment__head { display: flex; align-items: center; gap: 4px 10px; margin-bottom: 6px; font-size: 13px; flex-wrap: wrap; }
 .comment__actions { margin-left: auto; display: flex; gap: 10px; }
-.linklike { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 12px; color: var(--text-muted); text-decoration: underline; }
-.linklike:hover { color: var(--magenta); }
-.code-chip { font-family: var(--mono); background: var(--surface-tint); padding: 2px 8px; }
+.linklike { background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font-mono); font-size: 12px; color: var(--color-text-muted); text-decoration: underline; }
+.linklike:hover { color: var(--color-brand); }
+.code-chip { font-family: var(--font-mono); background: var(--color-surface-2); padding: 2px 8px; }
 .u-gap-top { margin-top: 24px; }
 .u-gap-top-sm { margin-top: 14px; }
 .u-gap-bottom-sm { margin-bottom: 10px; }
@@ -505,108 +807,167 @@ a.v:hover { color: var(--magenta); }
 .u-max-narrow { max-width: 640px; }
 .u-max-mid { max-width: 560px; }
 
-/* ---------- Notices ---------- */
-
-.notice-banner { padding: 14px var(--bleed-pad); font-size: 13px; border-bottom: 1px solid var(--hairline); }
-.notice-banner--danger { background: var(--danger-soft); color: var(--danger); }
-.notice-banner--warning { background: var(--warning-soft); color: var(--warning); }
-
 /* ---------- Forms ---------- */
 
 .form-page { max-width: 460px; margin: 64px auto 96px; padding-inline: 24px; }
 .form-page h1 { font-size: 32px; margin-bottom: 8px; }
-.form-page > p { color: var(--text-soft); margin-bottom: 28px; font-size: 14px; }
+.form-page > p { color: var(--color-text-secondary); margin-bottom: 28px; font-size: 14px; }
 .field { margin-bottom: 18px; }
-.field label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.field label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
 .field input[type="text"], .field input[type="email"] {
-  width: 100%; font-family: var(--mono); font-size: 15px; padding: 13px 16px;
-  border: 1px solid var(--hairline); background: var(--surface); border-radius: 0; outline-color: var(--magenta);
+  width: 100%; font-family: var(--font-mono); font-size: 15px; padding: 12px 16px;
+  border: 1px solid var(--color-border-strong); background: var(--color-surface);
+  border-radius: 0; outline: none; color: var(--color-text);
 }
-.field .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-.field-errors { color: var(--danger); font-size: 13px; margin-bottom: 18px; }
+.field input[type="text"]:focus-visible, .field input[type="email"]:focus-visible {
+  outline: 2px solid var(--t-brand); outline-offset: 2px;
+}
+.field .hint { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; }
+.field-errors { color: var(--color-destructive); font-size: 13px; margin-bottom: 18px; }
 .code-input { letter-spacing: 0.5em; font-size: 24px !important; text-align: center; }
 
 /* ---------- Dashboard / admin tables ---------- */
 
 .content-page { padding-block: 48px 96px; }
 .content-page h1 { margin-bottom: 8px; }
-.content-page .lede { color: var(--text-soft); margin-bottom: 40px; max-width: 62ch; }
+.content-page .lede { color: var(--color-text-secondary); margin-bottom: 40px; max-width: 62ch; }
 .content-page section { margin-bottom: 48px; }
-.content-page section > h2 { border-top: 1px solid var(--hairline); box-shadow: var(--rule-shadow); padding-top: 14px; margin-bottom: 18px; font-size: 22px; }
+.content-page section > h2 { border-top: 1px solid var(--color-border-subtle); padding-top: 14px; margin-bottom: 18px; font-size: 22px; }
 
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
-.table td { padding: 10px; border-bottom: 1px solid var(--hairline-soft); vertical-align: middle; }
+.table th {
+  text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--color-text-muted); padding: 8px 10px; border-bottom: 1px solid var(--color-border-strong);
+}
+.table td { padding: 10px; border-bottom: 1px solid var(--color-border-subtle); vertical-align: middle; }
 .table .actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .form-inline { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-top: 18px; }
 .form-inline .field { margin: 0; }
 .select, .field select, .field textarea {
-  font-family: var(--mono); font-size: 14px; padding: 12px;
-  border: 1px solid var(--hairline); background: var(--surface); border-radius: 0; outline-color: var(--magenta);
+  font-family: var(--font-mono); font-size: 14px; padding: 12px;
+  border: 1px solid var(--color-border-strong); background: var(--color-surface);
+  border-radius: 0; outline: none; color: var(--color-text);
 }
 .field textarea { width: 100%; }
+.select:focus-visible, .field select:focus-visible, .field textarea:focus-visible {
+  outline: 2px solid var(--t-brand); outline-offset: 2px;
+}
 
-.token-reveal { background: var(--ink); color: var(--paper); padding: 16px 20px; margin-bottom: 24px; }
-.token-reveal code { background: none; color: var(--pink); font-size: 15px; }
+.token-reveal { background: var(--color-bg-deep); border: 1px solid var(--color-border-subtle); color: var(--color-text); padding: 16px 20px; margin-bottom: 24px; }
+.token-reveal code { background: none; color: var(--color-brand); font-size: 15px; }
 .token-reveal__row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
 .token-reveal__row code { flex: 1; overflow-x: auto; }
 
-.backup-codes { columns: 2; font-size: 15px; background: var(--surface-tint); padding: 16px 24px; max-width: 340px; }
+.backup-codes { columns: 2; font-size: 15px; background: var(--color-surface-2); padding: 16px 24px; max-width: 340px; }
 .backup-codes li { margin-left: 1em; }
 
-.qr-box { background: white; border: 1px solid var(--hairline); display: inline-block; padding: 12px; margin: 16px 0; }
+.qr-box { background: #ffffff; border: 1px solid var(--color-border-subtle); display: inline-block; padding: 12px; margin: 16px 0; }
 .qr-box svg { width: 180px; height: 180px; }
-
-/* ---------- Prose pages (governance etc.) ---------- */
-
-.prose { max-width: 720px; }
-.prose h2 { margin: 1.6em 0 0.5em; }
-.prose p, .prose ul, .prose ol { margin-bottom: 1em; }
-.prose ul { list-style: none; padding-left: 1.4em; }
-.prose ul li::before { content: "\25C6"; color: var(--magenta); display: inline-block; width: 1.4em; margin-left: -1.4em; font-size: 0.8em; }
-.prose .statement { line-height: 2.2; font-size: 17px; margin: 1.5em 0; }
-.term { text-decoration: none; padding-bottom: 0.15em; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cline x1='1' y1='2' x2='4' y2='2' stroke='%23ED4CC8' stroke-width='2' stroke-linecap='round' stroke-dasharray='0 4'/%3E%3C/svg%3E") repeat-x 0 100% / 0.4em 0.4em; }
 
 /* ---------- Audit log ---------- */
 
 .audit-list { list-style: none; font-size: 13px; }
-.audit-list li { display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--hairline-soft); }
-.audit-list time { color: var(--text-muted); white-space: nowrap; }
+.audit-list li { display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--color-border-subtle); }
+.audit-list time { color: var(--color-text-muted); white-space: nowrap; }
 .audit-list .action { font-weight: 700; min-width: 130px; }
 /* Metadata can hold shas and ids with no break points */
 .audit-list li > span:not(.action) { min-width: 0; overflow-wrap: anywhere; }
 
-/* ---------- Footer ---------- */
+/* ---------- Footer (omarchy-site SiteFooter, 1-1) ---------- */
 
-.site-footer {
-  background: url("noise-dark.png") left top / 300px var(--ink);
-  color: var(--text-inverse); margin-top: 0;
-  border-top: 1px solid var(--hairline);
+.omarchy-footer {
+  position: relative; isolation: isolate; overflow: hidden;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--t-field-bg);
+  padding-bottom: env(safe-area-inset-bottom);
 }
-.site-footer__inner { max-width: var(--container); margin-inline: auto; padding: 48px var(--gutter); display: flex; flex-direction: column; align-items: flex-start; gap: 24px; }
-/* Flat pink — the neon glow appears once per page, on the hero mark only */
-.site-footer__logo { height: 22px; width: auto; color: var(--pink); }
-.site-footer nav { display: flex; gap: 24px; flex-wrap: wrap; }
-.site-footer nav a { font-size: 13px; text-decoration: none; color: var(--text-inverse-soft); }
-.site-footer nav a:hover { color: var(--pink); }
-.site-footer__legal { font-size: 12px; color: var(--text-inverse-soft); }
-.site-footer .katakana { color: var(--pink); }
+.omarchy-footer__field { position: absolute; inset: 0; pointer-events: none; user-select: none; }
+.omarchy-footer__field canvas { display: block; width: 100%; height: 100%; }
+.omarchy-footer__inner {
+  position: relative; margin-inline: auto; max-width: var(--container);
+  padding: 56px var(--gutter);
+}
+.omarchy-footer__top { display: flex; flex-direction: column; gap: 40px; }
+@media (min-width: 1024px) {
+  .omarchy-footer__top { flex-direction: row; justify-content: space-between; }
+}
+.omarchy-footer__brand { display: flex; flex-direction: column; width: 100%; flex-shrink: 0; }
+@media (min-width: 640px) {
+  .omarchy-footer__brand { width: max-content; }
+}
+@media (min-width: 1024px) {
+  .omarchy-footer__brand { width: 24rem; }
+}
+/* Flat currentColor over the field — the field behind it carries the color.
+   (The pre-redesign footer wore the gradient-banded wordmark here; the live
+   site's footer mark is flat brand ink.) */
+.omarchy-footer__wordmark {
+  height: 24px; width: auto; aspect-ratio: 4131 / 950;
+  color: var(--color-brand);
+  background-color: currentColor;
+  mask-image: url(/brand/omarchy-wordmark.svg); mask-repeat: no-repeat; mask-size: 100% 100%;
+  -webkit-mask-image: url(/brand/omarchy-wordmark.svg); -webkit-mask-repeat: no-repeat; -webkit-mask-size: 100% 100%;
+  transition: color var(--transition);
+}
+a:hover > .omarchy-footer__wordmark, a:focus-visible > .omarchy-footer__wordmark { color: var(--t-field-hover); }
+.omarchy-footer__tagline { margin-top: 16px; font-size: 14px; line-height: 1.65; color: var(--color-text-muted); text-wrap: pretty; }
+.omarchy-footer__tagline-line { display: block; }
+.omarchy-footer__nowrap { white-space: nowrap; }
+.omarchy-footer__credits { margin-top: 16px; display: flex; flex-direction: column; font-size: 14px; line-height: 1.65; color: var(--color-text-muted); text-wrap: pretty; }
+@media (min-width: 1024px) {
+  .omarchy-footer__credits { margin-top: auto; }
+}
+/* Keep the credit links inline to preserve the paragraph baseline. */
+.omarchy-footer__credits svg { display: inline-block; flex-shrink: 0; }
+.omarchy-footer__credits-37s { margin-right: 3px; width: 16px; height: 16px; vertical-align: -0.28em; }
+.omarchy-footer__credits-cf { margin-right: 5px; height: 12px; width: auto; vertical-align: -0.15em; }
+.omarchy-footer__cols {
+  display: grid; min-width: 0; flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 24px;
+}
+@media (min-width: 640px) {
+  .omarchy-footer__cols { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .omarchy-footer__cols { column-gap: 40px; }
+}
+.omarchy-footer__cols h2 {
+  font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--color-text-muted); font-weight: 500;
+}
+.omarchy-footer__cols ul { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; list-style: none; }
+.omarchy-footer__cols a:not(.omarchy-footer__link) {
+  font-size: 14px; color: var(--color-text-secondary); text-decoration: none;
+  transition: color var(--transition);
+}
+.omarchy-footer__cols a:not(.omarchy-footer__link):hover { color: var(--color-text); }
+.omarchy-footer__bottom {
+  margin-top: 48px; display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid var(--color-border-subtle); padding-top: 24px;
+  font-size: 13px; color: var(--color-text-muted);
+}
+@media (min-width: 640px) {
+  .omarchy-footer__bottom { flex-direction: row; align-items: center; justify-content: space-between; }
+}
+.omarchy-footer__bottom a:not(.omarchy-footer__link) { color: var(--color-text-secondary); transition: color var(--transition); }
+.omarchy-footer__bottom a:not(.omarchy-footer__link):hover { color: var(--color-text); }
+/* Shared footer link treatment (tagline, credits, columns, lang, bottom). */
+.omarchy-footer__link { color: var(--color-text-secondary); text-decoration: none; transition: color var(--transition); }
+.omarchy-footer__link:hover { color: var(--color-text); }
+/* Language row: same geometry as the live site (mt-8, wrap, 16px/8px gaps). */
+.omarchy-footer__lang {
+  margin-top: 32px; display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 8px;
+  font-size: 14px;
+}
 
 /* ---------- Small screens ---------- */
 
 @media (max-width: 700px) {
-  .site-header__inner { padding-block: 14px; }
-  .site-header__logo { height: 22px; }
-  .site-header__wordmark { font-size: 17px; }
-  .site-header__nav { gap: 4px 18px; }
-  .site-header__nav .button { padding: 10px 14px; }
-
   .hero { padding: 48px 0 40px; }
-  .hero .glow-mark { height: 48px; margin-bottom: 20px; }
-  .hero__stats { gap: 24px 40px; margin-top: 32px; }
-  .hero__stat b { font-size: 34px; }
-  .hero__install { margin-top: 32px; }
+  .hero__stats { gap: 24px 40px; margin-top: 28px; }
+  .hero__stat b { font-size: 26px; }
+  .hero__install { margin-top: 24px; }
 
   .page-head { padding: 32px 0 24px; }
   .directory { padding-block: 32px 56px; }
@@ -623,46 +984,8 @@ a.v:hover { color: var(--magenta); }
   .audit-list .action { min-width: 0; }
 }
 
-/* Touch targets: the uppercase mono nav links are small; give the tap area room */
+/* Touch targets: the small icon buttons get room */
 @media (pointer: coarse) {
-  .site-header__nav a:not(.button) { padding: 10px 2px; }
+  .omarchy-iconbtn { min-height: 32px; min-width: 32px; }
   .linklike { padding: 6px 2px; }
-}
-
-/* ---------- Dark-mode component layer (must FOLLOW base rules) ---------- */
-
-@media (prefers-color-scheme: dark) {
-  /* The frame sits one layer below the page */
-  .site-header { background: var(--tn-chrome); }
-  .section-dark, .site-footer { background: var(--tn-chrome); }
-  .page-head { background: var(--tn-chrome); }
-  /* The recently-added band joins the frame; its cards sit raised on it */
-  .recent-band { background: var(--tn-chrome); }
-  .recent-card { background: var(--tn-raised); border-color: var(--hairline-soft); }
-  .recent-card:hover { background: var(--tn-lifted); }
-
-  /* Code sinks into the frame layer instead of blending with the page */
-  pre, .install-cmd, .token-reveal {
-    background: var(--code-bg); color: var(--code-fg);
-    border: 1px solid var(--hairline-soft);
-  }
-  .sidebar .install-cmd { background: var(--code-bg); color: var(--code-fg); }
-
-  /* Sidebar sections become quiet raised panels — division by tone */
-  .sidebar section { background: var(--tn-raised); border: 1px solid var(--hairline-soft); padding: 14px 16px; }
-
-  .qr-box { background: #ffffff; } /* QR must stay scannable */
-  .badge { background: rgba(255, 138, 255, 0.14); }
-  ::selection { background: var(--magenta); color: var(--tn-chrome); }
-  /* Lifted danger red needs dark text for contrast on destructive controls */
-  .button--danger, button.button--danger { color: var(--tn-chrome); }
-  .button:hover { color: var(--tn-chrome); }
-  .section-dark .button { background: var(--btn-bg); color: var(--btn-fg); }
-  .rate-diamond { color: var(--tn-lifted); }
-
-  /* Scrollbars belong to the theme too */
-  * { scrollbar-width: thin; scrollbar-color: #3b4261 transparent; }
-  ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-thumb { background: #3b4261; border-radius: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
 }

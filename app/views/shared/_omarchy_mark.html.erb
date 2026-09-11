@@ -1,0 +1,26 @@
+<%# The square-spiral Omarchy mark, ported 1-1 from omacom/omarchy-site
+    (Brand.tsx OmarchyMarkDrawn): stroked spiral paths over the theme's brand
+    gradient bands, with the 650ms draw-on animation on hover/focus. %>
+<svg viewBox="0 0 1200 1200" fill="none" stroke="url(#omarchy-mark-bands-<%= local_assigns.fetch(:uid, "h") %>)"
+     stroke-width="80" aria-hidden="true" class="<%= local_assigns[:class] %> mark-draw">
+  <defs>
+    <linearGradient id="omarchy-mark-bands-<%= local_assigns.fetch(:uid, "h") %>"
+        gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="1200">
+      <stop offset="0%" stop-color="var(--t-field-crest)" />
+      <stop offset="26.316%" stop-color="var(--t-field-crest)" />
+      <stop offset="26.316%" stop-color="var(--t-field-hover)" />
+      <stop offset="36.842%" stop-color="var(--t-field-hover)" />
+      <stop offset="36.842%" stop-color="var(--t-field-lit)" />
+      <stop offset="57.895%" stop-color="var(--t-field-lit)" />
+      <stop offset="57.895%" stop-color="var(--t-field-mid)" />
+      <stop offset="73.684%" stop-color="var(--t-field-mid)" />
+      <stop offset="73.684%" stop-color="var(--t-field-dim)" />
+      <stop offset="100%" stop-color="var(--t-field-dim)" />
+    </linearGradient>
+  </defs>
+  <path pathLength="1" d="M640 1160H40V40H1160V1160H720" />
+  <path pathLength="1" d="M600 40V200" />
+  <path pathLength="1" d="M640 200H200V1000H1000V200H880" />
+  <path pathLength="1" d="M600 1160V1040" />
+  <path pathLength="1" d="M40 600H200" />
+</svg>

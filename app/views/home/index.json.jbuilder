@@ -37,8 +37,12 @@ json.plugins @plugins do |plugin|
   json.partial! "plugins/plugin", plugin: plugin
 end
 
-# The "new this fortnight" strip, present only on the unfiltered first page —
-# same rule as the web directory.
+# The "new this fortnight" strip and the popular shelf, present only on the
+# unfiltered first page — same rule as the web directory.
 json.recent(@recent || []) do |plugin|
+  json.partial! "plugins/plugin", plugin: plugin
+end
+
+json.popular(@popular || []) do |plugin|
   json.partial! "plugins/plugin", plugin: plugin
 end

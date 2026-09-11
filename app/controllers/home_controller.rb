@@ -64,18 +64,25 @@ class HomeController < ApplicationController
     @category_counts = Plugin.directory_visible.where.not(category: nil).group(:category).count
     # A short strip of genuinely new plugins on the unfiltered first page —
     # the default downloads sort would otherwise bury every fresh release.
+    # Plus the popular shelf, same rule as the omarchy.org homepage's plugin
+    # section: the most-installed plugins, independent of the directory's own
+    # active sort/filter, so the top of the page always features what the
+    # community actually installs.
     if @page == 1 && @query.blank? && @category.nil? && @tag.nil?
-      @recent = Plugin.directory_visible.includes(:publisher).with_attached_preview_card
+      visible = Plugin.directory_visible.includes(:publisher).with_attached_preview_card
         .select("plugins.*", "#{FIRST_PUBLISHED_SQL} AS first_published_at", "#{LAST_PUBLISHED_SQL} AS last_published_at")
+      @recent = visible
         .where("#{FIRST_PUBLISHED_SQL} >= ?", ApplicationHelper::CARD_RECENCY.ago)
         .order(Arel.sql("first_published_at DESC")).order(:id).limit(4)
+      @popular = visible
+        .order(Arel.sql(SORTS["downloads"])).order(:id).limit(6)
     end
     @stats = {
       plugins: Plugin.listed.where.not(latest_version: nil).count,
       publishers: Publisher.claimed.count,
       downloads: Plugin.sum(:downloads_count)
     }
-    freshen(@plugins, @recent, @query, @sort, @category, @tag, @page, @per_page, @more, @total, @stats.values)
+    freshen(@plugins, @recent, @popular, @query, @sort, @category, @tag, @page, @per_page, @more, @total, @stats.values)
   end
 
   private

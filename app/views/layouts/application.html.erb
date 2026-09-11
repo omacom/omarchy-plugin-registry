@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="tokyo-night">
   <head>
     <title><%= content_for(:title) || "Omarchy Plugins" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="description" content="<%= content_for(:meta_description) || ApplicationHelper::DEFAULT_META_DESCRIPTION %>">
     <%= content_for(:social) || social_meta(title: content_for(:title) || "Omarchy Plugins",
           description: ApplicationHelper::DEFAULT_META_DESCRIPTION, image_path: og_site_path, url_path: request.path) %>
@@ -10,33 +10,23 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= yield :head %>
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <%= preload_link_tag "JetBrainsMono-Regular.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
-    <%= preload_link_tag "ClashGrotesk-Medium.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
+    <link rel="icon" href="/brand/omarchy-logo.svg" type="image/svg+xml" data-theme-icon>
+    <link rel="preload" href="/brand/omarchy-wordmark.svg" as="image" type="image/svg+xml" crossorigin="anonymous">
+    <%= preload_link_tag "Geist-Variable.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
+    <%= preload_link_tag "JetBrainsMono-Variable.woff2", as: :font, type: "font/woff2", crossorigin: "anonymous" %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%# Stamp the saved omarchy-site theme before first paint (same keys as
+        omarchy.org, so the choice carries across both sites). %>
+    <script>
+      (function(){try{var t=localStorage.getItem("omarchy-site-theme");var ok=["catppuccin","catppuccin-latte","ethereal","everforest","flexoki-light","gruvbox","hackerman","kanagawa","last-horizon","lumon","lupine","matte-black","miasma","nord","osaka-jade","retro-82","ristretto","rose-pine","solitude","tokyo-night","vantablack","white"];var light=["catppuccin-latte","flexoki-light","lupine","rose-pine","white"];var dark=["catppuccin","ethereal","everforest","gruvbox","hackerman","kanagawa","last-horizon","lumon","matte-black","miasma","nord","osaka-jade","retro-82","ristretto","solitude","tokyo-night","vantablack"];if(ok.indexOf(t)<0){var pool=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?light:dark;t=pool[Math.floor(Math.random()*pool.length)];localStorage.setItem("omarchy-site-theme",t)}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="tokyo-night"}})();
+    </script>
     <%= javascript_importmap_tags %>
   </head>
 
   <body>
-    <header class="site-header">
-      <div class="site-header__inner container">
-        <%= link_to root_path, class: "site-header__brand" do %>
-          <%= render "shared/logo", class: "site-header__logo" %>
-          <span class="site-header__wordmark">Omarchy <em>Plugins</em></span>
-        <% end %>
-        <nav class="site-header__nav">
-          <%= link_to "Plugins", root_path %>
-          <%= link_to "Publishing", publishing_path %>
-          <%= link_to "Governance", governance_path %>
-          <% if authenticated? %>
-            <% if Current.user&.admin? %><%= link_to "Admin", admin_root_path %><% end %>
-            <%= link_to "Dashboard", dashboard_path, class: "button" %>
-          <% else %>
-            <%= link_to "Sign in", new_session_path, class: "button" %>
-          <% end %>
-        </nav>
-      </div>
-    </header>
+    <a href="#main"
+       class="muted" style="position:absolute;left:16px;z-index:400;transform:translateY(-120%);padding:8px 12px;font-size:14px;">Skip to content</a>
+    <%= render "shared/site_header" %>
 
     <% if authenticated? && Current.user&.recovery_requested_at %>
       <div class="notice-banner notice-banner--danger">
@@ -60,19 +50,9 @@
       </div>
     <% end %>
 
-    <main><%= yield %></main>
+    <main id="main"><%= yield %></main>
 
-    <footer class="site-footer">
-      <div class="site-footer__inner">
-        <%= render "shared/logo", class: "site-footer__logo" %>
-        <nav>
-          <%= link_to "Governance", governance_path %>
-          <%= link_to "Transparency log", audit_log_path %>
-          <%= link_to "Publishing guide", publishing_path %>
-          <a href="https://omarchy.org">omarchy.org</a>
-        </nav>
-        <p class="site-footer__legal">plugins.omarchy.org · An <a href="https://www.omacon.org">Omacom</a> project · <span class="katakana">オマコム</span></p>
-      </div>
-    </footer>
+    <%= render "shared/site_footer" %>
+    <%= render "shared/theme_picker" %>
   </body>
 </html>

@@ -1,0 +1,119 @@
+<%# Site chrome mirroring omacom/omarchy-site's SiteHeader 1-1: 56px sticky
+    bar, spiral mark, News/Manual/Plugins/Themes nav, search + theme + globe +
+    RSS + GitHub icon buttons with tooltips, Install button, mobile sheet
+    under 640px (same links + actions, auth included). Registry-only affordance:
+    auth (Sign in/Dashboard/Admin) lives inside the icon row on desktop and in
+    the mobile sheet, matching the bar's own visual language. %>
+<% section = local_assigns.fetch(:section, :plugins) %>
+<% host = request.host.to_s %>
+<% themes_host = host.start_with?("themes.") %>
+<% current = themes_host ? :themes : section %>
+<header class="omarchy-header" dir="ltr" data-controller="site-header search-focus">
+  <div class="omarchy-bar">
+    <div class="omarchy-bar__inner">
+      <%= link_to "https://omarchy.org", class: "omarchy-brand mark-draw-trigger", aria: { label: "Omarchy home" } do %>
+        <%= render "shared/omarchy_mark", class: "omarchy-brand__mark", uid: "h" %>
+      <% end %>
+
+      <nav aria-label="Main" class="omarchy-nav">
+        <a href="https://omarchy.org/news/">News</a>
+        <a href="https://omarchy.org/manual/">Manual</a>
+        <% if current == :themes %>
+          <a href="https://plugins.omarchy.org" title="Plugin directory">Plugins</a>
+          <a href="https://themes.omarchy.org" aria-current="page">Themes</a>
+        <% else %>
+          <a href="https://plugins.omarchy.org" aria-current="page">Plugins</a>
+          <a href="https://themes.omarchy.org" title="Theme gallery">Themes</a>
+        <% end %>
+      </nav>
+
+      <div class="omarchy-bar__actions">
+        <div class="omarchy-bar__icons">
+          <span class="omarchy-tip">
+            <button type="button" class="omarchy-iconbtn" title="Search plugins (Ctrl+K)"
+                    aria-label="Search plugins" data-action="click->search-focus#focus">
+              <%= render "shared/icon", name: "search" %>
+            </button>
+            <span class="omarchy-tip__bubble" role="tooltip">Search plugins <kbd>Ctrl+K</kbd></span>
+          </span>
+          <span class="omarchy-tip">
+            <button type="button" class="omarchy-iconbtn" title="Change website theme (T)"
+                    aria-label="Change website theme" data-action="click->site-header#openPicker">
+              <%= render "shared/icon", name: "palette" %>
+            </button>
+            <span class="omarchy-tip__bubble" role="tooltip">Change website theme <kbd>T</kbd></span>
+          </span>
+          <span class="omarchy-tip">
+            <a class="omarchy-iconbtn" href="<%= feed_path %>" title="Subscribe via RSS" aria-label="Plugin releases RSS feed">
+              <%= render "shared/icon", name: "rss" %>
+            </a>
+            <span class="omarchy-tip__bubble" role="tooltip">Subscribe via RSS</span>
+          </span>
+          <span class="omarchy-tip">
+            <a class="omarchy-iconbtn" href="https://github.com/omacom/omarchy" title="View Omarchy on GitHub" aria-label="Omarchy on GitHub">
+              <%= render "shared/icon", name: "github" %>
+            </a>
+            <span class="omarchy-tip__bubble" role="tooltip">View Omarchy on GitHub</span>
+          </span>
+        </div>
+        <% if authenticated? %>
+          <% if Current.user&.admin? %>
+            <%= link_to "Admin", admin_root_path, class: "omarchy-auth" %>
+          <% end %>
+          <%= link_to "Dashboard", dashboard_path, class: "omarchy-auth" %>
+        <% else %>
+          <%= link_to "Sign in", new_session_path, class: "omarchy-auth" %>
+        <% end %>
+        <a class="omarchy-install" href="https://omarchy.org/#install">Install</a>
+        <div class="omarchy-bar__icons omarchy-bar__icons--mobile">
+          <button type="button" class="omarchy-iconbtn" aria-label="Change website theme"
+                  data-action="click->site-header#openPicker">
+            <%= render "shared/icon", name: "palette" %>
+          </button>
+          <button type="button" class="omarchy-iconbtn" aria-label="Language: English"
+                  data-action="click->site-header#openLanguages">
+            <%= render "shared/icon", name: "globe" %>
+          </button>
+        </div>
+        <button type="button" class="omarchy-iconbtn omarchy-menu-toggle omarchy-toggle--menu" data-nav-toggle
+                aria-expanded="false" aria-controls="site-menu" aria-label="Menu">
+          <%= render "shared/icon", name: "menu" %>
+        </button>
+        <button type="button" class="omarchy-iconbtn omarchy-menu-toggle omarchy-toggle--close" data-nav-toggle
+                aria-expanded="true" aria-controls="site-menu" aria-label="Close menu" hidden>
+          <%= render "shared/icon", name: "close" %>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div data-menu-scrim class="omarchy-scrim" aria-hidden="true" hidden></div>
+
+  <div id="site-menu" class="omarchy-menu" hidden>
+    <nav aria-label="Main pages">
+      <a href="https://omarchy.org/news/">News</a>
+      <a href="https://omarchy.org/manual/">Manual</a>
+      <a href="https://plugins.omarchy.org">Plugins</a>
+      <a href="https://themes.omarchy.org">Themes</a>
+      <button type="button" data-action="click->search-focus#focus">
+        <span class="omarchy-menu__row"><%= render "shared/icon", name: "search", class: "size-5" %>Search plugins</span>
+      </button>
+      <button type="button" data-action="click->site-header#openPicker">
+        <span class="omarchy-menu__row"><%= render "shared/icon", name: "palette", class: "size-5" %>Change the theme</span>
+      </button>
+      <% if authenticated? %>
+        <% if Current.user&.admin? %>
+          <%= link_to "Admin", admin_root_path %>
+        <% end %>
+        <%= link_to "Dashboard", dashboard_path %>
+      <% else %>
+        <%= link_to "Sign in", new_session_path %>
+      <% end %>
+      <div class="omarchy-menu__actions">
+        <a class="button" href="https://omarchy.org/#install"><%= render "shared/icon", name: "download", class: "size-5" %>Install</a>
+        <a class="button button--ghost" href="<%= feed_path %>"><%= render "shared/icon", name: "rss", class: "size-5" %>RSS</a>
+        <a class="button button--ghost" href="https://github.com/omacom/omarchy"><%= render "shared/icon", name: "github", class: "size-5" %>GitHub</a>
+      </div>
+    </nav>
+  </div>
+</header>

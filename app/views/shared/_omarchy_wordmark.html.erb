@@ -1,0 +1,10 @@
+<%# The pixel wordmark as a mask over currentColor, ported 1-1 from
+    omacom/omarchy-site (Brand.tsx OmarchyWordmark): one source of truth for
+    the 211 rects (public/brand/omarchy-wordmark.svg) while the fill is the
+    theme's brand gradient bands. %>
+<div role="<%= "img" if local_assigns[:label] %>" aria-label="<%= local_assigns[:label] %>"
+     <%= "aria-hidden=\"true\"".html_safe unless local_assigns[:label] %>
+     class="<%= local_assigns[:class] %>" style="aspect-ratio: 4131 / 950; background-color: currentColor;
+     background-image: linear-gradient(to bottom, var(--t-field-crest) 0 26.316%, var(--t-field-hover) 26.316% 36.842%, var(--t-field-lit) 36.842% 57.895%, var(--t-field-mid) 57.895% 73.684%, var(--t-field-dim) 73.684% 100%);
+     mask-image: url(/brand/omarchy-wordmark.svg); mask-repeat: no-repeat; mask-size: 100% 100%;
+     -webkit-mask-image: url(/brand/omarchy-wordmark.svg); -webkit-mask-repeat: no-repeat; -webkit-mask-size: 100% 100%;"></div>

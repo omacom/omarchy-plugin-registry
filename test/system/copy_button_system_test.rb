@@ -14,7 +14,7 @@ class CopyButtonSystemTest < ApplicationSystemTestCase
     end
 
     visit plugin_path("acme", "weather")
-    within(".install-cmd") do
+    within(".install-strip") do
       assert_text "omarchy plugin add acme/weather"
       find("button.copy-button").click
       assert_selector "button.copy-button--done"

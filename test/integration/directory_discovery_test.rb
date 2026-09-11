@@ -67,12 +67,30 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
   test "updated sort puts the freshest release first" do
     get root_path(sort: "updated")
     body = response.body
-    assert_operator body.index("mixer"), :<, body.index("weather")
+    grid = body.index('id="directory-grid"')
+    assert grid, "expected the directory grid in the response"
+    assert_operator body.index("mixer", grid), :<, body.index("weather", grid)
+  end
+
+  test "popular shelf features the most-downloaded plugins" do
+    get root_path
+    assert_response :success
+    assert_select ".showcase[aria-label='Popular plugins']" do |sections|
+      texts = sections.map(&:text)
+      assert texts.first.include?("weather"), "expected the top-downloaded plugin in the Popular shelf"
+    end
+    # The shelf only shows on the unfiltered first page.
+    get root_path(category: "widgets")
+    assert_select ".showcase[aria-label='Popular plugins']", 0
+    get root_path(q: "clock")
+    assert_select ".showcase[aria-label='Popular plugins']", 0
+    get root_path(page: 2)
+    assert_select ".showcase[aria-label='Popular plugins']", 0
   end
 
   test "cards carry New and Updated badges" do
     get root_path
-    assert_select ".plugin-card" do |cards|
+    assert_select "#directory-grid .plugin-card" do |cards|
       texts = cards.map(&:text)
       assert texts.find { |t| t.include?("fresh") }.include?("New")
       assert texts.find { |t| t.include?("mixer") }.include?("Updated")

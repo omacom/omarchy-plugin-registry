@@ -36,6 +36,13 @@
 
 <div class="plugin-layout container">
   <article>
+    <% if @latest && @plugin.active? %>
+      <div class="install-strip" data-controller="clipboard"
+           data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>">
+        <span class="install-strip__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %></span>
+        <%= render "shared/copy_button", label: "Copy install command" %>
+      </div>
+    <% end %>
     <% if @plugin.preview? && @plugin.preview_detail.attached? %>
       <div data-controller="lightbox">
         <button class="plugin-preview" type="button" data-action="lightbox#open"
@@ -113,18 +120,6 @@
   </article>
 
   <aside class="sidebar">
-    <section>
-      <h4>Install</h4>
-      <% if @latest && @plugin.active? %>
-        <div class="install-cmd" data-controller="clipboard"
-             data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>">
-          <span class="install-cmd__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %></span>
-          <%= render "shared/copy_button", label: "Copy install command" %>
-        </div>
-      <% else %>
-        <p class="muted">Not installable — no version has cleared review.</p>
-      <% end %>
-    </section>
     <section>
       <h4>Details</h4>
       <dl>

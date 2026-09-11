@@ -16,7 +16,9 @@ class DirectoryPaginationTest < ActionDispatch::IntegrationTest
   test "first page shows PER_PAGE plugins and a next link, no prev" do
     get root_path
     assert_response :success
-    assert_equal PER_PAGE, response.body.scan("plugin-card\"").size
+    # The Popular shelf above the grid reuses the same card partial, so scope
+    # the count to the directory grid itself.
+    assert_select "#directory-grid .plugin-card", count: PER_PAGE
     assert_match "Next →", response.body
     assert_no_match(/← Prev/, response.body)
   end
@@ -24,7 +26,7 @@ class DirectoryPaginationTest < ActionDispatch::IntegrationTest
   test "second page shows the remainder and a prev link, no next" do
     get root_path(page: 2)
     assert_response :success
-    assert_equal 5, response.body.scan("plugin-card\"").size
+    assert_select "#directory-grid .plugin-card", count: 5
     assert_match "← Prev", response.body
     assert_no_match(/Next →/, response.body)
   end

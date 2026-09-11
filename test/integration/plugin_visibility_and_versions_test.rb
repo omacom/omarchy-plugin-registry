@@ -80,9 +80,9 @@ class PluginVisibilityAndVersionsTest < ActionDispatch::IntegrationTest
     assert_match "Pins this release", response.body
     assert_match "0" * 12, response.body
     assert_select "a[href=?]", "/dl/acme/weather/weather-1.0.0.tar.gz"
-    # Mirrors the plugin page: readme article + sidebar sections
+    # Mirrors the plugin page: install strip + readme article + sidebar sections
     assert_select ".plugin-layout .readme"
-    assert_select ".sidebar .install-cmd"
+    assert_select ".install-strip"
   end
 
   test "a yanked version page shows the withdrawal, not an install command" do

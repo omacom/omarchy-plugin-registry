@@ -1,12 +1,19 @@
-<section class="hero section-dark">
-  <div class="container">
-    <%= render "shared/logo", class: "glow-mark" %>
-    <p class="eyebrow">plugins.omarchy.org</p>
-    <h1>Plugins for people who love computers.</h1>
-    <p>Hosted, scanned, and revocable — every version is immutable, checksummed, and one
-      command away. Discovery belongs on a web page. This is the web page.</p>
+<section class="hero" data-hero-sentinel>
+  <div class="container hero__inner">
+    <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
+    <% host = request.host.to_s %>
+    <% if host.start_with?("themes.") %>
+      <p class="page-subtitle">Community themes</p>
+      <p class="hero__lede">Make it yours: Install → Style → Themes. Every theme below ships as a
+        plugin — one command away, same as everything else here.</p>
+    <% else %>
+      <p class="page-subtitle">Plugin directory</p>
+      <p class="hero__lede">Hosted, scanned, and revocable — every version is immutable, checksummed, and one
+        command away. Discovery belongs on a web page. This is the web page.</p>
+    <% end %>
     <div class="hero__install">
-      <span class="prompt">$</span> omarchy plugin add <span class="prompt">publisher/name</span>
+      <span class="prompt">$</span><span>omarchy plugin add <span class="prompt">publisher/name</span></span>
+      <%= render "shared/copy_button", label: "Copy install command", variant: "copy-button--inline" %>
     </div>
     <div class="hero__stats">
       <div class="hero__stat"><b><%= @stats[:plugins] %></b><span>plugins</span></div>
@@ -15,6 +22,32 @@
     </div>
   </div>
 </section>
+
+<% if @popular&.any? %>
+  <section class="showcase" aria-label="Popular plugins">
+    <div class="container">
+      <div class="showcase__head">
+        <div>
+          <h2 class="showcase__title">A plugin for every dream, every desire</h2>
+          <p class="showcase__desc">Thousands of community plugins are available for Omarchy.
+            These are the ones the community installs most — don't find what you need?
+            Just put your agent on the job, then share when done.</p>
+        </div>
+        <%= link_to directory_path(sort: "downloads"), class: "showcase__action" do %>
+          All plugins <span aria-hidden="true">→</span>
+        <% end %>
+      </div>
+      <div class="plugin-grid showcase__grid">
+        <%= render partial: "plugin_card", collection: @popular, as: :plugin %>
+      </div>
+      <div class="showcase__actions">
+        <%= link_to directory_path(sort: "downloads"), class: "showcase__action", style: "display:inline-flex" do %>
+          All plugins <span aria-hidden="true">→</span>
+        <% end %>
+      </div>
+    </div>
+  </section>
+<% end %>
 
 <% if @recent&.any? %>
   <section class="recent-band" aria-label="Recently added plugins">
@@ -28,7 +61,7 @@
           <%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "recent-card" do %>
             <span class="recent-card__name"><span class="ns"><%= plugin.publisher.name %>/</span><%= plugin.name %></span>
             <span class="recent-card__summary"><%= plugin.summary %></span>
-            <span class="recent-card__meta"><span class="diamond">◆</span> v<%= plugin.latest_version %>
+            <span class="recent-card__meta">v<%= plugin.latest_version %>
               · <%= time_ago_in_words(Time.zone.parse(plugin.first_published_at.to_s)) %> ago</span>
           <% end %>
         <% end %>
@@ -37,8 +70,8 @@
   </section>
 <% end %>
 
-<section class="directory container">
-  <%= form_with url: root_path, method: :get, class: "directory__bar", data: { controller: "search-focus" } do %>
+<section class="directory container" data-controller="search-focus">
+  <%= form_with url: root_path, method: :get, class: "directory__bar" do %>
     <input type="search" name="q" value="<%= @query %>"
       placeholder="Search plugins… (try @publisher, tag:media, kind:bar)" aria-label="Search plugins"
       data-search-focus-target="input" aria-keyshortcuts="Control+K">
@@ -76,7 +109,7 @@
   <% end %>
 
   <% if @plugins.any? %>
-    <div class="plugin-grid">
+    <div class="plugin-grid" id="directory-grid">
       <%= render partial: "plugin_card", collection: @plugins, as: :plugin %>
     </div>
   <% elsif @page > 1 %>
