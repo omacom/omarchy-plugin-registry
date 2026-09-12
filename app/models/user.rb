@@ -22,6 +22,8 @@ class User < ApplicationRecord
 
   validates :email_address, presence: true, uniqueness: true,
     format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :name, length: { maximum: 120 },
+    format: { without: /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/ }, allow_nil: true
 
   # Publishing is blocked for a cooldown window after sensitive account changes
   # (email, MFA reset) — the npm post-worm posture.

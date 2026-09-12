@@ -71,9 +71,16 @@ module Admin
     def quarantine
       return bad_transition! unless @version.published?
       return require_reason! unless params[:reason].present?
-      @version.update!(state: :quarantined, review_notes: params[:reason])
-      @version.plugin.refresh_latest_version!
-      audit "version.quarantine", public: true, metadata: { reason: params[:reason] }
+      PluginVersion.transaction do
+        changed = PluginVersion.where(id: @version.id, state: :published).update_all(
+          state: PluginVersion.states.fetch(:quarantined), review_notes: params[:reason], updated_at: Time.current
+        )
+        return bad_transition! unless changed == 1
+
+        @version.reload
+        @version.plugin.refresh_latest_version!
+        audit "version.quarantine", public: true, metadata: { reason: params[:reason] }
+      end
       regenerate_and_redirect "Quarantined — drops from the index on regen."
     end
 

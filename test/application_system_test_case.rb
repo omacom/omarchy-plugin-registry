@@ -11,4 +11,12 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1280, 800 ] do |options|
     options.binary = SELENIUM_CHROME if SELENIUM_CHROME
   end
+
+  def set_test_theme(theme)
+    page.execute_script <<~JS, theme
+      localStorage.setItem("registry-theme", arguments[0])
+      localStorage.setItem("registry-theme-mode", "manual")
+      document.documentElement.dataset.theme = arguments[0]
+    JS
+  end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_08_170001) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -84,8 +84,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
 
   create_table "daily_downloads", force: :cascade do |t|
     t.integer "count", default: 0, null: false
+    t.datetime "created_at", null: false
     t.date "date", null: false
     t.integer "plugin_version_id", null: false
+    t.datetime "updated_at", null: false
     t.index ["plugin_version_id", "date"], name: "index_daily_downloads_on_plugin_version_id_and_date", unique: true
     t.index ["plugin_version_id"], name: "index_daily_downloads_on_plugin_version_id"
   end

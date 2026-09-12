@@ -1,0 +1,76 @@
+<div id="<%= back_id %>" class="index-picker__card-face index-picker__card-face--back"
+     data-card-flip-target="back" aria-hidden="true" inert>
+  <div class="index-picker__card-back-head">
+    <b translate="no"><%= plugin.publisher.name.downcase %>/<%= plugin.name %></b>
+    <button type="button" aria-label="Show front of <%= plugin.full_name %>"
+            data-action="card-flip#toggleButton">← front</button>
+  </div>
+
+  <div class="index-picker__card-actions">
+    <%= link_to plugin_path(plugin.publisher.name, plugin.name),
+          class: "index-picker__card-action index-picker__card-details copy-button copy-button--labeled",
+          data: { card_flip_autofocus: true } do %>
+      <span>details</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6"/>
+      </svg>
+    <% end %>
+    <% if plugin.installable? %>
+      <div class="index-picker__card-command" data-controller="clipboard"
+           data-clipboard-text-value="omarchy plugin add <%= plugin.full_name %>">
+        <%= render "shared/copy_button", label: "Copy install command", text: "copy",
+              copied_text: "copied", copied_label: "Install command copied",
+              variant: "index-picker__card-action" %>
+      </div>
+    <% else %>
+      <span class="index-picker__card-action index-picker__card-command index-picker__card-command--disabled">unavailable</span>
+    <% end %>
+    <span class="index-picker__card-action index-picker__card-action--fact" translate="no"
+          title="Version <%= plugin.latest_version.presence || 'pending' %>"
+          aria-label="Version <%= plugin.latest_version.presence || 'pending' %>"><%= plugin.latest_version.present? ? "v#{plugin.latest_version}" : "pending" %></span>
+    <span class="index-picker__card-action index-picker__card-action--fact" translate="no"
+          title="Publisher <%= plugin.publisher.name %>"
+          aria-label="Publisher <%= plugin.publisher.name %>"><%= plugin.publisher.name.downcase %></span>
+  </div>
+
+  <div class="index-picker__card-stats" role="group"
+       aria-label="Install trend over the last <%= PluginCardData::SPARK_DAYS %> days: <%= trend.sum %> installs; <%= plugin.downloads_count %> downloads; <%= upvotes %> upvotes">
+    <span class="index-picker__card-stat index-picker__card-stat--trend">
+      <small>trend</small>
+      <span class="index-picker__card-stat-graphic">
+        <span class="index-picker__card-trend-bars" aria-hidden="true">
+          <% trend_max = [trend.max.to_i, 1].max %>
+          <% trend.each do |value| %><i style="--trend-height: <%= [((value.to_f / trend_max) * 100).round, 8].max %>%"></i><% end %>
+        </span>
+        <b><%= compact_number(trend.sum) %></b>
+      </span>
+    </span>
+    <span class="index-picker__card-stat" aria-label="<%= pluralize(plugin.downloads_count, 'download') %>">
+      <small>downloads</small>
+      <b><svg class="index-picker__card-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> <%= compact_number(plugin.downloads_count) %></b>
+    </span>
+    <span class="index-picker__card-stat" aria-label="<%= pluralize(upvotes, 'upvote') %>">
+      <small>upvotes</small>
+      <b><svg class="index-picker__upvote-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 7 8 2.5c.3-.6 1.2-.4 1.2.3V6h3.2c.8 0 1.4.7 1.2 1.5l-1 5c-.1.6-.6 1-1.2 1H5.5m0-6.5v6.5H2.5V7h3Z"/></svg> <%= compact_number(upvotes) %></b>
+    </span>
+  </div>
+
+  <%= link_to plugin_path(plugin.publisher.name, plugin.name, anchor: "description"),
+        class: "index-picker__card-excerpt", data: { card_flip_overflow: true } do %>
+    <small>description</small>
+    <span><%= bounded_summary.presence || "No plugin description provided." %></span>
+  <% end %>
+
+  <% if latest_comment %>
+    <%= link_to plugin_path(plugin.publisher.name, plugin.name, anchor: "community"),
+          class: "index-picker__card-comment", data: { card_flip_overflow: true } do %>
+      <small>latest comment · <b><%= comment_author %></b></small>
+      <span><%= comment_body %></span>
+    <% end %>
+  <% else %>
+    <span class="index-picker__card-comment index-picker__card-comment--empty">
+      <small>latest comment</small><span>No user comments yet.</span>
+    </span>
+  <% end %>
+</div>

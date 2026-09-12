@@ -37,17 +37,6 @@
 
 <div class="plugin-layout container">
   <article>
-    <% if @version.published? && @plugin.active? %>
-      <div class="install-strip" data-controller="clipboard"
-           data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %>">
-        <span class="install-strip__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %></span>
-        <%= render "shared/copy_button", label: "Copy pinned install command" %>
-      </div>
-      <% unless @latest && @version.version == @latest.version %>
-        <p class="muted u-gap-bottom-sm">Pins this release — no updates until you re-add
-          <code><%= @plugin.full_name %></code> without the version.</p>
-      <% end %>
-    <% end %>
     <div class="readme" data-controller="readme-code">
       <% if @readme.present? %>
         <%= render_markdown @readme, asset_base: readme_asset_base(@version) %>
@@ -58,6 +47,24 @@
   </article>
 
   <aside class="sidebar">
+    <section>
+      <h4>Install this version</h4>
+      <% if @version.published? && @plugin.active? %>
+        <div class="install-cmd" data-controller="clipboard"
+             data-clipboard-text-value="omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %>">
+          <span class="install-cmd__text"><span class="prompt">$</span> omarchy plugin add <%= @plugin.full_name %>@<%= @version.version %></span>
+          <%= render "shared/copy_button", label: "Copy pinned install command" %>
+        </div>
+        <% unless @latest && @version.version == @latest.version %>
+          <p class="muted u-gap-top-sm">Pins this release — no updates until you re-add
+            <code><%= @plugin.full_name %></code> without the version.</p>
+        <% end %>
+      <% elsif @version.yanked? %>
+        <p class="muted">Withdrawn — this version no longer resolves for new installs.</p>
+      <% else %>
+        <p class="muted">Not installable — this version has not cleared review.</p>
+      <% end %>
+    </section>
     <section>
       <h4>Details</h4>
       <dl>
@@ -88,15 +95,7 @@
       <%= render "capabilities", version: @version %>
     <% end %>
     <% if @version.provenance.present? %>
-      <section>
-        <h4>Provenance</h4>
-        <dl>
-          <dt>CI identity</dt>
-          <dd><a href="https://github.com/<%= @version.provenance["repository"] %>/commit/<%= @version.provenance["sha"] %>"><%= @version.provenance["repository"] %>@<%= @version.provenance["sha"].to_s.first(7) %></a></dd>
-          <dt>Workflow</dt><dd><code><%= @version.provenance["workflow"].to_s.split("@").first.to_s.split("/").last %></code></dd>
-          <dt>Via</dt><dd>OIDC trusted publishing (job identity, not a build attestation)</dd>
-        </dl>
-      </section>
+      <%= render "plugins/provenance", provenance: @version.provenance %>
     <% end %>
     <section>
       <h4>Versions</h4>
