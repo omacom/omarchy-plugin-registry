@@ -542,6 +542,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           uniformBorders: new Set([...document.querySelectorAll(".recent-card")]
             .map((card) => getComputedStyle(card).borderTopWidth)).size === 1,
           recentHeight: document.querySelector(".recent-row").getBoundingClientRect().height,
+          edgeInsets: (() => {
+            const row = document.querySelector(".recent-row").getBoundingClientRect()
+            const rail = document.querySelector(".recent-band__layout").getBoundingClientRect()
+            return { left: row.left - rail.left, right: rail.right - row.right }
+          })(),
           masterWidth: master.getBoundingClientRect().width,
           masterHeight: master.getBoundingClientRect().height,
           compactSizes: visibleCards.filter((card) => !card.classList.contains("recent-card--master"))
@@ -601,7 +606,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert master_layout["completeCards"]
     assert master_layout["uniformBorders"]
     assert_in_delta 310, master_layout["recentHeight"], 0.5
-    assert_operator master_layout["masterWidth"], :<=, 360.5
+    assert_in_delta 0, master_layout.dig("edgeInsets", "left"), 0.5
+    assert_in_delta 0, master_layout.dig("edgeInsets", "right"), 0.5
     assert_operator master_layout["masterWidth"], :>=, 300
     assert_in_delta 310, master_layout["masterHeight"], 0.5
     assert master_layout["compactSizes"].all? { |size| size["width"] >= master_layout.dig("recentlyAddedSize", "width") - 0.5 }
@@ -823,6 +829,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             compact: visible.filter((card) => !card.classList.contains("recent-card--master")).length,
             stackHidden: getComputedStyle(stack).display === "none",
             centered: Math.abs((row.left + row.right) / 2 - (rail.left + rail.right) / 2),
+            leftInset: row.left - rail.left,
+            rightInset: rail.right - row.right,
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
           }
         })()
@@ -834,6 +842,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_equal compact, layout["compact"]
       assert_equal compact.zero?, layout["stackHidden"]
       assert_in_delta 0, layout["centered"], 0.5
+      unless compact.zero?
+        assert_in_delta 0, layout["leftInset"], 0.5
+        assert_in_delta 0, layout["rightInset"], 0.5
+      end
       assert_equal 0, layout["overflow"]
     end
   ensure
@@ -4933,6 +4945,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         (() => {
           const discovery = document.querySelector(".index-console").getBoundingClientRect()
           const hero = document.querySelector(".hero").getBoundingClientRect()
+          const wantedRail = document.querySelector(".recent-band__layout").getBoundingClientRect()
           const row = document.querySelector(".recent-row").getBoundingClientRect()
           const stack = document.querySelector(".recent-stack").getBoundingClientRect()
           const masterCards = [...document.querySelectorAll(".recent-card--master")]
@@ -4962,6 +4975,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             topLevelGaps: topLevel.slice(1).map((column, index) => column.left - topLevel[index].right),
             compactGaps,
             centered: Math.abs((row.left + row.right) / 2 - (discovery.left + discovery.right) / 2),
+            edgeInsets: { left: row.left - wantedRail.left, right: wantedRail.right - row.right },
             discoveryWidth: discovery.width,
             heroWidth: hero.width,
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -4973,7 +4987,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_equal wanted_cards, layout["wantedCards"], "Most Wanted cards at #{width}px"
       assert_equal masters, layout["masters"], "Most Wanted master cards at #{width}px"
       assert_equal 4, layout["compactCards"], "Most Wanted compact cards at #{width}px"
-      assert layout["masterSizes"].all? { |size| size["width"] <= 360.5 && (size["height"] - 310).abs <= 0.5 }
+      assert layout["masterSizes"].all? { |size| (size["height"] - 310).abs <= 0.5 }
+      assert layout["masterSizes"].all? { |size| size["width"] > layout.dig("recentlyAddedSize", "width") }
       assert layout["compactSizes"].all? { |size| size["width"] >= layout.dig("recentlyAddedSize", "width") - 0.5 }
       assert layout["compactSizes"].all? { |size| size["height"] >= layout.dig("recentlyAddedSize", "height") - 0.5 }
       assert_in_delta 310, layout["rowHeight"], 0.5
@@ -4982,6 +4997,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert layout["compactGaps"].all? { |gap| gap >= 13.5 }
       assert_in_delta 14, layout["compactGaps"].min, 0.5
       assert_in_delta 0, layout["centered"], 0.5
+      assert_in_delta 0, layout.dig("edgeInsets", "left"), 0.5
+      assert_in_delta 0, layout.dig("edgeInsets", "right"), 0.5
       assert_operator layout["discoveryWidth"], :>=, layout["heroWidth"]
       assert_equal 0, layout["overflow"]
     end

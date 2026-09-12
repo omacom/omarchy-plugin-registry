@@ -2423,6 +2423,13 @@ a.index-picker__filter-option.is-active {
 .recent-band.is-enhanced .recent-stack { height: 310px; }
 @media (min-width: 761px) {
   .recent-band.is-enhanced .recent-row { height: 310px; }
+  .recent-band.is-enhanced .recent-row:not(.recent-row--without-stack) {
+    width: 100%;
+    grid-template-columns: repeat(var(--recent-master-count, 1), minmax(0, 1fr)) var(--recent-stack-width);
+  }
+  .recent-band.is-enhanced .recent-row:not(.recent-row--without-stack) > .recent-card--master {
+    width: 100%;
+  }
 }
 .recent-row[data-recent-compact-count="1"] .recent-stack {
   height: var(--recent-small-height);
