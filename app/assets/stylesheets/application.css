@@ -3495,8 +3495,8 @@ a.v:hover { color: var(--accent); }
   }
   .recent-row,
   .recent-row--single,
-  .recent-row--without-stack { width: min(100%, 360px); height: auto; grid-template-columns: minmax(0, 1fr); }
-  .recent-card--master { height: 280px; min-height: 0; }
+  .recent-row--without-stack { width: 100%; height: auto; grid-template-columns: minmax(0, 1fr); }
+  .recent-card--master { width: 100%; height: 280px; min-height: 0; }
   .recent-stack {
     grid-template-columns: repeat(2, var(--recent-small-width));
     grid-template-rows: repeat(2, var(--recent-small-height));

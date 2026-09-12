@@ -764,6 +764,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           stackHidden: document.querySelector(".recent-stack").hidden &&
             getComputedStyle(document.querySelector(".recent-stack")).display === "none",
           centered: Math.abs((row.left + row.right) / 2 - (rail.left + rail.right) / 2),
+          leftInset: row.left - rail.left,
+          rightInset: rail.right - row.right,
+          masterLeftInset: document.querySelector(".recent-card--master").getBoundingClientRect().left - rail.left,
+          masterRightInset: rail.right - document.querySelector(".recent-card--master").getBoundingClientRect().right,
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         }
       })()
@@ -777,6 +781,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_in_delta 280, layout["masterHeight"], 0.5
     assert layout["stackHidden"]
     assert_in_delta 0, layout["centered"], 0.5
+    assert_in_delta 0, layout["leftInset"], 0.5
+    assert_in_delta 0, layout["rightInset"], 0.5
+    assert_in_delta 0, layout["masterLeftInset"], 0.5
+    assert_in_delta 0, layout["masterRightInset"], 0.5
     assert_equal 0, layout["overflow"]
     assert_no_selector ".recent-stack .recent-card"
 
@@ -831,6 +839,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             centered: Math.abs((row.left + row.right) / 2 - (rail.left + rail.right) / 2),
             leftInset: row.left - rail.left,
             rightInset: rail.right - row.right,
+            masterLeftInset: document.querySelector(".recent-card--master").getBoundingClientRect().left - rail.left,
+            masterRightInset: rail.right - document.querySelector(".recent-card--master").getBoundingClientRect().right,
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
           }
         })()
@@ -842,9 +852,11 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       assert_equal compact, layout["compact"]
       assert_equal compact.zero?, layout["stackHidden"]
       assert_in_delta 0, layout["centered"], 0.5
-      unless compact.zero?
-        assert_in_delta 0, layout["leftInset"], 0.5
-        assert_in_delta 0, layout["rightInset"], 0.5
+      assert_in_delta 0, layout["leftInset"], 0.5
+      assert_in_delta 0, layout["rightInset"], 0.5
+      if compact.zero?
+        assert_in_delta 0, layout["masterLeftInset"], 0.5
+        assert_in_delta 0, layout["masterRightInset"], 0.5
       end
       assert_equal 0, layout["overflow"]
     end
