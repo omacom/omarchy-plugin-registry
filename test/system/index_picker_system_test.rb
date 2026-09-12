@@ -2564,6 +2564,72 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert alignment["hierarchy"]
   end
 
+  test "hero lead keeps natural word spacing while scaling smoothly" do
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
+    visit root_path
+    page.execute_script <<~JS
+      window.Stimulus.getControllerForElementAndIdentifier(
+        document.querySelector(".hero--reveal"), "hero-reveal"
+      ).finish()
+    JS
+    Selenium::WebDriver::Wait.new(timeout: 3).until do
+      page.evaluate_script("document.fonts.status") == "loaded"
+    end
+
+    samples = {}
+    expected_lines = { 320 => 2, 390 => 1, 620 => 1, 621 => 1, 760 => 1,
+                       761 => 1, 994 => 2, 1100 => 2, 1101 => 1, 1280 => 1 }
+    expected_lines.each_key do |width|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 900, deviceScaleFactor: 1, mobile: false)
+      Selenium::WebDriver::Wait.new(timeout: 3).until { page.evaluate_script("window.innerWidth") == width }
+      samples[width] = page.evaluate_script <<~JS
+        (() => {
+          const title = document.querySelector(".hero__lede-title")
+          const titleRect = title.getBoundingClientRect()
+          const spans = [...title.querySelectorAll("span")]
+          const rects = spans.map((span) => span.getBoundingClientRect())
+          const lines = new Map()
+          rects.forEach((rect) => {
+            const top = rect.top.toFixed(2)
+            lines.set(top, (lines.get(top) || 0) + 1)
+          })
+          const gaps = rects.slice(1).flatMap((rect, index) =>
+            Math.abs(rect.top - rects[index].top) < 1 ? [rect.left - rects[index].right] : [])
+          const style = getComputedStyle(title)
+          return {
+            display: style.display,
+            whiteSpace: style.whiteSpace,
+            fontSize: parseFloat(style.fontSize),
+            lines: lines.size,
+            balanced: [...lines.values()].every((words) => words >= 2),
+            minGap: Math.min(...gaps),
+            contained: Math.min(...rects.map((rect) => rect.left)) >= titleRect.left - 0.5 &&
+              Math.max(...rects.map((rect) => rect.right)) <= titleRect.right + 0.5,
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+          }
+        })()
+      JS
+
+      assert_equal "block", samples.dig(width, "display")
+      assert_equal "normal", samples.dig(width, "whiteSpace")
+      assert_equal expected_lines[width], samples.dig(width, "lines"), "hero lead lines at #{width}px"
+      assert samples.dig(width, "balanced"), "hero lead balance at #{width}px"
+      assert_operator samples.dig(width, "minGap"), :>, 4, "hero lead word gap at #{width}px"
+      assert samples.dig(width, "contained"), "hero lead containment at #{width}px"
+      assert_equal 0, samples.dig(width, "overflow")
+    end
+
+    assert_in_delta samples.dig(620, "fontSize"), samples.dig(621, "fontSize"), 0.1
+    assert_in_delta samples.dig(760, "fontSize"), samples.dig(761, "fontSize"), 0.1
+    assert_in_delta samples.dig(1100, "fontSize"), samples.dig(1101, "fontSize"), 0.1
+    assert_equal samples.values.map { |sample| sample["fontSize"] }.sort,
+      samples.values.map { |sample| sample["fontSize"] }
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
   test "mobile visitors omit the hero command box and its animation work" do
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 360, height: 900, deviceScaleFactor: 1, mobile: true)

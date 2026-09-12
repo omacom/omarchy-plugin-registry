@@ -1412,12 +1412,17 @@ pre code { background: none; padding: 0; }
 }
 .nav__home { width: var(--site-bar-row); padding: 0; color: var(--brand-lit); }
 .nav__mark { width: 18px; height: 18px; }
-.motion-control { width: var(--site-bar-row); padding: 0; color: var(--ansi-02-ink); cursor: pointer; }
+.motion-control {
+  width: var(--site-bar-row); padding: 0; color: var(--ansi-02-ink); cursor: pointer;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+}
 .motion-control[hidden] { display: none; }
-.motion-control svg { width: 16px; height: 16px; fill: currentColor; shape-rendering: crispEdges; }
-.motion-control__play { display: none; }
-.motion-control[aria-pressed="true"] .motion-control__pause { display: none; }
-.motion-control[aria-pressed="true"] .motion-control__play { display: block; }
+.motion-control__label { position: relative; display: inline-block; line-height: 1; }
+.motion-control__label::after {
+  position: absolute; top: 50%; right: -1px; left: -1px; height: 0;
+  border-top: 1px solid currentColor; content: ""; opacity: 0;
+}
+.motion-control[aria-pressed="true"] .motion-control__label::after { opacity: 1; }
 .nav__links { min-width: 0; flex: 1; display: flex; align-items: center; gap: 2px; }
 .nav__path {
   min-width: 0; display: flex; align-items: center; gap: 3px; overflow-x: auto;
@@ -1604,9 +1609,9 @@ body > .rail { position: relative; z-index: 1; }
   font-size: 13.5px; line-height: 1.7;
 }
 .hero__lede-title {
-  width: 100%; display: flex; justify-content: space-between; gap: 0;
-  color: var(--ansi-15); font-size: clamp(20px, 1.9vw, 24px); font-weight: 800;
-  letter-spacing: -0.045em; line-height: 1.25; white-space: nowrap;
+  width: 100%; display: block; color: var(--ansi-15);
+  font-size: clamp(14px, 2vw, 24px); font-weight: 800;
+  letter-spacing: -0.045em; line-height: 1.25; text-wrap: balance; white-space: normal;
 }
 .hero__lede-body { display: block; margin-top: 12px; }
 
@@ -3516,7 +3521,6 @@ a.v:hover { color: var(--accent); }
 }
 
 @media (max-width: 620px) {
-  .hero__lede-title { font-size: 14px; letter-spacing: -0.055em; }
   .promptline { height: 76px; padding-block: 6px; }
   .promptline__copy { align-content: center; flex-wrap: wrap; gap: 2px 8px; }
   .promptline__install { width: 100%; font-size: 10.5px; }
@@ -3640,7 +3644,7 @@ a.v:hover { color: var(--accent); }
   .motion-control,
   .nav__radio-volume-button { width: 44px; }
   .nav__home .nav__mark,
-  .motion-control > svg,
+  .motion-control__label,
   .nav__radio-volume,
   .nav__radio-track > span,
   .nav__radio-cursor,

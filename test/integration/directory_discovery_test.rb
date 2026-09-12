@@ -34,8 +34,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
         assert_select "canvas[data-edge-waves-target='canvas']:empty", count: 1
       end
       assert_select ".site-bar .nav > .motion-control[data-edge-waves-target='toggle'][data-action='edge-waves#toggle'][aria-pressed='false'][hidden]", count: 1 do
-        assert_select "svg.motion-control__pause[aria-hidden='true']", count: 1
-        assert_select "svg.motion-control__play[aria-hidden='true']", count: 1
+        assert_select ".motion-control__label[aria-hidden='true']", text: "FX", count: 1
+        assert_select "svg", count: 0
         assert_select ".visually-hidden[data-edge-waves-target='toggleLabel']", text: "Pause background animation", count: 1
       end
       assert_select ".statusfoot__fx", count: 0

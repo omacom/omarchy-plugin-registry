@@ -79,11 +79,28 @@ class EdgeWavesSystemTest < ApplicationSystemTestCase
     assert_no_selector "footer .motion-control", visible: :all
 
     toggle = find(".motion-control", visible: :all)
+    assert_selector ".motion-control__label", exact_text: "FX"
+    assert_equal "0", page.evaluate_script(
+      "getComputedStyle(document.querySelector('.motion-control__label'), '::after').opacity"
+    )
     page.execute_script("arguments[0].click()", toggle)
     assert_selector "body[data-edge-waves-state='paused']"
     assert_selector ".motion-control[aria-pressed='true'][aria-label='Resume background animation']", visible: :all
-    assert_selector ".motion-control[aria-pressed='true'] .motion-control__play", visible: true
-    assert_no_selector ".motion-control[aria-pressed='true'] .motion-control__pause", visible: true
+    assert_equal "1", page.evaluate_script(
+      "getComputedStyle(document.querySelector('.motion-control__label'), '::after').opacity"
+    )
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
+      features: [ { name: "forced-colors", value: "active" } ])
+    forced_colors = page.evaluate_script <<~JS
+      (() => {
+        const label = document.querySelector(".motion-control__label")
+        const line = getComputedStyle(label, "::after")
+        return { text: getComputedStyle(label).color, line: line.borderTopColor, style: line.borderTopStyle }
+      })()
+    JS
+    assert_equal forced_colors["text"], forced_colors["line"]
+    assert_equal "solid", forced_colors["style"]
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [])
     assert_equal 0, page.evaluate_script(<<~JS)
       (() => {
         const controller = window.Stimulus.getControllerForElementAndIdentifier(document.body, "edge-waves")
@@ -159,6 +176,7 @@ class EdgeWavesSystemTest < ApplicationSystemTestCase
     assert_no_selector "body[data-edge-waves-state='animating']"
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [])
   end
 
   test "pixel field is confined to safe empty spaces inside the hero" do
