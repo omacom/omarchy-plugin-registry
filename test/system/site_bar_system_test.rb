@@ -96,6 +96,7 @@ class SiteBarSystemTest < ApplicationSystemTestCase
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 900, deviceScaleFactor: 1, mobile: false)
     Selenium::WebDriver::Wait.new(timeout: 2).until { page.evaluate_script("window.innerWidth") == 390 }
+    assert_selector ".nav__radio-typed", exact_text: "Kevin Koontz"
     mobile = page.evaluate_script <<~JS
       (() => ({
         rowHeight: document.querySelector(".nav").getBoundingClientRect().height,
@@ -139,6 +140,7 @@ class SiteBarSystemTest < ApplicationSystemTestCase
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
     Selenium::WebDriver::Wait.new(timeout: 2).until { page.evaluate_script("window.innerWidth") == 320 }
+    assert_selector ".nav__radio-typed", exact_text: "Kevin Koontz"
     narrow = page.evaluate_script <<~JS
       (() => ({
         label: document.querySelector(".nav__radio-typed").textContent,
