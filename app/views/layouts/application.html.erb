@@ -19,24 +19,42 @@
       try {
         var root = document.documentElement;
         var themes = <%= raw json_escape(ApplicationHelper::THEMES.to_json) %>;
+        var lightThemes = <%= raw json_escape(ApplicationHelper::LIGHT_THEMES.to_json) %>;
         var mode = localStorage.getItem("registry-theme-mode");
         var theme = localStorage.getItem("registry-theme");
         var legacyOverride = localStorage.getItem("registry-theme-override-revision");
         var systemAvailable = <%= omarchy_sync_url.present?.to_json %>;
+        var automaticTheme = function() {
+          var light = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+          var pool = themes.filter(function(value) { return lightThemes.includes(value) === light; });
+          return pool[Math.floor(Math.random() * pool.length)] || "<%= ApplicationHelper::DEFAULT_THEME %>";
+        };
         if (mode !== "system" && mode !== "manual") {
-          mode = themes.includes(theme) || legacyOverride ? "manual" : (systemAvailable ? "system" : "manual");
+          if (themes.includes(theme) || legacyOverride) {
+            mode = "manual";
+          } else if (systemAvailable) {
+            mode = "system";
+          } else {
+            mode = "manual";
+            theme = automaticTheme();
+            localStorage.setItem("registry-theme", theme);
+          }
           localStorage.setItem("registry-theme-mode", mode);
         }
 
-        if (mode === "manual" && themes.includes(theme)) {
+        if (mode === "manual") {
+          if (!themes.includes(theme)) {
+            localStorage.removeItem("registry-theme-override-revision");
+            theme = automaticTheme();
+            localStorage.setItem("registry-theme", theme);
+          }
           root.dataset.theme = theme;
-        } else if (mode === "manual" && theme) {
-          localStorage.removeItem("registry-theme");
-          localStorage.removeItem("registry-theme-override-revision");
         } else if (mode === "system") {
           localStorage.removeItem("registry-theme");
           localStorage.removeItem("registry-theme-override-revision");
-          var payload = JSON.parse(localStorage.getItem("registry-system-theme") || "null");
+          var cachedPayload = localStorage.getItem("registry-system-theme");
+          var payload = null;
+          try { payload = JSON.parse(cachedPayload || "null"); } catch (parseError) {}
           var keys = ["background", "foreground", "cursor"];
           for (var index = 0; index < 16; index += 1) keys.push("color" + index);
           var valid = payload && typeof payload.name === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(payload.name) &&
@@ -45,7 +63,10 @@
             payload.colors && keys.every(function(key) { return /^#[0-9a-f]{6}$/.test(payload.colors[key]); });
           if (!valid && !systemAvailable) {
             mode = "manual";
+            theme = automaticTheme();
             localStorage.setItem("registry-theme-mode", mode);
+            localStorage.setItem("registry-theme", theme);
+            root.dataset.theme = theme;
           } else if (valid && payload.theme) {
             root.dataset.theme = payload.theme;
             for (var stockSlot = 0; stockSlot < 16; stockSlot += 1) {
@@ -92,19 +113,12 @@
         }
       } catch (error) {}
     <% end %>
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%# Stamp the saved omarchy-site theme before first paint (same keys as
-        omarchy.org, so the choice carries across both sites). %>
-    <script>
-      (function(){try{var t=localStorage.getItem("omarchy-site-theme");var ok=["catppuccin","catppuccin-latte","ethereal","everforest","flexoki-light","gruvbox","hackerman","kanagawa","last-horizon","lumon","lupine","matte-black","miasma","nord","osaka-jade","retro-82","ristretto","rose-pine","solitude","tokyo-night","vantablack","white"];var light=["catppuccin-latte","flexoki-light","lupine","rose-pine","white"];var dark=["catppuccin","ethereal","everforest","gruvbox","hackerman","kanagawa","last-horizon","lumon","matte-black","miasma","nord","osaka-jade","retro-82","ristretto","solitude","tokyo-night","vantablack"];if(ok.indexOf(t)<0){var pool=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?light:dark;t=pool[Math.floor(Math.random()*pool.length)];localStorage.setItem("omarchy-site-theme",t)}document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme="tokyo-night"}})();
-    </script>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
   <body data-controller="edge-waves">
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <button type="button" class="motion-control" aria-label="Pause background animation" aria-pressed="false"
-            data-edge-waves-target="toggle" data-action="edge-waves#toggle" hidden>Pause background animation</button>
     <div class="site-edge-waves" aria-hidden="true" data-edge-waves-target="layer">
       <canvas data-edge-waves-target="canvas"></canvas>
     </div>
@@ -130,6 +144,16 @@
             <path fill="url(#nav-mark-bands)" fill-rule="evenodd" clip-rule="evenodd" d="m1200 1200h-480v-80h400v-1040h-479.996v160h-400v720h720v-720h-80v-80h159.996v880h-400v160h-640v-1200h1200zm-1120-80h480v-80h-400l.004-400h-80.004zm0-560h80.004v-400h400v-80h-480.004z"/>
           </svg>
         </a>
+        <button type="button" class="motion-control" aria-label="Pause background animation" aria-pressed="false"
+                title="Pause pixel animation" data-edge-waves-target="toggle" data-action="edge-waves#toggle" hidden>
+          <svg class="motion-control__pause" viewBox="0 0 18 18" aria-hidden="true">
+            <rect x="3" y="2" width="4" height="14"/><rect x="11" y="2" width="4" height="14"/>
+          </svg>
+          <svg class="motion-control__play" viewBox="0 0 18 18" aria-hidden="true">
+            <path d="M3 2h4v2h3v2h3v2h2v2h-2v2h-3v2H7v2H3z"/>
+          </svg>
+          <span class="visually-hidden" data-edge-waves-target="toggleLabel">Pause background animation</span>
+        </button>
         <%
           plugins_nav_active = %w[home plugins publishers claims].include?(controller_path)
           governance_nav_active = current_page?(governance_path) || controller_path == "audit_log"
@@ -165,7 +189,7 @@
             <span class="nav__radio-progress" aria-hidden="true" data-radio-target="progress"></span>
           </div>
           <button type="button" class="theme-toggle" data-theme-target="toggle" data-action="theme#toggle"
-                  aria-expanded="false" title="Choose color theme">
+                  aria-expanded="false" aria-keyshortcuts="T Meta+Control+Shift+Space" title="Choose color theme">
             <i aria-hidden="true"></i><span class="theme-toggle__prefix">theme=</span><span class="theme-toggle__label" data-theme-target="toggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span><span class="theme-toggle__mobile-label" data-theme-target="mobileToggleLabel" translate="no"><%= ApplicationHelper::DEFAULT_THEME %></span>
           </button>
           <% if authenticated? %>
@@ -214,7 +238,7 @@
           <a href="https://plugins.omarchy.org" class="statusfoot__registry" translate="no">plugins.omarchy.org</a>
           <span class="statusfoot__trademark lab">
             <a href="https://omarchy.org" class="statusfoot__omarchy-link" aria-label="Omarchy"><%= tag.span "", class: "statusfoot__omarchy-wordmark", aria: { hidden: true }, style: "--wordmark-mask: url(#{asset_path('omarchy-wordmark.svg')})" %></a>
-            <span>PLUGINS</span>
+            <span>HUB</span>
           </span>
         </div>
       </footer>

@@ -88,7 +88,7 @@
 <% if @wanted&.any? %>
   <section class="recent-band" aria-labelledby="most-wanted-title" data-index-recent
            data-controller="recent-rotate plugin-share" data-recent-rotate-label-value="Most Wanted"
-           data-action="keydown->recent-rotate#keydown">
+           data-action="keydown->recent-rotate#keydown recent-card:promote->recent-rotate#promote">
     <div class="recent-band__layout">
     <div class="boxtitle">
       <span class="glyph" aria-hidden="true">┌─ </span><h2 id="most-wanted-title">Most Wanted</h2>
@@ -112,7 +112,8 @@
       </span>
     </div>
     <div class="recent-row <%= 'recent-row--single' unless @wanted.many? %> <%= 'recent-row--without-stack' if @wanted.size <= 2 %>"
-         style="--recent-master-count: <%= [@wanted.size, 2].min %>" data-recent-rotate-target="row">
+         style="--recent-master-count: <%= [@wanted.size, 2].min %>"
+         data-recent-compact-count="<%= [@wanted.size - 2, 0].max %>" data-recent-rotate-target="row">
       <% @wanted.first(2).each_with_index do |plugin, index| %>
         <%= render "home/recent_card", plugin:, master: true, delay_ms: 70 * index,
               trend: spark_series(plugin.id, source: @wanted_daily_installs),

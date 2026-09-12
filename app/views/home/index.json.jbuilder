@@ -74,7 +74,3 @@ end
 json.recent(@show_recent ? @recent : []) do |plugin|
   json.partial! "plugins/plugin", plugin: plugin
 end
-
-json.popular(@popular || []) do |plugin|
-  json.partial! "plugins/plugin", plugin: plugin
-end

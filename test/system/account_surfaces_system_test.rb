@@ -22,6 +22,7 @@ class AccountSurfacesSystemTest < ApplicationSystemTestCase
   test "account selections preserve themed shadows and aligned controls across page changes" do
     sign_in_with_email_code
     visit dashboard_path
+    set_test_theme("tokyo-night")
     assert_selector ".terminal-window__titlebar", text: /account dashboard/i
 
     page.execute_script <<~JS

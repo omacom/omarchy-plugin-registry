@@ -443,7 +443,9 @@ export default class extends Controller {
   resizePageInput() {
     const valueDigits = Math.max(1, this.pageInputTarget.value.replace(/\D/g, "").length)
     const maximumDigits = Math.max(1, this.pageInputTarget.max.replace(/\D/g, "").length)
-    this.pageInputTarget.style.setProperty("--page-digits", Math.min(valueDigits, maximumDigits, 6))
+    const digits = Math.min(valueDigits, maximumDigits, 6)
+    this.pageInputTarget.style.setProperty("--page-digits", digits)
+    this.pageStatusTarget.style.setProperty("--page-digits", digits)
   }
 
   dismissKeyHint(event) {

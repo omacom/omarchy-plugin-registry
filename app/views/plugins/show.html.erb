@@ -6,7 +6,11 @@
      image_path: og_plugin_path(@publisher.name, @plugin.name),
      url_path: plugin_path(@publisher.name, @plugin.name)) %>
 
-<%= render "shared/notices", notices: @notices %>
+<% if @notices&.any? %>
+  <div class="plugin-notices">
+    <%= render "shared/notices", notices: @notices %>
+  </div>
+<% end %>
 
 <div class="page-head page-head--plugin" data-controller="detail-back"
      data-detail-back-fallback-url-value="<%= root_path(anchor: 'browse') %>"

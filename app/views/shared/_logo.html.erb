@@ -1,23 +1,24 @@
-<%# The Omacom mark: circle · square · diamond with knockouts. Single fill via
-    currentColor — never multicolored, never outlined. %>
-<% mask_suffix = local_assigns[:id_suffix] || "logo" %>
-<svg viewBox="0 0 1103 453" xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="<%= local_assigns[:class] || "logo" %>" aria-hidden="true">
+<%# Current OMA mark from https://omarchy.org/brand/. %>
+<% gradient_id = "oma-logo-bands-#{local_assigns[:id_suffix] || 'logo'}" %>
+<svg viewBox="38 250 722 300" xmlns="http://www.w3.org/2000/svg"
+     class="<%= local_assigns[:class] || "logo" %>" aria-hidden="true" focusable="false">
   <defs>
-    <mask id="omk-c-<%= mask_suffix %>">
-      <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
-      <rect x="448.6" y="105.2" width="223.7" height="242.7" fill="black"/>
-    </mask>
-    <mask id="omk-r-<%= mask_suffix %>">
-      <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
-      <circle cx="362" cy="226.5" r="132" fill="black"/>
-      <polygon points="741,94.48 873.02,226.5 741,358.52 608.98,226.5" fill="black"/>
-    </mask>
-    <mask id="omk-d-<%= mask_suffix %>">
-      <rect x="-500" y="-500" width="2500" height="1500" fill="white"/>
-      <rect x="448.6" y="105.2" width="223.7" height="242.7" fill="black"/>
-    </mask>
+    <linearGradient id="<%= gradient_id %>" x1="0" y1="250" x2="0" y2="550" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="var(--brand-crest)"/>
+      <stop offset="26.316%" stop-color="var(--brand-crest)"/>
+      <stop offset="26.316%" stop-color="var(--brand-hover)"/>
+      <stop offset="36.842%" stop-color="var(--brand-hover)"/>
+      <stop offset="36.842%" stop-color="var(--brand-lit)"/>
+      <stop offset="57.895%" stop-color="var(--brand-lit)"/>
+      <stop offset="57.895%" stop-color="var(--brand-mid)"/>
+      <stop offset="73.684%" stop-color="var(--brand-mid)"/>
+      <stop offset="73.684%" stop-color="var(--brand-dim)"/>
+      <stop offset="100%" stop-color="var(--brand-dim)"/>
+    </linearGradient>
   </defs>
-  <circle cx="362" cy="226.5" r="132" mask="url(#omk-c-<%= mask_suffix %>)"/>
-  <rect x="448.6" y="105.2" width="223.7" height="242.7" mask="url(#omk-r-<%= mask_suffix %>)"/>
-  <polygon points="741,94.48 873.02,226.5 741,358.52 608.98,226.5" mask="url(#omk-d-<%= mask_suffix %>)"/>
+  <g fill="url(#<%= gradient_id %>)">
+    <path d="M283 285.21A149 149 0 1 0 283 514.79Z"/>
+    <path d="M283 262H536V326L462 400L536 474V536H283V514.79A149 149 0 0 0 283 285.21Z"/>
+    <path d="M536 326L610.5 251.5L759 400L610.5 548.5L536 474Z"/>
+  </g>
 </svg>

@@ -23,7 +23,13 @@ export default class extends Controller {
     this.flip(!this.element.classList.contains("is-flipped"))
   }
 
-  toggleButton() {
+  toggleButton(event) {
+    if (this.element.matches(".recent-card:not(.recent-card--master)")) {
+      event?.preventDefault()
+      this.dispatch("promote", { prefix: "recent-card", detail: { card: this.element } })
+      return
+    }
+
     const state = !this.element.classList.contains("is-flipped")
     this.flip(state)
     queueMicrotask(() => {

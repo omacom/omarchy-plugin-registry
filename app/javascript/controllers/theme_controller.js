@@ -55,6 +55,17 @@ export default class extends Controller {
       if (event.key === "Enter") this.apply({ restoreFocus: true })
       else this.move(event.key === "ArrowLeft" ? -1 : 1)
     }
+    this.onShortcut = (event) => {
+      const target = event.target
+      const typing = /^(input|textarea|select)$/i.test(target?.tagName || "") || target?.isContentEditable
+      const chord = event.code === "Space" && event.metaKey && event.ctrlKey && event.shiftKey
+      const plainT = event.key.toLowerCase() === "t" && !event.metaKey && !event.ctrlKey && !event.altKey && !typing
+      if (!chord && !plainT) return
+
+      event.preventDefault()
+      if (this.barTarget.hidden) this.open()
+      else this.cancel({ restoreFocus: true })
+    }
     this.onDocClick = (event) => {
       if (this.barTarget.contains(event.target) || this.toggleTarget.contains(event.target)) return
       this.cancel()
@@ -80,6 +91,7 @@ export default class extends Controller {
       if (!document.hidden) this.pollOmarchyTheme()
     }
     window.addEventListener("resize", this.onResize)
+    document.addEventListener("keydown", this.onShortcut)
     this.element.addEventListener("focusout", this.onFocusOut)
     document.addEventListener("visibilitychange", this.onVisibilityChange)
     document.addEventListener("turbo:before-cache", this.beforeCache)
@@ -93,6 +105,7 @@ export default class extends Controller {
 
   disconnect() {
     document.removeEventListener("keydown", this.onKeydown)
+    document.removeEventListener("keydown", this.onShortcut)
     document.removeEventListener("click", this.onDocClick)
     window.removeEventListener("resize", this.onResize)
     this.element.removeEventListener("focusout", this.onFocusOut)
@@ -111,6 +124,8 @@ export default class extends Controller {
   }
 
   open() {
+    const active = document.activeElement
+    this.restoreFocusElement = active instanceof HTMLElement && active !== document.body ? active : this.toggleTarget
     this.loadPreviews()
     this.committed = document.documentElement.dataset.theme || "tokyo-night"
     this.committedMode = this.mode
@@ -164,7 +179,7 @@ export default class extends Controller {
     }
     this.reflect()
     this.close()
-    if (restoreFocus) this.toggleTarget.focus({ preventScroll: true })
+    if (restoreFocus) this.restoreFocus()
   }
 
   cancel({ restoreFocus = false } = {}) {
@@ -178,7 +193,7 @@ export default class extends Controller {
     }
     this.reflect()
     this.close()
-    if (restoreFocus) this.toggleTarget.focus({ preventScroll: true })
+    if (restoreFocus) this.restoreFocus()
   }
 
   pick(event) {
@@ -321,6 +336,12 @@ export default class extends Controller {
     if (compact) option.scrollIntoView({ block: "nearest" })
   }
 
+  restoreFocus() {
+    const target = this.restoreFocusElement?.isConnected ? this.restoreFocusElement : this.toggleTarget
+    target?.focus({ preventScroll: true })
+    this.restoreFocusElement = null
+  }
+
   reflectToggle(label, compactLabel = label) {
     if (this.hasToggleLabelTarget) this.toggleLabelTarget.textContent = label
     if (this.hasMobileToggleLabelTarget) this.mobileToggleLabelTarget.textContent = compactLabel
@@ -361,7 +382,7 @@ export default class extends Controller {
       localStorage.setItem(MODE_KEY, mode)
       return mode
     } catch {
-      return systemAvailable ? "system" : "manual"
+      return "manual"
     }
   }
 

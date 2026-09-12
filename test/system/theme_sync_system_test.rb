@@ -52,9 +52,131 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     end
   end
 
+  test "a first browser visit selects and persists a theme matching the system color scheme" do
+    visit root_path
+    page.execute_script <<~JS
+      localStorage.removeItem("registry-theme")
+      localStorage.removeItem("registry-theme-mode")
+      localStorage.removeItem("registry-theme-override-revision")
+    JS
+
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
+      features: [ { name: "prefers-color-scheme", value: "light" } ])
+    visit root_path
+    light_theme = page.evaluate_script("document.documentElement.dataset.theme")
+    assert_includes ApplicationHelper::LIGHT_THEMES, light_theme
+    assert_equal light_theme, page.evaluate_script("localStorage.getItem('registry-theme')")
+    assert_equal "manual", page.evaluate_script("localStorage.getItem('registry-theme-mode')")
+    visit governance_path
+    assert_equal light_theme, page.evaluate_script("document.documentElement.dataset.theme")
+
+    page.execute_script <<~JS
+      localStorage.removeItem("registry-theme")
+      localStorage.removeItem("registry-theme-mode")
+    JS
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
+      features: [ { name: "prefers-color-scheme", value: "dark" } ])
+    visit root_path
+    dark_theme = page.evaluate_script("document.documentElement.dataset.theme")
+    assert_includes ApplicationHelper::THEMES - ApplicationHelper::LIGHT_THEMES, dark_theme
+    assert_equal dark_theme, page.evaluate_script("localStorage.getItem('registry-theme')")
+
+    page.execute_script <<~JS
+      localStorage.setItem("registry-theme-mode", "system")
+      localStorage.removeItem("registry-theme")
+      localStorage.setItem("registry-system-theme", "{malformed")
+    JS
+    visit root_path
+    recovered_theme = page.evaluate_script("document.documentElement.dataset.theme")
+    assert_includes ApplicationHelper::THEMES - ApplicationHelper::LIGHT_THEMES, recovered_theme
+    assert_equal recovered_theme, page.evaluate_script("localStorage.getItem('registry-theme')")
+    assert_equal "manual", page.evaluate_script("localStorage.getItem('registry-theme-mode')")
+  ensure
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [])
+  end
+
+  test "T toggles the theme picker without intercepting typing or browser shortcuts" do
+    visit root_path
+
+    assert_equal "T Meta+Control+Shift+Space", find(".theme-toggle")["aria-keyshortcuts"]
+    opener = find("a[href='#{governance_path}']", match: :first)
+    page.execute_script("arguments[0].focus()", opener)
+    page.driver.browser.action.send_keys("t").perform
+    assert_selector ".theme-picker", visible: true
+    assert_selector ".theme-toggle[aria-expanded='true']"
+    assert page.evaluate_script("document.activeElement.matches('.theme-picker__item--selected')")
+
+    page.execute_script <<~JS
+      document.activeElement.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "T", bubbles: true, cancelable: true, shiftKey: true
+      }))
+    JS
+    assert_no_selector ".theme-picker", visible: true
+    assert_equal governance_path, page.evaluate_script("document.activeElement.getAttribute('href')")
+
+    search = find("input[name='q']")
+    search.click
+    search.send_keys("t")
+    assert_no_selector ".theme-picker", visible: true
+    assert_includes search.value, "t"
+
+    ignored = page.evaluate_script <<~JS
+      ["ctrlKey", "metaKey", "altKey"].map((modifier) => {
+        const options = { key: "t", bubbles: true, cancelable: true }
+        options[modifier] = true
+        return document.dispatchEvent(new KeyboardEvent("keydown", options))
+      })
+    JS
+    assert_equal [ true, true, true ], ignored
+    assert_no_selector ".theme-picker", visible: true
+
+    page.execute_script <<~JS
+      document.dispatchEvent(new KeyboardEvent("keydown", {
+        key: " ", code: "Space", bubbles: true, cancelable: true,
+        metaKey: true, ctrlKey: true, shiftKey: true
+      }))
+    JS
+    assert_selector ".theme-picker", visible: true
+    page.driver.browser.action.send_keys(:escape).perform
+    assert_no_selector ".theme-picker", visible: true
+
+    find("a[href='#{governance_path}']", match: :first).click
+    assert_current_path governance_path
+    page.driver.browser.action.send_keys("t").perform
+    assert_selector ".theme-picker", visible: true, count: 1
+    page.driver.browser.action.send_keys("t").perform
+    assert_no_selector ".theme-picker", visible: true
+  end
+
+  test "storage failure keeps the fallback manual even when local Omarchy sync is available" do
+    visit root_path
+
+    mode = page.evaluate_script <<~JS
+      (() => {
+        const element = document.querySelector("[data-controller~='theme']")
+        const controller = window.Stimulus.getControllerForElementAndIdentifier(element, "theme")
+        const original = Storage.prototype.getItem
+        element.setAttribute("data-theme-omarchy-url-value", "/omarchy-theme.json")
+        Storage.prototype.getItem = () => { throw new DOMException("blocked", "SecurityError") }
+        try {
+          return controller.storedMode()
+        } finally {
+          Storage.prototype.getItem = original
+          element.removeAttribute("data-theme-omarchy-url-value")
+        }
+      })()
+    JS
+    assert_equal "manual", mode
+  end
+
   test "mobile theme selection is a compact names-only one-tap list" do
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 420, deviceScaleFactor: 1, mobile: false)
+    visit root_path
+    page.execute_script <<~JS
+      localStorage.setItem("registry-theme-mode", "manual")
+      localStorage.setItem("registry-theme", "tokyo-night")
+    JS
     visit root_path
 
     within ".theme-toggle" do
@@ -154,7 +276,8 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
           property: document.documentElement.style.getPropertyValue("--brand-lit"),
           nav: colors("#nav-mark-bands stop"),
           hero: colors("#omarchy-wordmark-bands stop"),
-          fetch: colors("#omarchy-logo-bands stop")
+          fetch: colors("#omarchy-logo-bands stop"),
+          footerOma: colors("#oma-logo-bands-footer stop")
         }
       })()
     JS
@@ -164,6 +287,7 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     assert_equal "rgb(112, 192, 128)", brand["nav"][4]
     assert_equal brand["nav"], brand["hero"]
     assert_equal brand["nav"], brand["fetch"]
+    assert_equal brand["nav"], brand["footerOma"]
 
     find(".theme-toggle").click
     assert_selector ".theme-picker", visible: true
@@ -282,11 +406,18 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     find(".theme-toggle").click
     assert_selector ".theme-picker", visible: true
     assert page.evaluate_script("document.activeElement.matches('.theme-picker__item--selected')")
+    expected = page.evaluate_script <<~JS
+      (() => {
+        const enabled = [...document.querySelectorAll(".theme-picker__item:not(:disabled)")]
+        const current = enabled.findIndex((option) => option.matches(".theme-picker__item--selected"))
+        return enabled[(current + 3) % enabled.length].dataset.themeValue
+      })()
+    JS
     3.times do
       page.execute_script("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }))")
     end
-    assert_selector ".theme-picker__item--selected[data-theme-value='catppuccin']", visible: true
-    assert_equal "catppuccin", page.evaluate_script("document.activeElement.dataset.themeValue")
+    assert_selector ".theme-picker__item--selected[data-theme-value='#{expected}']", visible: true
+    assert_equal expected, page.evaluate_script("document.activeElement.dataset.themeValue")
     assert_equal 0, page.evaluate_script("document.querySelectorAll('.theme-picker__item:not([tabindex=\"-1\"]):not(.theme-picker__item--selected)').length")
   end
 
@@ -387,20 +518,25 @@ class ThemeSyncSystemTest < ApplicationSystemTestCase
     assert_includes fallback, "--shadow-ink: color-mix(in srgb, var(--bg) 33%, #000)"
   end
 
-  test "retired themes are absent from the picker and stale storage falls back to Tokyo Night" do
+  test "retired themes are absent and stale storage gets a compatible automatic replacement" do
     visit root_path
     page.execute_script <<~JS
       localStorage.setItem("registry-theme-mode", "manual")
       localStorage.setItem("registry-theme", "tokyo")
       localStorage.removeItem("registry-system-theme")
     JS
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
+      features: [ { name: "prefers-color-scheme", value: "dark" } ])
     visit root_path
 
-    assert_equal "tokyo-night", page.evaluate_script("document.documentElement.dataset.theme")
-    assert_nil page.evaluate_script("localStorage.getItem('registry-theme')")
+    replacement = page.evaluate_script("document.documentElement.dataset.theme")
+    assert_includes ApplicationHelper::THEMES - ApplicationHelper::LIGHT_THEMES, replacement
+    assert_equal replacement, page.evaluate_script("localStorage.getItem('registry-theme')")
     assert_no_selector ".theme-picker__item[data-theme-value='blueprint']", visible: :all
     assert_no_selector ".theme-picker__item[data-theme-value='ember']", visible: :all
     assert_no_selector ".theme-picker__item[data-theme-value='tokyo']", visible: :all
+  ensure
+    page.driver.browser.execute_cdp("Emulation.setEmulatedMedia", features: [])
   end
 
   def teardown

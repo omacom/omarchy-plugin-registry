@@ -1,9 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 // Ctrl+K (or Cmd+K) jumps to the directory search box from anywhere on the
-// page; Escape blurs it again. Also serves the header search button (which
-// lives outside the form): focusing works whether this controller wraps the
-// search form or the button calls focus() directly.
+// page; Escape blurs it again.
 export default class extends Controller {
   static targets = ["input"]
 
@@ -14,7 +12,8 @@ export default class extends Controller {
       const slash = event.key === "/" && !event.ctrlKey && !event.metaKey && !event.altKey && !typing
       if (ctrlK || slash) {
         event.preventDefault()
-        this.focusInput()
+        this.inputTarget.focus()
+        this.inputTarget.select()
       }
     }
     document.addEventListener("keydown", this.shortcut)

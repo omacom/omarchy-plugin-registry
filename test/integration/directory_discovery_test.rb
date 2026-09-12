@@ -33,7 +33,11 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
       assert_select ".site-edge-waves[aria-hidden='true'][data-edge-waves-target='layer']", count: 1 do
         assert_select "canvas[data-edge-waves-target='canvas']:empty", count: 1
       end
-      assert_select "body > .motion-control[data-edge-waves-target='toggle'][data-action='edge-waves#toggle'][hidden]", text: "Pause background animation", count: 1
+      assert_select ".site-bar .nav > .motion-control[data-edge-waves-target='toggle'][data-action='edge-waves#toggle'][aria-pressed='false'][hidden]", count: 1 do
+        assert_select "svg.motion-control__pause[aria-hidden='true']", count: 1
+        assert_select "svg.motion-control__play[aria-hidden='true']", count: 1
+        assert_select ".visually-hidden[data-edge-waves-target='toggleLabel']", text: "Pause background animation", count: 1
+      end
       assert_select ".statusfoot__fx", count: 0
     end
     assert_select "section.hero.hero--reveal[data-controller~='hero-reveal']", count: 1 do
@@ -389,6 +393,7 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     get root_path
     assert_select ".recent-band[data-index-recent][data-controller~='recent-rotate'][data-controller~='plugin-share']:not([hidden])" do
       assert_select "#most-wanted-title", text: "Most Wanted", count: 1
+      assert_select ".recent-row[data-recent-compact-count='1']", count: 1
       assert_select ".recent-card", 3
       assert_select ".recent-card--master", text: /fresh/, count: 1
       assert_select ".recent-band__count[aria-label*='7-day installs']", text: /3.*\/ stats/m, count: 1
@@ -407,7 +412,8 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     end
     assert_select ".recent-card--master[data-name='fresh'] .recent-card__badge--toggle", text: /new\s*\|\s*verified/i, count: 1
     assert_select ".recent-card--master[data-name='fresh'] .recent-card__author", text: "rival", count: 1
-    assert_select ".recent-card:not(.recent-card--master)[data-name='mixer'] .recent-card__badge--status", text: /updated\s*\|\s*pending/i, count: 1
+    assert_select ".recent-card:not(.recent-card--master)[data-name='mixer'] button.recent-card__badge--toggle[data-action='card-flip#toggleButton']",
+      text: /updated\s*\|\s*pending/i, count: 1
     assert_select ".recent-card:not(.recent-card--master) .recent-card__author", minimum: 1
     assert_select ".recent-card--master .recent-card__secondary", count: 2
     assert_select ".recent-card--master .recent-card__summary", count: 2
@@ -452,10 +458,11 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_select ".recent-band .recent-card", count: HomeController::MOST_WANTED_LIMIT
+    assert_select ".recent-band .recent-card[hidden]", count: 0
     assert_select ".recent-band .recent-card--master", text: /half-synced/, count: 1 do
       assert_select ".recent-card__art--fallback.discovery-preview-fallback", text: "[ preview unavailable ]", count: 1
     end
-    assert_select ".recent-band .recent-card .recent-card__art[src]", count: 4
+    assert_select ".recent-band .recent-card .recent-card__art[src]", count: 5
     assert_select ".recent-stream__group:not(.recent-stream__group--duplicate)" do
       assert_select ".recent-stream__card", count: 7
       assert_select ".recent-stream__visual img", count: 5
@@ -504,17 +511,25 @@ class DirectoryDiscoveryTest < ActionDispatch::IntegrationTest
   test "footer keeps only the branded provenance line" do
     get root_path
 
-    assert_select "footer.statusfoot .statusfoot__omacom", 1
+    assert_select "footer.statusfoot svg.statusfoot__omacom[viewBox='38 250 722 300'][aria-hidden='true'][focusable='false']" do
+      assert_select "linearGradient#oma-logo-bands-footer[gradientUnits='userSpaceOnUse'] stop", count: 10
+      assert_select "g[fill='url(#oma-logo-bands-footer)'] path", count: 3
+      [
+        "M283 285.21A149 149 0 1 0 283 514.79Z",
+        "M283 262H536V326L462 400L536 474V536H283V514.79A149 149 0 0 0 283 285.21Z",
+        "M536 326L610.5 251.5L759 400L610.5 548.5L536 474Z"
+      ].each { |path| assert_select "path[d=?]", path, count: 1 }
+    end
     assert_select "footer.statusfoot .statusfoot__katakana", text: "オマコム", count: 1
     assert_select "footer.statusfoot a.statusfoot__registry[href='https://plugins.omarchy.org']", text: "plugins.omarchy.org", count: 1
     assert_select "footer.statusfoot a.statusfoot__omarchy-link[href='https://omarchy.org']" do
       assert_select "span.statusfoot__omarchy-wordmark[style*='omarchy-wordmark-'][style*='.svg']", 1
     end
-    assert_select "footer.statusfoot .statusfoot__trademark", text: /PLUGINS/, count: 1
+    assert_select "footer.statusfoot .statusfoot__trademark", text: /HUB/, count: 1
+    assert_select "footer.statusfoot .statusfoot__trademark", text: /PLUGINS/, count: 0
     assert_select "footer.statusfoot", text: /pending trademark/i, count: 0
     assert_select ".statusline, .statusfoot__links", 0
-    assert_select "mask[id='omk-c-nav']", 0
-    assert_select "mask[id='omk-c-footer']", 1
+    assert_select "mask[id='omk-c-nav'], mask[id='omk-c-footer']", 0
   end
 
   test "detail page links category and tags back to the filtered directory" do

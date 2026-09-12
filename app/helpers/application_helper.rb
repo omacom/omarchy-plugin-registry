@@ -93,6 +93,7 @@ module ApplicationHelper
     kanagawa last-horizon lumon lupine matte-black miasma nord osaka-jade retro-82 ristretto
     rose-pine solitude tokyo-night vantablack white
   ].freeze
+  LIGHT_THEMES = %w[catppuccin-latte flexoki-light lupine rose-pine white].freeze
 
   # OpenGraph/Twitter tags with absolute URLs. Pages call this through
   # content_for(:social); the layout falls back to the site-wide card.

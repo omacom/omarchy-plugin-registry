@@ -93,7 +93,7 @@
         <% if @sort != "downloads" %><input type="hidden" name="sort" value="<%= @sort %>"><% end %>
         <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
         <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
-        <label class="index-picker__page" data-index-picker-target="pageStatus">
+        <label class="index-picker__page" style="--page-digits: <%= @page.to_s.length %>" data-index-picker-target="pageStatus">
           <input type="number" name="page" min="1" max="<%= total_pages %>" value="<%= @page %>"
                  inputmode="numeric" aria-label="Jump to result page" style="--page-digits: <%= @page.to_s.length %>"
                  data-index-picker-target="pageInput" data-action="input->index-picker#resizePageInput">

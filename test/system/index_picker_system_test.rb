@@ -493,10 +493,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "Most Wanted controls rotate responsive master cards without growing the band" do
     publisher = Publisher.find_by!(name: "acme")
-    2.times do |index|
+    5.times do |index|
       plugin = Plugin.create!(publisher:, name: "recent-extra-#{index}", summary: "Recent extra",
         latest_version: "1.0.0", category: "other")
-      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: (index + 7).to_s * 64,
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: format("%064x", index + 7),
         size_bytes: 1024, state: :published, published_at: Time.current)
     end
     visit root_path(sort: "name")
@@ -505,10 +505,10 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     next_button = find("button.recent-band__step", text: "next →")
     assert_equal "ArrowLeft", previous["aria-keyshortcuts"]
     assert_equal "ArrowRight", next_button["aria-keyshortcuts"]
-    assert_selector ".recent-band__count", text: /5.*\/ stats/m
-    assert_selector ".recent-card", count: 5, visible: true
+    assert_selector ".recent-band__count", text: /8.*\/ stats/m
+    assert_selector ".recent-card", count: 6, visible: true
     assert_selector ".recent-card--master", count: 2, visible: true
-    assert_selector ".recent-stack .recent-card", count: 3, visible: true
+    assert_selector ".recent-stack .recent-card", count: 4, visible: true
     assert_equal page.evaluate_script("getComputedStyle(document.querySelector('.recent-band .boxtitle > h2')).fontSize"),
       page.evaluate_script("getComputedStyle(document.querySelector('.recent-band__count')).fontSize")
     assert_equal page.evaluate_script("getComputedStyle(document.querySelector('.index-browse__range b')).color"),
@@ -542,6 +542,24 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
           uniformBorders: new Set([...document.querySelectorAll(".recent-card")]
             .map((card) => getComputedStyle(card).borderTopWidth)).size === 1,
           recentHeight: document.querySelector(".recent-row").getBoundingClientRect().height,
+          masterWidth: master.getBoundingClientRect().width,
+          masterHeight: master.getBoundingClientRect().height,
+          compactSizes: visibleCards.filter((card) => !card.classList.contains("recent-card--master"))
+            .map((card) => ({ width: card.getBoundingClientRect().width, height: card.getBoundingClientRect().height })),
+          recentlyAddedSize: (() => {
+            const card = document.querySelector(".recent-stream__card").getBoundingClientRect()
+            return { width: card.width, height: card.height }
+          })(),
+          topLevelGap: document.querySelector(".recent-stack").getBoundingClientRect().left -
+            [...document.querySelectorAll(".recent-card--master")].at(-1).getBoundingClientRect().right,
+          compactColumnGap: (() => {
+            const cards = [...document.querySelectorAll(".recent-stack .recent-card")]
+            return cards[1].getBoundingClientRect().left - cards[0].getBoundingClientRect().right
+          })(),
+          compactRowGap: (() => {
+            const cards = [...document.querySelectorAll(".recent-stack .recent-card")]
+            return cards[2].getBoundingClientRect().top - cards[0].getBoundingClientRect().bottom
+          })(),
           visibleCount: visibleCards.length,
           masterCount: visibleCards.filter((card) => card.classList.contains("recent-card--master")).length,
           equalMasterSizes: new Set(visibleCards.filter((card) => card.classList.contains("recent-card--master"))
@@ -570,8 +588,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             getComputedStyle(card.querySelector(".recent-card__signals")).display === "none" &&
             getComputedStyle(card.querySelector(".recent-card__secondary")).display === "none" &&
             getComputedStyle(card.querySelector(".recent-card__summary")).display === "none" &&
-            getComputedStyle(card.querySelector(".recent-card__badge--toggle")).display === "none" &&
-            getComputedStyle(card.querySelector(".recent-card__badge--status")).display !== "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--toggle")).display !== "none" &&
+            getComputedStyle(card.querySelector(".recent-card__badge--status")).display === "none" &&
             getComputedStyle(card.querySelector(".recent-card__author")).display !== "none" &&
             card.querySelector(".recent-card__foot").getBoundingClientRect().height <= 30)
         }
@@ -582,8 +600,16 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert master_layout["unfadedArt"]
     assert master_layout["completeCards"]
     assert master_layout["uniformBorders"]
-    assert_in_delta 392, master_layout["recentHeight"], 0.5
-    assert_equal 5, master_layout["visibleCount"]
+    assert_in_delta 310, master_layout["recentHeight"], 0.5
+    assert_operator master_layout["masterWidth"], :<=, 360.5
+    assert_operator master_layout["masterWidth"], :>=, 300
+    assert_in_delta 310, master_layout["masterHeight"], 0.5
+    assert master_layout["compactSizes"].all? { |size| size["width"] >= master_layout.dig("recentlyAddedSize", "width") - 0.5 }
+    assert master_layout["compactSizes"].all? { |size| size["height"] >= master_layout.dig("recentlyAddedSize", "height") - 0.5 }
+    assert_in_delta 14, master_layout["topLevelGap"], 0.5
+    assert_in_delta 14, master_layout["compactColumnGap"], 0.5
+    assert_in_delta 14, master_layout["compactRowGap"], 0.5
+    assert_equal 6, master_layout["visibleCount"]
     assert_equal 2, master_layout["masterCount"]
     assert master_layout["equalMasterSizes"]
     assert master_layout["equalSmallSizes"]
@@ -600,7 +626,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const visible = [...document.querySelectorAll(".recent-card")]
           .filter((card) => getComputedStyle(card).display !== "none")
         return {
-          fiveVisible: visible.length === 5,
+          sixVisible: visible.length === 6,
           twoMasters: visible.filter((card) => card.classList.contains("recent-card--master")).length === 2,
           masterSignals: [...master.querySelectorAll('.recent-card__signals > span[aria-hidden="true"]')]
             .every((node) => getComputedStyle(node).display !== "none"),
@@ -635,7 +661,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
 
   test "Most Wanted preserves focus when rotation or resize demotes an open master card" do
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
-    page.driver.browser.manage.window.resize_to(1280, 800)
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 1440, height: 900, deviceScaleFactor: 1, mobile: false)
     publisher = Publisher.find_by!(name: "acme")
     2.times do |index|
       plugin = Plugin.create!(publisher:, name: "focus-recent-#{index}", summary: "Focus fixture",
@@ -644,35 +671,62 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         size_bytes: 1024, state: :published, published_at: Time.current)
     end
     visit root_path(sort: "name")
-    assert_selector ".recent-card--master", count: 2
+    assert_selector ".recent-card--master", count: 3
 
-    second_master = all(".recent-card--master")[1]
-    focused_name = second_master["data-name"]
-    second_master.find(".recent-card__badge--toggle").click
+    third_master = all(".recent-card--master")[2]
+    focused_name = third_master["data-name"]
+    third_master.find(".recent-card__badge--toggle").click
     assert_selector ".recent-card--master[data-name='#{focused_name}'].is-flipped"
-    second_master.find(".index-picker__card-details").send_keys(:arrow_left)
+    third_master.find(".index-picker__card-details").send_keys(:arrow_left)
     assert_no_selector ".recent-card[data-name='#{focused_name}'].is-flipped"
     assert page.evaluate_script(<<~JS)
       document.activeElement.matches(".recent-card:not(.recent-card--master)[data-name='#{focused_name}'] .recent-card__open")
     JS
-    assert_selector ".recent-card--master", count: 2
+    assert_selector ".recent-card--master", count: 3
 
-    second_master = all(".recent-card--master")[1]
-    focused_name = second_master["data-name"]
-    page.execute_script("arguments[0].focus()", second_master.find(".recent-card__badge--toggle"))
+    third_master = all(".recent-card--master")[2]
+    focused_name = third_master["data-name"]
+    page.execute_script("arguments[0].focus()", third_master.find(".recent-card__badge--toggle"))
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 1100, height: 900, deviceScaleFactor: 1, mobile: false)
     Selenium::WebDriver::Wait.new(timeout: 3).until do
       page.evaluate_script(<<~JS)
-        document.activeElement.matches(".recent-card:not(.recent-card--master)[data-name='#{focused_name}'] .recent-card__open")
+        document.querySelectorAll(".recent-card--master").length === 1 &&
+          document.activeElement.matches(".recent-card:not(.recent-card--master)[data-name='#{focused_name}'] .recent-card__open")
       JS
     end
+    refute page.evaluate_script("document.querySelector('.recent-card[data-name=\"#{focused_name}\"]').hidden")
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
     page.driver.browser.manage.window.resize_to(1280, 800)
   end
 
-  test "mobile Most Wanted fits four preview cards below the master without exceeding the prior height" do
+  test "server-rendered Most Wanted keeps every ranked plugin reachable without JavaScript" do
+    publisher = Publisher.find_by!(name: "acme")
+    5.times do |index|
+      plugin = Plugin.create!(publisher:, name: "ssr-wanted-#{index}", summary: "SSR fallback",
+        latest_version: "1.0.0", category: "other")
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: format("%064x", index + 40),
+        size_bytes: 1024, state: :published, published_at: Time.current)
+    end
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
+    page.driver.browser.execute_cdp("Emulation.setScriptExecutionDisabled", value: true)
+
+    visit root_path(sort: "name")
+
+    assert_selector ".recent-band:not(.is-enhanced) .recent-card", count: 8, visible: true
+    assert_selector ".recent-band .recent-card__open", count: 8, visible: true
+    assert_no_selector ".recent-band .recent-card[hidden]", visible: :all
+    assert_selector ".recent-band__step", count: 2, visible: :all
+    assert_no_selector ".recent-band__step"
+    assert_no_selector ".recent-band.is-enhanced", visible: :all
+  ensure
+    page.driver.browser.execute_cdp("Emulation.setScriptExecutionDisabled", value: false)
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
+  test "mobile Most Wanted shows one master while retaining hidden cards in rotation" do
     publisher = Publisher.find_by!(name: "acme")
     2.times do |index|
       plugin = Plugin.create!(publisher:, name: "mobile-recent-#{index}", summary: "Mobile recent",
@@ -683,28 +737,105 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
       width: 390, height: 900, deviceScaleFactor: 1, mobile: false)
     visit root_path(sort: "name")
+    page.execute_script(
+      "document.querySelectorAll('.recent-card').forEach((card) => card.getAnimations().forEach((animation) => animation.finish()))"
+    )
 
     layout = page.evaluate_script <<~JS
       (() => {
-        const cards = [...document.querySelectorAll(".recent-stack .recent-card")]
+        const row = document.querySelector(".recent-row").getBoundingClientRect()
+        const rail = document.querySelector(".recent-band__layout").getBoundingClientRect()
+        const cards = [...document.querySelectorAll(".recent-card")]
+        const visible = cards.filter((card) => getComputedStyle(card).display !== "none")
         return {
-          recentHeight: document.querySelector(".recent-row").getBoundingClientRect().height,
+          total: cards.length,
+          visible: visible.length,
+          masters: visible.filter((card) => card.classList.contains("recent-card--master")).length,
+          compact: visible.filter((card) => !card.classList.contains("recent-card--master")).length,
+          hidden: cards.filter((card) => card.hidden).length,
+          rowHeight: row.height,
           masterHeight: document.querySelector(".recent-card--master").offsetHeight,
-          heights: cards.map((card) => card.offsetHeight),
-          columns: new Set(cards.map((card) => card.offsetLeft)).size,
-          wantedWidth: cards[0].offsetWidth,
-          recentlyAddedWidth: document.querySelector(".recent-stream__card").offsetWidth,
+          stackHidden: document.querySelector(".recent-stack").hidden &&
+            getComputedStyle(document.querySelector(".recent-stack")).display === "none",
+          centered: Math.abs((row.left + row.right) / 2 - (rail.left + rail.right) / 2),
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         }
       })()
     JS
-    assert_equal 4, layout["heights"].length
-    assert_equal 280, layout["masterHeight"]
-    assert layout["heights"].all? { |height| height == 150 }
-    assert_equal 2, layout["columns"]
-    assert_in_delta layout["wantedWidth"], layout["recentlyAddedWidth"], 1
-    assert_operator layout["recentHeight"], :<=, 608.5
+    assert_equal 5, layout["total"]
+    assert_equal 1, layout["visible"]
+    assert_equal 1, layout["masters"]
+    assert_equal 0, layout["compact"]
+    assert_equal 4, layout["hidden"]
+    assert_in_delta 280, layout["rowHeight"], 0.5
+    assert_in_delta 280, layout["masterHeight"], 0.5
+    assert layout["stackHidden"]
+    assert_in_delta 0, layout["centered"], 0.5
     assert_equal 0, layout["overflow"]
+    assert_no_selector ".recent-stack .recent-card"
+
+    original_master = first(".recent-card--master")["data-name"]
+    find("button[aria-label='Show next Most Wanted plugin']").click
+    assert_not_equal original_master, first(".recent-card--master")["data-name"]
+    assert_selector ".recent-card", count: 1, visible: true
+    assert_selector ".recent-card--master", count: 1
+    first(".recent-card--master .recent-card__badge--toggle").click
+    assert_selector ".recent-card--master.is-flipped .index-picker__card-face--back[aria-hidden='false']"
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
+  test "Most Wanted hides compact cards only in the smallest layout tier" do
+    publisher = Publisher.find_by!(name: "acme")
+    5.times do |index|
+      plugin = Plugin.create!(publisher:, name: "bento-boundary-#{index}", summary: "Bento boundary",
+        latest_version: "1.0.0", category: "other")
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: (index + 11).to_s(16) * 64,
+        size_bytes: 1024, state: :published, published_at: Time.current)
+    end
+
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 320, height: 900, deviceScaleFactor: 1, mobile: false)
+    visit root_path(sort: "name")
+
+    [ [ 320, 280, 1, 0 ], [ 760, 280, 1, 0 ], [ 761, 310, 1, 4 ],
+      [ 1100, 310, 1, 4 ], [ 1101, 310, 2, 4 ] ].each do |width, row_height, masters, compact|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 900, deviceScaleFactor: 1, mobile: false)
+      Selenium::WebDriver::Wait.new(timeout: 3).until do
+        page.evaluate_script("document.querySelector('.recent-row').dataset.recentCompactCount") == compact.to_s
+      end
+      page.execute_script(
+        "document.querySelectorAll('.recent-card').forEach((card) => card.getAnimations().forEach((animation) => animation.finish()))"
+      )
+
+      layout = page.evaluate_script <<~JS
+        (() => {
+          const row = document.querySelector(".recent-row").getBoundingClientRect()
+          const rail = document.querySelector(".recent-band__layout").getBoundingClientRect()
+          const visible = [...document.querySelectorAll(".recent-card")]
+            .filter((card) => getComputedStyle(card).display !== "none")
+          const stack = document.querySelector(".recent-stack")
+          return {
+            rowHeight: row.height,
+            visible: visible.length,
+            masters: visible.filter((card) => card.classList.contains("recent-card--master")).length,
+            compact: visible.filter((card) => !card.classList.contains("recent-card--master")).length,
+            stackHidden: getComputedStyle(stack).display === "none",
+            centered: Math.abs((row.left + row.right) / 2 - (rail.left + rail.right) / 2),
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+          }
+        })()
+      JS
+
+      assert_in_delta row_height, layout["rowHeight"], 0.5
+      assert_equal masters + compact, layout["visible"]
+      assert_equal masters, layout["masters"]
+      assert_equal compact, layout["compact"]
+      assert_equal compact.zero?, layout["stackHidden"]
+      assert_in_delta 0, layout["centered"], 0.5
+      assert_equal 0, layout["overflow"]
+    end
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
@@ -754,7 +885,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         }
       })()
     JS
-    assert_operator presentation["wanted"], :>, presentation["recentlyAdded"]
+    assert_in_delta presentation["recentlyAdded"], presentation["wanted"], 1
     refute_equal "none", presentation["shadow"]
     assert_in_delta 0, presentation["trendingAlignment"], 0.1
     assert presentation["fallbackMatches"]
@@ -855,7 +986,6 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert page.evaluate_script("document.querySelector('.recent-stream__track').getAnimations().length === 0")
     assert page.evaluate_script("getComputedStyle(document.querySelector('.recent-stream__group--duplicate')).display === 'none'")
     assert page.evaluate_script("getComputedStyle(document.querySelector('.recent-stream__viewport')).maskImage === 'none'")
-
     page.driver.browser.execute_cdp("Emulation.setEmulatedMedia",
       features: [ { name: "prefers-reduced-motion", value: "no-preference" } ])
     previous.click
@@ -869,7 +999,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
   test "Tokyo Night is the default palette and White remains persistently selectable" do
     visit root_path(sort: "name")
     page.execute_script <<~JS
-      localStorage.removeItem("registry-theme")
+      localStorage.setItem("registry-theme", "tokyo-night")
       localStorage.setItem("registry-theme-mode", "manual")
       localStorage.removeItem("registry-system-theme")
       localStorage.removeItem("registry-theme-override-revision")
@@ -1071,7 +1201,7 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     end
   end
 
-  test "header controls share compact bar type and the footer mark keeps its shadow across pages" do
+  test "header controls share compact bar type while only the footer wordmark keeps its shadow" do
     visit root_path(sort: "name")
 
     sizes = page.evaluate_script <<~JS
@@ -1080,11 +1210,28 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         section: getComputedStyle(document.querySelector(".nav__section")).fontSize,
         account: getComputedStyle(document.querySelector(".nav__account")).fontSize,
         theme: getComputedStyle(document.querySelector(".theme-toggle")).fontSize,
+        footerOmaWidth: document.querySelector(".statusfoot__omacom").getBoundingClientRect().width,
+        footerOmaHeight: document.querySelector(".statusfoot__omacom").getBoundingClientRect().height,
+        footerWordmarkWidth: document.querySelector(".statusfoot__omarchy-wordmark").getBoundingClientRect().width,
+        footerWordmarkHeight: document.querySelector(".statusfoot__omarchy-wordmark").getBoundingClientRect().height,
+        footerTextCenters: [
+          ".statusfoot__project > .lab", ".statusfoot__registry", ".statusfoot__trademark > span"
+        ].map((selector) => {
+          const box = document.querySelector(selector).getBoundingClientRect()
+          return (box.top + box.bottom) / 2
+        }),
+        footerOmaFilter: getComputedStyle(document.querySelector(".statusfoot__omacom")).filter,
         footerShadow: getComputedStyle(document.querySelector(".statusfoot__omarchy-link")).filter
       }))()
     JS
     assert_equal [ sizes["section"] ], sizes.values_at("section", "account", "theme").uniq
     assert_operator sizes["section"].to_f, :<, sizes["heading"].to_f
+    assert_in_delta 24.92, sizes["footerOmaHeight"], 0.1
+    assert_in_delta sizes["footerOmaHeight"], sizes["footerWordmarkHeight"], 0.1
+    assert_in_delta 722.0 / 300, sizes["footerOmaWidth"] / sizes["footerOmaHeight"], 0.01
+    assert_in_delta 4131.0 / 950, sizes["footerWordmarkWidth"] / sizes["footerWordmarkHeight"], 0.01
+    assert_operator sizes["footerTextCenters"].max - sizes["footerTextCenters"].min, :<=, 0.1
+    assert_equal "none", sizes["footerOmaFilter"]
     refute_equal "none", sizes["footerShadow"]
 
     page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
@@ -1099,6 +1246,44 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     JS
     assert_equal [ responsive_sizes["section"] ], responsive_sizes.values_at("section", "account", "theme").uniq
     assert_operator responsive_sizes["section"].to_f, :<, responsive_sizes["heading"].to_f
+
+    { 320 => true, 560 => true, 561 => false, 1920 => false }.each do |width, compact|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 900, deviceScaleFactor: 1, mobile: false)
+      footer = page.evaluate_script <<~JS
+        (() => {
+          const oma = document.querySelector(".statusfoot__omacom").getBoundingClientRect()
+          const wordmark = document.querySelector(".statusfoot__omarchy-wordmark").getBoundingClientRect()
+          const textSelectors = [
+            ".statusfoot__project > .lab", ".statusfoot__registry", ".statusfoot__trademark > span"
+          ]
+          return {
+            omaWidth: oma.width,
+            omaHeight: oma.height,
+            wordmarkWidth: wordmark.width,
+            wordmarkHeight: wordmark.height,
+            provenanceDisplay: getComputedStyle(document.querySelector(textSelectors[0])).display,
+            pluginsDisplay: getComputedStyle(document.querySelector(textSelectors[2])).display,
+            textCenters: textSelectors.map((selector) => {
+              const element = document.querySelector(selector)
+              const box = element.getBoundingClientRect()
+              return { display: getComputedStyle(element).display, center: (box.top + box.bottom) / 2 }
+            }),
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+          }
+        })()
+      JS
+      expected_height = compact ? 18.69 : 24.92
+      assert_in_delta expected_height, footer["omaHeight"], 0.1
+      assert_in_delta footer["omaHeight"], footer["wordmarkHeight"], 0.1
+      assert_in_delta 722.0 / 300, footer["omaWidth"] / footer["omaHeight"], 0.01
+      assert_in_delta 4131.0 / 950, footer["wordmarkWidth"] / footer["wordmarkHeight"], 0.01
+      assert_equal compact ? "none" : "block", footer["provenanceDisplay"]
+      assert_equal compact ? "none" : "block", footer["pluginsDisplay"]
+      visible_centers = footer["textCenters"].filter_map { |text| text["center"] unless text["display"] == "none" }
+      assert_operator visible_centers.max - visible_centers.min, :<=, 0.1
+      assert_equal 0, footer["overflow"]
+    end
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
 
     click_link "governance"
@@ -1128,6 +1313,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         size_bytes: 2048, state: :published, published_at: Time.current)
     end
 
+    visit root_path(sort: "name")
+    set_test_theme("tokyo-night")
     visit root_path(sort: "name")
     page.execute_script <<~JS
       window.Stimulus.getControllerForElementAndIdentifier(
@@ -1329,6 +1516,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
   end
 
   test "mouse hover stays soft and only keyboard movement activates a card" do
+    visit root_path(sort: "name")
+    set_test_theme("tokyo-night")
     visit root_path(sort: "name")
     assert_no_selector ".index-picker__row.is-selected"
 
@@ -3430,6 +3619,9 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_field "page", with: "10"
     page_input = find("input[aria-label='Jump to result page']")
     assert_equal "2", page_input.evaluate_script("this.style.getPropertyValue('--page-digits')")
+    assert_equal "2", page.evaluate_script(
+      "document.querySelector('.index-picker__page').style.getPropertyValue('--page-digits')"
+    )
     assert_operator page_input.evaluate_script("this.getBoundingClientRect().width"), :>, one_page_width
   end
 
@@ -4626,7 +4818,21 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
         const formBox = pagination.querySelector(".index-picker__page-form").getBoundingClientRect()
         const previousBox = previous.getBoundingClientRect()
         const nextBox = next.getBoundingClientRect()
-        const pageStyle = getComputedStyle(pagination.querySelector(".index-picker__page"))
+        const pageStatus = pagination.querySelector(".index-picker__page")
+        const pageInput = pageStatus.querySelector("input")
+        const pageSuffix = pageStatus.querySelector(":scope > span")
+        const pageStyle = getComputedStyle(pageStatus)
+        const inputStyle = getComputedStyle(pageInput)
+        const context = document.createElement("canvas").getContext("2d")
+        context.font = `${inputStyle.fontWeight} ${inputStyle.fontSize} ${inputStyle.fontFamily}`
+        const inputTextWidth = context.measureText(pageInput.value).width
+        const inputBox = pageInput.getBoundingClientRect()
+        const suffixRange = document.createRange()
+        suffixRange.selectNodeContents(pageSuffix)
+        const suffixBox = suffixRange.getBoundingClientRect()
+        const visiblePageCenter = (
+          inputBox.left + inputBox.width / 2 - inputTextWidth / 2 + suffixBox.right
+        ) / 2
         const arrowStyle = getComputedStyle(previous)
         return {
           overflow: document.documentElement.scrollWidth - width,
@@ -4635,6 +4841,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
             return rect.left >= -0.5 && rect.right <= width + 0.5
           }),
           pageCentered: Math.abs((formBox.left + formBox.right) / 2 - (navBox.left + navBox.right) / 2),
+          visiblePageCentered: Math.abs(visiblePageCenter - (navBox.left + navBox.right) / 2),
+          pageInputTarget: inputBox.height,
           previousCentered: Math.abs((previousBox.left + previousBox.right) / 2 - (navBox.left + formBox.left) / 2),
           nextCentered: Math.abs((nextBox.left + nextBox.right) / 2 - (formBox.right + navBox.right) / 2),
           arrowFont: arrowStyle.fontSize,
@@ -4647,6 +4855,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     assert_equal 0, metrics["overflow"]
     assert metrics["inside"]
     assert_in_delta 0, metrics["pageCentered"], 0.1
+    assert_in_delta 0, metrics["visiblePageCentered"], 0.1
+    assert_operator metrics["pageInputTarget"], :>=, 44
     assert_in_delta 0, metrics["previousCentered"], 0.1
     assert_in_delta 0, metrics["nextCentered"], 0.1
 
@@ -4693,12 +4903,12 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end
 
-  test "wider viewports reveal more Browse cards and mix two or three Most Wanted masters with compact cards" do
+  test "wider viewports reveal more Browse and Most Wanted cards without shrinking compact cards" do
     publisher = Publisher.find_by!(name: "acme")
-    2.times do |index|
+    5.times do |index|
       plugin = Plugin.create!(publisher:, name: "viewport-extra-#{index}", summary: "Viewport extra",
         latest_version: "1.0.0", category: "other")
-      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: (index + 7).to_s * 64,
+      plugin.versions.create!(version: "1.0.0", manifest: {}, sha256: format("%064x", index + 7),
         size_bytes: 1024, state: :published, published_at: Time.current)
     end
 
@@ -4706,23 +4916,52 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       width: 1280, height: 900, deviceScaleFactor: 1, mobile: false)
     visit root_path(sort: "name")
 
-    [ [ 1280, 9, 3, 2 ], [ 1440, 12, 4, 2 ], [ 1680, 15, 5, 2 ], [ 1920, 18, 6, 3 ] ].each do |width, per_page, columns, masters|
+    [
+      [ 1280, 9, 3, 2, 6 ], [ 1439, 9, 3, 2, 6 ],
+      [ 1440, 12, 4, 3, 7 ], [ 1680, 15, 5, 3, 7 ], [ 1919, 15, 5, 3, 7 ],
+      [ 1920, 18, 6, 4, 8 ]
+    ].each do |width, per_page, columns, masters, wanted_cards|
       page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
         width:, height: 900, deviceScaleFactor: 1, mobile: false)
       Selenium::WebDriver::Wait.new(timeout: 3).until do
         page.evaluate_script("Number(document.querySelector('.index-picker').dataset.indexPickerPerPageValue)") == per_page
       end
+      page.execute_script(
+        "document.querySelectorAll('.recent-card').forEach((card) => card.getAnimations().forEach((animation) => animation.finish()))"
+      )
       layout = page.evaluate_script <<~JS
         (() => {
           const discovery = document.querySelector(".index-console").getBoundingClientRect()
           const hero = document.querySelector(".hero").getBoundingClientRect()
+          const row = document.querySelector(".recent-row").getBoundingClientRect()
+          const stack = document.querySelector(".recent-stack").getBoundingClientRect()
+          const masterCards = [...document.querySelectorAll(".recent-card--master")]
+          const compactCards = [...document.querySelectorAll(".recent-stack .recent-card")]
+            .filter((card) => !card.hidden)
+          const masters = masterCards.map((card) => card.getBoundingClientRect())
+          const compacts = compactCards.map((card) => card.getBoundingClientRect())
+          const recentlyAdded = document.querySelector(".recent-stream__card").getBoundingClientRect()
+          const topLevel = [...masters, stack]
+          const compactGaps = compacts.flatMap((card, index) => compacts.slice(index + 1).map((other) => {
+            if (Math.abs(card.top - other.top) < 1) return Math.max(card.left, other.left) - Math.min(card.right, other.right)
+            if (Math.abs(card.left - other.left) < 1) return Math.max(card.top, other.top) - Math.min(card.bottom, other.bottom)
+            return null
+          })).filter((gap) => gap !== null && gap >= 0)
           return {
             cards: document.querySelectorAll(".index-picker__card").length,
             columns: getComputedStyle(document.querySelector(".index-picker__grid")).gridTemplateColumns.split(" ").length,
             wantedCards: [...document.querySelectorAll(".recent-card")]
               .filter((card) => getComputedStyle(card).display !== "none").length,
-            masters: document.querySelectorAll(".recent-card--master").length,
-            compactCards: document.querySelectorAll(".recent-stack .recent-card:not(.recent-card--master)").length,
+            masters: masterCards.length,
+            compactCards: compactCards.length,
+            masterSizes: masters.map((card) => ({ width: card.width, height: card.height })),
+            compactSizes: compacts.map((card) => ({ width: card.width, height: card.height })),
+            recentlyAddedSize: { width: recentlyAdded.width, height: recentlyAdded.height },
+            rowHeight: row.height,
+            stackHeight: stack.height,
+            topLevelGaps: topLevel.slice(1).map((column, index) => column.left - topLevel[index].right),
+            compactGaps,
+            centered: Math.abs((row.left + row.right) / 2 - (discovery.left + discovery.right) / 2),
             discoveryWidth: discovery.width,
             heroWidth: hero.width,
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -4731,9 +4970,18 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
       JS
       assert_equal per_page, layout["cards"], "card window at #{width}px"
       assert_equal columns, layout["columns"], "grid columns at #{width}px"
-      assert_equal 5, layout["wantedCards"], "Most Wanted cards at #{width}px"
+      assert_equal wanted_cards, layout["wantedCards"], "Most Wanted cards at #{width}px"
       assert_equal masters, layout["masters"], "Most Wanted master cards at #{width}px"
-      assert_equal 5 - masters, layout["compactCards"], "Most Wanted compact cards at #{width}px"
+      assert_equal 4, layout["compactCards"], "Most Wanted compact cards at #{width}px"
+      assert layout["masterSizes"].all? { |size| size["width"] <= 360.5 && (size["height"] - 310).abs <= 0.5 }
+      assert layout["compactSizes"].all? { |size| size["width"] >= layout.dig("recentlyAddedSize", "width") - 0.5 }
+      assert layout["compactSizes"].all? { |size| size["height"] >= layout.dig("recentlyAddedSize", "height") - 0.5 }
+      assert_in_delta 310, layout["rowHeight"], 0.5
+      assert_in_delta 310, layout["stackHeight"], 0.5
+      assert layout["topLevelGaps"].all? { |gap| (gap - 14).abs <= 0.5 }
+      assert layout["compactGaps"].all? { |gap| gap >= 13.5 }
+      assert_in_delta 14, layout["compactGaps"].min, 0.5
+      assert_in_delta 0, layout["centered"], 0.5
       assert_operator layout["discoveryWidth"], :>=, layout["heroWidth"]
       assert_equal 0, layout["overflow"]
     end
@@ -4866,6 +5114,8 @@ class IndexPickerSystemTest < ApplicationSystemTestCase
   end
 
   test "Browse cards use search borders and ANSI color 02 counters" do
+    visit root_path(sort: "name")
+    set_test_theme("tokyo-night")
     visit root_path(sort: "name")
 
     colors = page.evaluate_script <<~JS

@@ -15,6 +15,8 @@ class CopyButtonSystemTest < ApplicationSystemTestCase
     end
 
     visit plugin_path("acme", "weather")
+    set_test_theme("tokyo-night")
+    visit plugin_path("acme", "weather")
     surfaces = page.evaluate_script <<~JS
       (() => {
         const install = document.querySelector(".install-cmd")

@@ -59,7 +59,7 @@ class HomeController < ApplicationController
   }.freeze
 
   PER_PAGE = 9
-  MOST_WANTED_LIMIT = 5
+  MOST_WANTED_LIMIT = 8
   RECENT_STREAM_LIMIT = 12
   FILTER_TAGS = %w[security].freeze
   MOST_WANTED_ORDER = "week_downloads DESC, upvotes_count DESC, plugins.views_count DESC, plugins.downloads_count DESC".freeze

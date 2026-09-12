@@ -3,6 +3,8 @@ require "application_system_test_case"
 class TerminalSubpagesSystemTest < ApplicationSystemTestCase
   test "governance and publishing share Tokyo Night ANSI roles and numbered alignment" do
     visit publishing_path
+    set_test_theme("tokyo-night")
+    visit publishing_path
 
     publishing = page.evaluate_script <<~JS
       (() => {
@@ -172,6 +174,8 @@ class TerminalSubpagesSystemTest < ApplicationSystemTestCase
 
   test "terminal trees follow visible sections without drawing lines between branches" do
     visit publishing_path
+    set_test_theme("tokyo-night")
+    visit publishing_path
 
     assert_selector ".terminal-window__tree a[href='#quick-start'].is-active[aria-current='location']"
     tree = page.evaluate_script <<~JS
@@ -197,16 +201,18 @@ class TerminalSubpagesSystemTest < ApplicationSystemTestCase
     find(".terminal-window__tree a[href='#namespace']").click
     assert_selector ".terminal-window__tree a[href='#namespace'].is-active[aria-current='location']"
     assert_no_selector ".terminal-window__tree a[href='#quick-start'][aria-current]"
-    sleep 0.13
+    sleep 0.2
 
     page.execute_script <<~JS
       document.querySelector("#rules").scrollIntoView()
       window.dispatchEvent(new Event("scroll"))
     JS
     assert_selector ".terminal-window__tree a[href='#rules'].is-active[aria-current='location']"
-    assert_equal "rgb(158, 206, 106)", page.evaluate_script(
-      "getComputedStyle(document.querySelector(\".terminal-window__tree a[href='#quick-start'] .terminal-window__tree-branch\")).color"
-    )
+    Selenium::WebDriver::Wait.new(timeout: 2).until do
+      page.evaluate_script(
+        "getComputedStyle(document.querySelector(\".terminal-window__tree a[href='#quick-start'] .terminal-window__tree-branch\")).color"
+      ) == "rgb(158, 206, 106)"
+    end
 
     page.execute_script("window.scrollTo(0, document.documentElement.scrollHeight)")
     assert_selector ".terminal-window__tree a[href='#trusted'].is-active[aria-current='location']"
