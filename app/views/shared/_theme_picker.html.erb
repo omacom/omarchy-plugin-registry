@@ -1,21 +1,25 @@
 <%# The theme deck + first-run hint, ported from omarchy-site's ThemePicker.
     Hidden until opened (T key, header palette button, or footer link). %>
-<div data-controller="theme-picker" hidden>
-  <div class="omarchy-theme-overlay" aria-hidden="true" data-action="click->theme-picker#close"></div>
-  <div class="omarchy-theme-dialog" role="dialog" aria-modal="true" aria-label="Theme picker" tabindex="-1"
-       data-action="keydown->theme-picker#pickerKey">
-    <div class="omarchy-theme-deck" data-theme-picker-target="deck"></div>
-    <div class="omarchy-theme-spacer" aria-hidden="true"></div>
-    <button type="button" class="omarchy-theme-name" data-theme-picker-target="name"
-            data-action="click->theme-picker#choose"></button>
-    <button type="button" aria-label="Previous theme" class="omarchy-theme-arrow omarchy-theme-arrow--prev"
-            data-action="click->theme-picker#previous">
-      <%= render "shared/icon", name: "chevron-left" %>
-    </button>
-    <button type="button" aria-label="Next theme" class="omarchy-theme-arrow omarchy-theme-arrow--next"
-            data-action="click->theme-picker#next">
-      <%= render "shared/icon", name: "chevron-right" %>
-    </button>
+<div data-controller="theme-picker">
+  <div data-theme-picker-target="panel" hidden>
+    <div class="omarchy-theme-overlay" aria-hidden="true"></div>
+    <div class="omarchy-theme-dialog" role="dialog" aria-modal="true" aria-label="Theme picker" tabindex="-1"
+         data-action="pointerdown->theme-picker#swipeStart pointermove->theme-picker#swipeMove pointerup->theme-picker#swipeEnd pointercancel->theme-picker#swipeCancel click->theme-picker#swallowSwipe:capture">
+      <div class="omarchy-theme-dismiss" aria-hidden="true" data-action="click->theme-picker#dismiss"></div>
+      <div class="omarchy-theme-deck" data-theme-picker-target="deck">
+        <div class="omarchy-theme-spacer" aria-hidden="true"></div>
+      </div>
+      <button type="button" tabindex="-1" class="omarchy-theme-name" data-theme-picker-target="name"
+              data-action="click->theme-picker#choose"></button>
+      <button type="button" aria-label="Previous theme" class="omarchy-theme-arrow omarchy-theme-arrow--prev"
+              data-action="click->theme-picker#previous">
+        <%= render "shared/icon", name: "chevron-left" %>
+      </button>
+      <button type="button" aria-label="Next theme" class="omarchy-theme-arrow omarchy-theme-arrow--next"
+              data-action="click->theme-picker#next">
+        <%= render "shared/icon", name: "chevron-right" %>
+      </button>
+    </div>
   </div>
   <div class="omarchy-hint" role="status" data-theme-picker-target="hint" hidden>
     <div class="omarchy-hint__card">
