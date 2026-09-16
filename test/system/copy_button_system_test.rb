@@ -3,6 +3,20 @@ require "application_system_test_case"
 # The copy affordance runs real JavaScript (Clipboard API with a selection
 # fallback) — proven in a real headless Chrome, not stubbed.
 class CopyButtonSystemTest < ApplicationSystemTestCase
+  test "directory commands copy the selected package type" do
+    [ [ root_path, "plugin" ], [ themes_path, "theme" ] ].each do |path, type|
+      visit path
+      page.driver.browser.execute_cdp("Browser.grantPermissions", origin: page.current_url,
+        permissions: [ "clipboardReadWrite", "clipboardSanitizedWrite" ])
+      within(".hero__install") do
+        find("button.copy-button").click
+        assert_selector "button.copy-button--done"
+      end
+      copied = page.evaluate_async_script("navigator.clipboard.readText().then(arguments[0])")
+      assert_equal "omarchy #{type} add publisher/name", copied
+    end
+  end
+
   test "install command copies and confirms" do
     dev = User.create!(email_address: "dev@example.com", name: "Dev",
       otp_secret: ROTP::Base32.random, otp_enabled_at: Time.current)

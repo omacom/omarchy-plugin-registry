@@ -1,16 +1,16 @@
-<section class="hero" data-hero-sentinel>
+<section class="hero">
   <div class="container hero__inner">
     <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
     <% if @package_type == "theme" %>
-      <p class="page-subtitle">Community themes</p>
+      <h1 class="page-subtitle">Community themes</h1>
       <p class="hero__lede">Community palettes, scanned releases, and verified downloads — one command away.</p>
     <% else %>
-      <p class="page-subtitle">Plugin directory</p>
+      <h1 class="page-subtitle">Plugin directory</h1>
       <p class="hero__lede">Hosted, scanned, and revocable — every version is immutable, checksummed, and one
         command away. Discovery belongs on a web page. This is the web page.</p>
     <% end %>
-    <div class="hero__install">
-      <span class="prompt">$</span><span>omarchy <%= @package_type || "plugin" %> add <span class="prompt">publisher/name</span></span>
+    <div class="hero__install" data-controller="clipboard" data-clipboard-text-value="omarchy <%= @package_type || "plugin" %> add publisher/name">
+      <code><span class="prompt" aria-hidden="true">$</span> omarchy <%= @package_type || "plugin" %> add <span class="prompt">publisher/name</span></code>
       <%= render "shared/copy_button", label: "Copy install command", variant: "copy-button--inline" %>
     </div>
     <div class="hero__stats">
@@ -69,7 +69,7 @@
   </section>
 <% end %>
 
-<section class="directory container" data-controller="search-focus">
+<section class="directory container">
   <nav class="directory__filters" aria-label="Package type">
     <%= link_to "Everything", directory_path(package_type: nil), class: "chip #{'chip--active' unless @package_type}" %>
     <% Plugin::PACKAGE_TYPES.each do |type| %>
@@ -77,13 +77,16 @@
     <% end %>
   </nav>
   <%= form_with url: root_path, method: :get, class: "directory__bar" do %>
-    <input type="search" name="q" value="<%= @query %>"
-      placeholder="Search plugins… (try @publisher, tag:media, kind:bar)" aria-label="Search plugins"
-      data-search-focus-target="input" aria-keyshortcuts="Control+K">
+    <div class="directory__search">
+      <%= render "shared/icon", name: "search" %>
+      <input id="directory-search" type="search" name="q" value="<%= @query %>"
+        placeholder="Search plugins and themes…" aria-label="Search plugins and themes"
+        spellcheck="false" autocomplete="off" enterkeyhint="search" aria-keyshortcuts="Control+K Meta+K">
+      <kbd class="directory__kbd" aria-hidden="true">Ctrl K</kbd>
+    </div>
     <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
     <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
     <% if @package_type %><input type="hidden" name="package_type" value="<%= @package_type %>"><% end %>
-    <kbd class="directory__kbd" title="Focus search">Ctrl K</kbd>
     <div class="directory__sort">
       <% HomeController::SORTS.each_key do |sort| %>
         <%= link_to sort, directory_path(sort: (sort unless sort == "downloads")), class: ("active" if @sort == sort) %>
