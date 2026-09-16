@@ -23,17 +23,17 @@
 </section>
 
 <% if @popular&.any? %>
-  <section class="showcase" aria-label="Popular plugins">
+  <section class="showcase" aria-label="Popular <%= @package_type == 'theme' ? 'themes' : 'plugins' %>">
     <div class="container">
       <div class="showcase__head">
         <div>
-          <h2 class="showcase__title">A plugin for every dream, every desire</h2>
-          <p class="showcase__desc">Explore community plugins and themes for Omarchy.
+          <h2 class="showcase__title"><%= @package_type == "theme" ? "A theme for every mood" : "A plugin for every dream, every desire" %></h2>
+          <p class="showcase__desc">Explore community <%= @package_type == "theme" ? "themes" : "plugins and themes" %> for Omarchy.
             Don't find what you need?
             Just put your agent on the job, then share when done.</p>
         </div>
         <%= link_to directory_path(sort: "downloads"), class: "showcase__action" do %>
-          All plugins <span aria-hidden="true">→</span>
+          All <%= @package_type == "theme" ? "themes" : "plugins" %> <span aria-hidden="true">→</span>
         <% end %>
       </div>
       <div class="plugin-grid showcase__grid">
@@ -41,7 +41,7 @@
       </div>
       <div class="showcase__actions">
         <%= link_to directory_path(sort: "downloads"), class: "showcase__action", style: "display:inline-flex" do %>
-          All plugins <span aria-hidden="true">→</span>
+          All <%= @package_type == "theme" ? "themes" : "plugins" %> <span aria-hidden="true">→</span>
         <% end %>
       </div>
     </div>
@@ -49,7 +49,7 @@
 <% end %>
 
 <% if @recent&.any? %>
-  <section class="recent-band" aria-label="Recently added plugins">
+  <section class="recent-band" aria-label="Recently added <%= @package_type == 'theme' ? 'themes' : 'plugins' %>">
     <div class="container">
       <div class="recent-band__head">
         <p class="eyebrow">Recently added</p>
