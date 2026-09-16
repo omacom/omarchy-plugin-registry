@@ -9,11 +9,11 @@
     <button type="button" class="omarchy-theme-name" data-theme-picker-target="name"
             data-action="click->theme-picker#choose"></button>
     <button type="button" aria-label="Previous theme" class="omarchy-theme-arrow omarchy-theme-arrow--prev"
-            data-action="click->theme-picker#step" data-value="-1">
+            data-action="click->theme-picker#previous">
       <%= render "shared/icon", name: "chevron-left" %>
     </button>
     <button type="button" aria-label="Next theme" class="omarchy-theme-arrow omarchy-theme-arrow--next"
-            data-action="click->theme-picker#step" data-value="1">
+            data-action="click->theme-picker#next">
       <%= render "shared/icon", name: "chevron-right" %>
     </button>
   </div>

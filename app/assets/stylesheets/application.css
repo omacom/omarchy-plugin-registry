@@ -424,7 +424,7 @@ body > a[href="#main"]:focus { transform: none !important; background: var(--col
   outline: none; touch-action: none;
 }
 .omarchy-theme-deck { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; pointer-events: none; }
-.omarchy-theme-card { position: absolute; width: min(68vw, 46rem); }
+.omarchy-theme-card { position: absolute; top: 0; width: min(68vw, 46rem); }
 @media (min-width: 640px) {
   .omarchy-theme-card { width: min(72vw, 46rem); }
 }
@@ -432,7 +432,7 @@ body > a[href="#main"]:focus { transform: none !important; background: var(--col
 .omarchy-theme-card__frame { box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55); background: var(--color-brand); }
 .omarchy-theme-card__frame--back { background: #71717a; }
 .omarchy-theme-card__inner { background: #000; }
-.omarchy-theme-card__img { width: 100%; aspect-ratio: 1800 / 1012; object-fit: cover; user-select: none; }
+.omarchy-theme-card__img { width: 100%; height: auto; aspect-ratio: 1800 / 1012; object-fit: cover; user-select: none; }
 .omarchy-theme-spacer { visibility: hidden; width: min(68vw, 46rem); aspect-ratio: 1800 / 1012; }
 @media (min-width: 640px) {
   .omarchy-theme-spacer { width: min(72vw, 46rem); }

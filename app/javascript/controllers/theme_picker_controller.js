@@ -160,6 +160,14 @@ export default class extends Controller {
     this.paint()
   }
 
+  previous() {
+    this.step(-1)
+  }
+
+  next() {
+    this.step(1)
+  }
+
   go(event) {
     const at = Number(event.currentTarget.dataset.index)
     if (Number.isInteger(at)) {
