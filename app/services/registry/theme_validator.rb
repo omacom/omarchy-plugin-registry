@@ -5,7 +5,7 @@ module Registry
   # Keep this contract paired with Omarchy's theme validator and shared corpus.
   class ThemeValidator
     MAX_TEXT_BYTES = 64.kilobytes
-    IMAGE_PATH = %r{\A(?:backgrounds/[A-Za-z0-9][A-Za-z0-9._-]*|preview(?:-unlock)?|(?:lock|unlock|screensaver))\.(?:png|jpg|jpeg|webp|gif)\z}
+    IMAGE_PATH = %r{\A(?:backgrounds/[A-Za-z0-9][A-Za-z0-9._-]*|preview(?:[1-4]|-unlock)?|(?:lock|unlock|screensaver))\.(?:png|jpg|jpeg|webp|gif)\z}
     DOCUMENT_PATH = %r{\A(?:(?:README|LICENSE|LICENCE|COPYING|NOTICE|CHANGELOG)(?:[.-][A-Za-z0-9_-]+)*|docs/[A-Za-z0-9_./-]+\.md)\z}i
     KEY = /[a-z][a-z0-9_]*/
     COLOR = /#[0-9a-fA-F]{6}/

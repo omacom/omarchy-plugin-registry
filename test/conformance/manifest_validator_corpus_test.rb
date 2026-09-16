@@ -18,7 +18,13 @@ class ManifestValidatorCorpusTest < ActiveSupport::TestCase
       publisher = Publisher.new(name: "acme", kind: :org)
       files = kase["files"].transform_values(&:to_s)
       bytes = TarballBuilder.build(manifest: kase["manifest"], files: files)
-      tarball = Registry::TarballInspector.inspect_bytes(bytes)
+      begin
+        tarball = Registry::TarballInspector.inspect_bytes(bytes)
+      rescue Registry::TarballInspector::InvalidTarball => e
+        assert_equal "invalid", kase["expect"], e.message
+        assert_includes e.message, kase["reason"] if kase["reason"]
+        next
+      end
       validator = Registry::ManifestValidator.new(
         manifest: tarball.manifest, publisher: publisher, plugin_name: "weather", tarball: tarball)
 

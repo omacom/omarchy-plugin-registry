@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require_relative "../lib/registry/processor_server"
+
+role = ENV.fetch("REGISTRY_PROCESSOR_ROLE")
+abort "processor must be non-root" if Process.uid.zero?
+abort "app mounts are forbidden" if %w[/rails /witness /ai].any? { |path| File.exist?(path) }
+abort "app environment is forbidden" if %w[RAILS_MASTER_KEY SECRET_KEY_BASE REGISTRY_SIGNING_SEED R2_SECRET_ACCESS_KEY].any? { |key| ENV.key?(key) }
+if role == "ai"
+  require_relative "../lib/registry/ai_gateway"
+  health_check = -> { Registry::AiGateway.configuration }
+end
+Registry::ProcessorServer.new(role:, root: File.expand_path("..", __dir__), health_check:)
+  .serve("/run/processor/processor.sock", workers: role == "ai" ? 1 : 2)

@@ -33,14 +33,13 @@ class ReviewPipelineTest < ActionDispatch::IntegrationTest
     assert_equal [ "api.weather.com" ], version.capability_fingerprint["network"]
   end
 
-  test "test-file findings downgrade to notes; extensionless text still scans as code" do
-    # Fixture "attacks" inside tests/ are what test data looks like — recorded
-    # as notes, not quarantined.
+  test "test-file findings retain severity; extensionless text still scans as code" do
+    # A publisher controls path names. Test-looking paths are not a trust boundary.
     noted = publish! TarballBuilder.build(files: {
       "Widget.qml" => "import QtQuick\nItem {}\n",
       "tests/model.test.js" => "const fn = new Function(src)\nfetch(\"http://192.168.1.42\")\n" })
-    assert noted.published?, "test fixtures should release (#{noted.state}: #{noted.review_notes})"
-    assert_equal [ "note" ], noted.scan_results["findings"].map { |f| f["severity"] }.uniq
+    assert noted.quarantined?
+    assert_equal [ "flag" ], noted.scan_results["findings"].map { |f| f["severity"] }.uniq
 
     # An extensionless shebang-less text file is scanned as code, not blindly
     # flagged as a "binary payload" — real behavior in it still quarantines.

@@ -143,10 +143,13 @@ config switch to disable). On a hit for an installed plugin@version:
   verify sha256, install, and record the pin in the install receipt so
   `omarchy plugin update` skips it until the pin is removed. The site's
   per-version pages advertise this syntax.
-- Optional root preview: exactly one of `preview.png|jpg|jpeg|webp|gif`
-  (animated GIF allowed). The registry renders card/detail/share images from
-  it; a corrupt or format-mismatched preview fails the publish. Client-side
-  `omarchy-plugin-validate` should check the magic bytes match the extension.
+- Optional root screenshots: up to four slots named `preview1` through `preview4`,
+  with one `.png`, `.jpg`, `.jpeg`, `.webp` or `.gif` per slot. Legacy `preview`
+  aliases slot 1; duplicate slots and out-of-range numbers are rejected. Gaps
+  are allowed; numeric order determines the cover and gallery. Each image is
+  at most 10 MiB within the existing archive limit. Every image must pass the
+  server's isolated decoder; client validation checks slots, bytes and magic
+  without decoding. The browse API keeps `preview` and adds `screenshots`.
 
 ## Demotions at launch
 

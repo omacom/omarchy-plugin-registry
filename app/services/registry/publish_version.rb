@@ -170,10 +170,11 @@ module Registry
     # The preview is optional, but a broken one fails HERE — instant CLI
     # feedback — instead of freezing junk into an immutable release.
     def validate_preview!
-      return if tarball.preview_bytes.nil?
-      PreviewImage.validate!(tarball.preview_bytes, name: tarball.preview_name)
-    rescue PreviewImage::InvalidPreview => e
-      fail! e.message
+      tarball.previews.each do |name, bytes|
+        PreviewImage.validate!(bytes, name:)
+      rescue PreviewImage::InvalidPreview => e
+        fail! "#{name}: #{e.message}"
+      end
     end
 
     # Structural validation is synchronous (instant CLI feedback); everything

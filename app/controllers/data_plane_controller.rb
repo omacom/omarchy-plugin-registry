@@ -27,10 +27,9 @@ class DataPlaneController < ActionController::API
     served = serve("dl/#{params[:publisher]}/#{params[:plugin]}/#{filename}",
       type: "application/gzip", disposition: "attachment", filename: filename,
       expires: 1.year, immutable: true)
-    # Origin counting is a dev/small-scale convenience; production counts come
-    # from CDN log aggregation (config disables the synchronous DB writes an
-    # anonymous GET could otherwise hammer).
-    count_download(version) if served && Rails.application.config.x.count_origin_downloads
+    # Optional origin counting misses CDN cache hits. Deployments importing CDN
+    # logs should disable it to avoid double counting. HEAD probes are not downloads.
+    count_download(version) if served && request.get? && Rails.application.config.x.count_origin_downloads
   end
 
   private

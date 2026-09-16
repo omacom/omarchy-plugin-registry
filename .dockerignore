@@ -14,6 +14,9 @@
 /config/master.key
 /config/credentials/*.key
 
+# Git ignore rules do not apply to workspace Docker builds.
+/.kamal/
+
 # Ignore all logfiles and tempfiles.
 /log/*
 /tmp/*

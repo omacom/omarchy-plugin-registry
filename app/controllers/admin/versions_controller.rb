@@ -1,6 +1,10 @@
 module Admin
   class VersionsController < BaseController
     before_action :set_version
+    around_action :with_locked_version, only: %i[approve reject quarantine yank revoke]
+    rescue_from ArgumentError do |error|
+      redirect_to admin_root_path, alert: error.message
+    end
 
     # The inspection view behind every approval: exact bytes, full findings,
     # capability delta, file listing, and a diff of files vs the previous release.
@@ -38,9 +42,9 @@ module Admin
       hold = Rails.application.config.x.publish_hold
       # Approval provenance survives the delayed hold: the release job knows a
       # human reviewed these bytes and skips the credential-liveness veto
-      @version.update!(approved_at: Time.current, approved_by: Current.user)
+      @version.update!(approved_at: Time.current, approved_by: Current.user,
+        state: :held, hold_until: hold.to_i.positive? ? hold.from_now : Time.current)
       if hold.to_i.positive?
-        @version.update!(state: :held, hold_until: hold.from_now)
         Registry::ReleaseJob.set(wait_until: @version.hold_until).perform_later(@version)
         audit "version.approve", public: true
         redirect_to admin_root_path, notice: "Approved — releases when the hold window expires."
@@ -49,8 +53,6 @@ module Admin
         audit "version.approve", public: true
         regenerate_and_redirect "Approved and published."
       end
-    rescue ArgumentError => e
-      redirect_to admin_root_path, alert: e.message
     end
 
     # Legal admin transitions only: rejected/yanked are terminal for these
@@ -114,6 +116,13 @@ module Admin
     end
 
     private
+
+    # State checks, provenance, transition, and audit commit together. Reload
+    # under the same lock used by review/release; never act on an old page's
+    # state after another reviewer has rejected or revoked the version.
+    def with_locked_version(&action)
+      @version.with_lock(&action)
+    end
 
     def set_version
       @version = PluginVersion.find(params[:id])

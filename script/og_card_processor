@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+if File.directory?("/usr/local/bundle")
+  ENV["GEM_HOME"] ||= "/usr/local/bundle"
+  ENV["BUNDLE_PATH"] ||= "/usr/local/bundle"
+  ENV["BUNDLE_WITHOUT"] ||= "development"
+  ENV["BUNDLE_DEPLOYMENT"] ||= "1"
+end
+require "bundler/setup"
+require "json"
+require_relative "../lib/registry/og_card_processor"
+
+begin
+  raw = $stdin.read(14 * 1024 * 1024 + 1)
+  raise ArgumentError, "oversized input" if raw.bytesize > 14 * 1024 * 1024
+  request = JSON.parse(raw)
+  result = case request.fetch("kind")
+  when "plugin" then Registry::OgCardProcessor.plugin(request.fetch("data"))
+  when "site" then Registry::OgCardProcessor.site(request.fetch("data"))
+  else raise ArgumentError, "unsupported card kind"
+  end
+  $stdout.binmode.write(result)
+rescue StandardError
+  exit 1
+end

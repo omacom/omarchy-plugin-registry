@@ -16,16 +16,18 @@ module Registry
     RESERVED_NAMES = %w[.registry-receipt.json .local-origin.json].freeze
     MANIFEST_NAME = "manifest.json"
     README_CANDIDATES = %w[README.md readme.md README Readme.md].freeze
-    # Optional root preview image, first match wins in this order. Kept as full
-    # bytes (the 512KB scan window would truncate any real screenshot).
-    PREVIEW_CANDIDATES = %w[preview.png preview.jpg preview.jpeg preview.webp preview.gif].freeze
+    # Four ordered screenshot slots; the original `preview` is an alias for
+    # slot 1. Full bytes are retained, within a per-image and four-image cap.
+    PREVIEW_PATTERN = /\Apreview([1-4])?\.(png|jpg|jpeg|webp|gif)\z/
+    NUMBERED_PREVIEW_PATTERN = /\Apreview[0-9]+\.(png|jpg|jpeg|webp|gif)\z/
+    MAX_PREVIEW_BYTES = 10.megabytes
 
     # Per-file cap on content retained for scanning; larger files keep only
     # their first MAX_SCAN_BYTES (the scanner flags oversized/binary blobs anyway).
     MAX_SCAN_BYTES = 512.kilobytes
 
     attr_reader :manifest, :readme, :files, :contents, :digests, :truncated, :sha256, :size_bytes,
-      :preview_name, :preview_bytes, :payload_markers, :modes
+      :preview_name, :preview_bytes, :previews, :payload_markers, :modes, :sizes
 
     def self.inspect_bytes(bytes)
       new(bytes).tap(&:inspect!)
@@ -46,6 +48,7 @@ module Registry
       @contents = {}
       @payload_markers = {}
       @digests = {} # full-content SHA-256 per file — diffing must never rely on the truncated scan window
+      @sizes = {}
       @truncated = []
       @directories = Set.new
       manifest_json = nil
@@ -99,7 +102,17 @@ module Registry
         raise InvalidTarball, "reserved client metadata: #{path}" if RESERVED_NAMES.include?(path)
         raise InvalidTarball, "privileged file mode: #{path}" unless (entry.header.mode & 0o6000).zero?
         @modes[path] = entry.header.mode
+        preview_match = PREVIEW_PATTERN.match(path)
+        if NUMBERED_PREVIEW_PATTERN.match?(path) && !preview_match
+          raise InvalidTarball, "screenshots must use preview1 through preview4"
+        end
+        if preview_match
+          slot = (preview_match[1] || "1").to_i
+          raise InvalidTarball, "multiple preview images for slot #{slot}; use one format per slot (preview aliases preview1)" if previews.key?(slot)
+          raise InvalidTarball, "#{path} exceeds 10MB" if entry.header.size > MAX_PREVIEW_BYTES
+        end
         content = entry.read.to_s
+        @sizes[path] = content.bytesize
         @digests[path] = Digest::SHA256.hexdigest(content)
         @truncated << path if content.bytesize > MAX_SCAN_BYTES
         # Executable-payload markers over the FULL bytes, computed here because
@@ -113,7 +126,7 @@ module Registry
         @contents[path] = content.byteslice(0, MAX_SCAN_BYTES)
         manifest_json = content if path == MANIFEST_NAME
         readme_content ||= content.dup.force_encoding(Encoding::UTF_8) if README_CANDIDATES.include?(path)
-        previews[path] = content if PREVIEW_CANDIDATES.include?(path)
+        previews[slot] = [ path, content ] if preview_match
       end
 
       # A file whose path is also a directory prefix of another entry can't be
@@ -136,10 +149,8 @@ module Registry
         raise InvalidTarball, "unpacked size exceeds limit" if unpacked > MAX_UNPACKED_BYTES
       end
       @readme = readme_content&.valid_encoding? ? readme_content : nil
-      # Only one preview ships per plugin — a second candidate name is an
-      # ambiguity (which one did the author mean?), so refuse it outright.
-      raise InvalidTarball, "multiple preview images (#{previews.keys.sort.join(', ')}) — ship exactly one" if previews.size > 1
-      @preview_name, @preview_bytes = previews.first
+      @previews = previews.sort.map(&:last).to_h
+      @preview_name, @preview_bytes = @previews.first
       self
     rescue Zlib::Error, Gem::Package::TarInvalidError => e
       raise InvalidTarball, "not a valid gzipped tarball: #{e.message}"

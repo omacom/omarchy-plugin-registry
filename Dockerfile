@@ -57,8 +57,39 @@ RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
 
 
-# Final stage for app image
-FROM base
+# Dedicated processors contain no Rails app, credentials, databases or witness.
+# Docker's default seccomp/capability policy remains enabled; no nested sandbox.
+FROM base AS processor-base
+WORKDIR /processor
+RUN rmdir /rails && \
+    groupadd --system --gid 1000 processor && \
+    useradd --system --uid 1001 --gid 1000 processor && \
+    mkdir -p /run/processor && chown 1001:1000 /run/processor
+COPY --from=build /usr/local/bundle /usr/local/bundle
+COPY Gemfile Gemfile.lock ./
+COPY lib/registry/processor_protocol.rb lib/registry/processor_client.rb lib/registry/processor_server.rb lib/registry/untrusted_process.rb ./lib/registry/
+COPY script/processor_server ./script/
+USER 1001:1000
+ENTRYPOINT ["/processor/script/processor_server"]
+
+FROM processor-base AS processor-ai
+COPY lib/registry/ai_reviewer.rb lib/registry/ai_gateway.rb ./lib/registry/
+COPY script/ai_review_adapter ./script/
+ENV REGISTRY_PROCESSOR_ROLE="ai"
+
+FROM processor-base AS processor-media
+COPY lib/registry/preview_processor.rb lib/registry/og_card_processor.rb ./lib/registry/
+COPY script/preview_processor script/og_card_processor ./script/
+COPY vendor/fonts/*.ttf ./vendor/fonts/
+ENV REGISTRY_PROCESSOR_ROLE="media"
+
+FROM processor-base AS provider-gateway
+COPY lib/registry/provider_gateway.rb ./lib/registry/
+COPY script/provider_gateway ./script/
+ENTRYPOINT ["/processor/script/provider_gateway"]
+
+# Final/default stage remains the Rails app image.
+FROM base AS app
 
 # Run and own only the runtime files as a non-root user for security.
 # /witness pre-exists rails-owned so a named volume mounted there (the
@@ -69,9 +100,12 @@ RUN groupadd --system --gid 1000 rails && \
     mkdir /witness && chown rails:rails /witness
 USER 1000:1000
 
-# Copy built artifacts: gems, application
-COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
-COPY --chown=rails:rails --from=build /rails /rails
+# Dependencies and code stay root-owned; only runtime directories are writable.
+COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --from=build /rails /rails
+USER root
+RUN chown -R rails:rails /rails/storage /rails/tmp /rails/log /witness
+USER 1000:1000
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]

@@ -19,8 +19,8 @@ module Registry
                          .py .rules .install .rs .ts .tsx .lua .rb .go .c .cpp .cc .h .hpp
                          .service .timer .socket .jsonc .json5 .lock .license .xbm .vim .fish .nu .zsh .env .example .tmpl .template].freeze
 
-    # Benign asset types allowed through unscanned — but only when the content
-    # actually matches the claimed type. A script named icon.png is a payload.
+    # Asset types eligible for full-byte signature/marker checks instead of
+    # text rules. These checks reduce risk, not prove the bytes harmless.
     ASSET_MAGIC = {
       ".png" => [ "\x89PNG".b ],
       ".jpg" => [ "\xFF\xD8\xFF".b ],
@@ -64,15 +64,6 @@ module Registry
       api.telegram.org transfer.sh oshi.at temp.sh
     ].freeze
 
-    # Test suites ship in tarballs but are not entry points: their fixtures
-    # legitimately contain "evil" URLs, LAN IPs, `new Function(` module
-    # loaders, and curl-pipe examples — that is what test data looks like.
-    # FLAG findings there downgrade to NOTE: recorded and visible on the
-    # admin/plugin pages, never quarantine-triggering on their own. FAIL
-    # rules are never downgraded, and the capability fingerprint + AI review
-    # still cover test files in full.
-    TEST_PATH = %r{(?:\A|/)(?:tests?|spec|__tests__|testbed|fixtures?)/|(?:\A|/)test[_-][^/]*\z|[_.-]tests?\.[a-z]+\z|\.spec\.[a-z]+\z}i
-
     attr_reader :findings
 
     def initialize(tarball, plugin: nil)
@@ -89,16 +80,17 @@ module Registry
             text = text.scrub unless text.valid_encoding?
             # Docs legitimately carry RTL/formatting marks — they flag for a
             # human instead of auto-rejecting; CODE never needs them.
-            # manifest.json is described DATA (its text mentions what the
-            # plugin touches — that's the description, not behavior).
+            # The manifest also contains prose; it still gets behavior rules.
             docs = %w[.md .txt].include?(File.extname(path).downcase) ||
               DOC_FILENAMES.include?(File.basename(path, ".*").downcase) ||
               File.basename(path) == "manifest.json"
-            scan_file(path, text.delete_prefix("\uFEFF"), strict: !docs, doc: docs)
+            # Documentation can be loaded as code too. Its name only affects
+            # Unicode severity, never whether behavior rules run.
+            scan_file(path, text.delete_prefix("\uFEFF"), strict: !docs)
           else
             # Binary bytes hiding behind a code extension: pattern rules can't
             # see into it, so a human must.
-            findings << Finding.new("binary-in-text-extension", flag_or_note(path), path,
+            findings << Finding.new("binary-in-text-extension", :flag, path,
               "content is binary despite a #{File.extname(path)} extension")
           end
         elsif genuine_asset?(path, content)
@@ -125,7 +117,7 @@ module Registry
           scan_file(path, text.delete_prefix("\ufeff"))
         else
           # Genuinely unscannable non-asset bytes ship anyway \u2014 never unreviewed.
-          findings << Finding.new("binary-payload", flag_or_note(path), path,
+          findings << Finding.new("binary-payload", :flag, path,
             "file is not a scannable type or a recognizable asset (#{File.extname(path).presence || 'no extension'}); a human must look")
         end
       end
@@ -136,7 +128,7 @@ module Registry
       # normal case, not an anomaly.
       @tarball.truncated.each do |path|
         next if genuine_asset?(path, @tarball.contents[path])
-        findings << Finding.new("scan-truncated", flag_or_note(path), path,
+        findings << Finding.new("scan-truncated", :flag, path,
           "file exceeds the #{Registry::TarballInspector::MAX_SCAN_BYTES / 1.kilobyte}KB scan window \u2014 not fully analyzed")
       end
       scan_metadata
@@ -149,10 +141,14 @@ module Registry
       :pass
     end
 
-    def test_file?(path) = path.to_s.match?(TEST_PATH)
-
-    # Downgrade a would-be flag to an informational note inside test files.
-    def flag_or_note(path) = test_file?(path) ? :note : :flag
+    # These bytes received the full-byte asset checks; all other content must
+    # be reviewed as source or explicitly quarantined. Never trust an extension
+    # alone when deciding what the AI may omit.
+    def verified_assets
+      @tarball.files.select do |path|
+        genuine_asset?(path, @tarball.contents.fetch(path)) && Array(@tarball.payload_markers[path]).empty?
+      end
+    end
 
     private
 
@@ -202,16 +198,13 @@ module Registry
       false
     end
 
-    # doc: true limits scanning to the reviewer-deception rules — docs don't
-    # execute, so the behavior rules below would only flag their own install
-    # instructions. strict: false keeps prose from auto-rejecting on marks it
-    # may legitimately carry.
-    def scan_file(path, text, entropy: true, strict: true, doc: false)
+    # Every shipped text file receives behavioral checks, including docs and
+    # fixtures. False positives need judgment, not author-controlled exemptions.
+    def scan_file(path, text, entropy: true, strict: true)
       check path, text, "bidi-unicode", strict ? :fail : :flag, BIDI_UNICODE,
         "bidirectional override characters (code renders differently than it executes)"
       check path, text, "invisible-unicode", :flag, INVISIBLE_UNICODE,
         "zero-width or directional-mark Unicode characters (legitimate in i18n data, code-hiding in code)"
-      return if doc
       check path, text, "curl-pipe-shell", :flag, %r{\b(curl|wget)\b[^|\n;]*\|\s*(sudo\s+)?(?:/[\w/]*/)?(ba|z|da)?sh\b},
         "pipes a remote download straight into a shell"
       check path, text, "base64-decode-exec", :flag, /base64\s+(-d|--decode)[^\n]*\|\s*(sudo\s+)?\w*sh\b|eval.{0,40}base64|atob\s*\([^)]*\).{0,40}(eval|Function)/m,
@@ -268,7 +261,7 @@ module Registry
       stripped = text.gsub(%r{data:(?:image|font|audio|video)/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i, "")
       stripped.scan(/[A-Za-z0-9+\/=_-]{400,}/).each do |blob|
         next if entropy(blob) < 4.5
-        findings << Finding.new("obfuscation-entropy", flag_or_note(path), path,
+        findings << Finding.new("obfuscation-entropy", :flag, path,
           "high-entropy blob of #{blob.length} chars (possible packed payload)")
         break
       end
@@ -292,7 +285,6 @@ module Registry
 
     def check(path, text, rule, severity, pattern, detail)
       return unless (match = text.match(pattern))
-      severity = flag_or_note(path) if severity == :flag
       context = "#{match.pre_match.last(80)}#{match[0]}#{match.post_match.first(80)}"
       hint = context.match?(PATTERN_LITERAL_CONTEXT) ? " [match sits inside an apparent pattern literal — likely a detection signature, verify by eye]" : ""
       findings << Finding.new(rule, severity, path, "#{detail}: #{match[0].to_s.strip.first(80)}#{hint}")

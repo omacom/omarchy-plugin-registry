@@ -26,6 +26,11 @@ class Plugin < ApplicationRecord
   # (release, yank, takedown), never touched by in-review submissions.
   has_one_attached :preview_card
   has_one_attached :preview_detail
+  # Additional detail renditions, ordered by preview_meta rather than database
+  # attachment order. The existing cover attachments/API remain compatible.
+  has_many_attached :preview_screenshots
+
+  scope :with_previews, -> { with_attached_preview_card.with_attached_preview_detail.with_attached_preview_screenshots }
 
   # Grandfather escape for the seed importer ONLY: hundreds of legacy
   # marketplace plugins are named omarchy-* from before the reservation rule
@@ -56,7 +61,7 @@ class Plugin < ApplicationRecord
   # private to the publisher's members and admins until it actually clears —
   # an unreleased listing is noise to everyone else.
   scope :directory_visible, -> {
-    where.not(state: :security_holding).where.not(latest_version: nil)
+    where(state: :active).where.not(latest_version: nil)
   }
 
   # The manifest id installed clients use: today's dot-convention made a rule.
@@ -137,10 +142,28 @@ class Plugin < ApplicationRecord
 
   # Attachment + meta move together (RefreshPreviewJob) — but render only when
   # both actually landed, so a half-synced row degrades to the text card.
-  def preview? = preview_meta.present? && preview_card.attached?
+  def preview?
+    active? && latest_version.present? && preview_meta.present? &&
+      (preview_meta["version"].nil? || preview_meta["version"] == latest_version) && preview_card.attached?
+  end
   def preview_animated? = preview_meta["animated"] == true
   def preview_card_meta = preview_meta["card"] || {}
   def preview_detail_meta = preview_meta["detail"] || {}
+
+  def screenshot_previews
+    return [] unless preview?
+    unless preview_detail.attached?
+      return [ { image: preview_card, meta: preview_meta.merge("detail" => preview_card_meta) } ]
+    end
+
+    entries = [ { image: preview_detail, meta: preview_meta } ]
+    attachments = preview_screenshots.index_by { |image| image.filename.to_s }
+    Array(preview_meta["screenshots"]).each do |meta|
+      image = attachments[meta["detail_file"]]
+      entries << { image:, meta: } if image
+    end
+    entries
+  end
 
   def sync_preview_later
     Registry::RefreshPreviewJob.perform_later(self)

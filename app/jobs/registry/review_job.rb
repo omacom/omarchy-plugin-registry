@@ -4,6 +4,7 @@ module Registry
   # delta check -> AI review -> hold window -> live.
   class ReviewJob < ApplicationJob
     queue_as :review
+    discard_on ActiveJob::DeserializationError
     # One review per plugin at a time: concurrent reviews of back-to-back
     # submissions could both observe the same (or no) capability baseline.
     limits_concurrency to: 1, key: ->(version) { "review_plugin_#{version.plugin_id}" }
@@ -19,6 +20,7 @@ module Registry
       plugin = version.plugin
 
       tarball = TarballInspector.inspect_bytes(version.tarball.download)
+      raise TarballInspector::InvalidTarball, "tarball checksum mismatch at review" unless tarball.sha256 == version.sha256
 
       # 1. Deterministic scanning
       scanner = Scanner.new(tarball, plugin: plugin)
@@ -33,12 +35,16 @@ module Registry
       previous = version.review_baseline
       growth = CapabilityFingerprint.growth(previous&.capability_fingerprint, fingerprint)
 
-      # 3. AI review (escalate-only) — updates carry the file-level diff so the
-      # reviewer judges the change, not just the snapshot
-      changed_files = changed_files_since(previous, tarball) if AiReview.enabled?
-      ai = AiReview.review(version:, tarball:, fingerprint:, scan_findings: findings,
-        previous: previous, capability_growth: growth, changed_files: changed_files || [],
-        previous_contents: @previous_contents || {})
+      # 3. Advisory AI review of the current source. Updates also carry changed
+      # paths and explicitly partial previous-source context.
+      if scanner.verdict == :pass
+        changed_files = changed_files_since(previous, tarball) if AiReview.enabled?
+        ai = AiReview.review(version:, tarball:, fingerprint:, scan_findings: findings,
+          previous: previous, capability_growth: growth, changed_files: changed_files || [],
+          previous_contents: @previous_contents || {})
+      else
+        ai = AiReview::Result.new("skipped", [ "deterministic findings already require rejection or human review" ])
+      end
 
       # An admin may have rejected or security-held this version while the
       # scan ran — never overwrite a terminal state with a pipeline outcome.
@@ -48,48 +54,37 @@ module Registry
         version.update!(
           capability_fingerprint: fingerprint,
           scan_results: { "findings" => findings, "capability_growth" => growth,
-                          "ai" => { "verdict" => ai.verdict, "reasons" => ai.reasons } }
+                          "ai" => { "verdict" => ai.verdict, "reasons" => ai.reasons, "coverage" => ai.coverage } }
         )
 
-        # A seeded import whose EXACT commit carries passing legacy-marketplace
-        # evidence (automated baseline or maintainer attestation) was already
-        # reviewed and shipping to users before the migration. Honoring that
-        # evidence releases it on scanner FLAGS — the findings stay recorded
-        # for the page and any later human look. Deterministic FAILS still
-        # reject: our high-confidence rules outrank imported evidence.
-        trusted_seed = version.seed_verified?
-
+        # Legacy provenance is evidence for a HUMAN, never an exemption from
+        # current findings or the first-release gate.
         case
         when scanner.verdict == :fail
           reject!(version, findings)
-        when scanner.verdict == :flag && trusted_seed
-          version.update!(review_notes: "released on legacy-marketplace evidence; scanner findings recorded: #{findings.map { |f| f['rule'] }.uniq.join(', ')}")
-          hold_or_release(version)
         when scanner.verdict == :flag
           quarantine!(version, "scanner flagged: #{findings.map { |f| f['rule'] }.uniq.join(', ')}")
         when previous && growth.any?
           quarantine!(version, "capability surface grew: #{growth.join(', ')}")
         when ai.flagged?
           quarantine!(version, "ai review flagged: #{ai.reasons.join('; ').first(300)}")
-        when trusted_seed
-          # Evidence also covers the judgment gates below — the legacy review
-          # saw these exact bytes, capabilities included.
-          hold_or_release(version)
-        when previous.nil? && !AiReview.enabled? && !Rails.application.config.x.skip_first_release_gate
-          # First releases have no capability baseline; without the AI leg of
-          # the pipeline, someone must look before the first bytes go live.
-          quarantine!(version, "first release requires human review while AI review is disabled")
+        when previous.nil? && !Rails.application.config.x.skip_first_release_gate && (!plugin.theme? || !AiReview.enabled?)
+          quarantine!(version, "first release requires human review; AI cannot approve executable plugins")
         when (fingerprint["dynamic_exec"].present? || fingerprint["dynamic_network"].present?) &&
-             !AiReview.enabled? && !Rails.application.config.x.skip_first_release_gate
+             !Rails.application.config.x.skip_first_release_gate
           # Static analysis cannot see the VALUES flowing into a dynamic call
           # site — a variable can turn malicious with no textual change at the
           # site. Plugins containing dynamic execution/network therefore never
           # ride pure-deterministic auto-release: every version needs judgment
-          # (AI when enabled, a human otherwise). Literal commands avoid this.
+          # from a human, whether or not the advisory AI is enabled.
           quarantine!(version, "contains dynamic execution/network call sites — requires judgment review on every version")
         else
           hold_or_release(version)
         end
+      end
+    rescue TarballInspector::InvalidTarball, ActiveStorage::IntegrityError
+      version.with_lock do
+        quarantine!(version, "archive integrity or inspection failed; review could not complete") if version.processing?
       end
     end
 
@@ -116,8 +111,8 @@ module Registry
     # worm-speed propagation dies to a cheap delay.
     def hold_or_release(version)
       hold = Rails.application.config.x.publish_hold
-      # `held` marks "review passed" — the only pipeline state ReleaseVersion
-      # accepts besides an admin-released quarantine.
+      # `held` marks "review passed" — the only state ReleaseVersion accepts.
+      # Human approvals also enter held atomically with approval provenance.
       version.update!(state: :held, hold_until: hold.to_i.positive? ? hold.from_now : Time.current)
       if hold.to_i.positive?
         ReleaseJob.set(wait_until: version.hold_until).perform_later(version)

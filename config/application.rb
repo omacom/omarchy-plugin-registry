@@ -28,24 +28,31 @@ module OmarchyPluginRegistry
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
+    # Only our bounded processors decode media. Automatic attachment analysis
+    # or previews would re-open uploaded/derived images inside a Rails worker.
+    config.active_storage.analyzers = []
+    config.active_storage.previewers = []
+
     # Static data plane output (synced to object storage/CDN in production)
     config.x.data_plane_root = Rails.root.join("storage/data_plane")
     config.x.registry_base_url = ENV.fetch("REGISTRY_BASE_URL", "https://plugins.omarchy.org")
 
     # Publish hold window: a delay before a review-clean version goes live.
-    # Off by default — the deterministic scan + AI review are the security
+    # Off by default — deterministic scans + required human review are security
     # gates, and per-plugin submission quotas throttle abuse; a bare timer with
     # nothing watching it only delays honest publishes. Re-enable per incident
     # by setting PUBLISH_HOLD_SECONDS (it becomes the trigger surface for
     # automatic anomaly checks if we add them).
     config.x.publish_hold = ENV.fetch("PUBLISH_HOLD_SECONDS", "0").to_i.seconds
 
-    # Shell command for LLM review of submissions (reads JSON on stdin, prints
-    # {"verdict":..., "reasons":[...]}). Unset = AI review disabled.
+    # Advisory LLM review (JSON in/out, including exact-archive coverage).
+    # Production accepts only /rails/script/ai_review_adapter, sandboxed.
+    # Development/test may use trusted fixture commands. Unset = disabled.
     config.x.ai_review_command = ENV["AI_REVIEW_COMMAND"]
 
-    # First releases quarantine for a human when AI review is off; dev/test
-    # opt out so local publishing stays frictionless.
+    # First executable releases and every version with dynamic call sites need
+    # human judgment regardless of AI. First themes need it when AI is off.
+    # Development/test explicitly opt out for local publishing.
     config.x.skip_first_release_gate = false
 
     # Static JWKS override for OIDC trusted publishing (tests inject one;

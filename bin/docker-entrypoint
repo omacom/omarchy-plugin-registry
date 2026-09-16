@@ -1,5 +1,13 @@
 #!/bin/bash -e
 
+# Refuse to boot a production service with nonfunctional processor isolation.
+# This runs before migrations and never reads provider credentials or uploads.
+if [[ "${RAILS_ENV:-}" == "production" ]]; then
+  if [[ "${@: -1:1}" == "server" || "${1##*/}" == "jobs" ]]; then
+    ./script/check_processor_sandbox
+  fi
+fi
+
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare

@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Run in the app image with the two read-only processor socket volumes mounted.
+# No Rails boot, database, credential reads, model requests, or package code.
+# Docker's actual isolation policy is checked by check_processor_containers.
+require "bundler/setup"
+require "active_support/all"
+require "pathname"
+require "json"
+require_relative "../lib/registry/processor_client"
+
+root = Pathname.new(File.expand_path("..", __dir__))
+
+begin
+  raise "deployment files entered the image" if root.join(".kamal").exist? || root.join("config/master.key").exist?
+  %w[script/ai_review_adapter script/preview_processor script/og_card_processor Gemfile.lock].each do |path|
+    raise "processor code must be root-owned and read-only to the runtime user" if root.join(path).stat.uid != 0 || root.join(path).writable?
+  end
+  %w[ai media].each do |role|
+    result = Registry::ProcessorClient.health(role)
+    raise "wrong processor service/protocol" unless result == { "protocol" => Registry::ProcessorProtocol::VERSION, "role" => role }
+    puts "#{role}: processor service ready"
+  end
+
+  # A synthetic two-pixel PNG. Never supplied by a publisher.
+  png = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAAAAABX3VL4AAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAABAAAAGgEFAAEAAABWAAAAGwEFAAEAAABeAAAAKAEDAAEAAAACAAAAEwIDAAEAAAABAAAAaYcEAAEAAABmAAAAAAAAADhjAADoAwAAOGMAAOgDAAAGAACQBwAEAAAAMDIxMAGRBwAEAAAAAQIDAACgBwAEAAAAMDEwMAGgAwABAAAA//8AAAKgBAABAAAAAgAAAAOgBAABAAAAAgAAAAAAAAAIZwAFAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAC0lEQVQImWNgAAEAAAYAAeaH/n8AAAAASUVORK5CYII="
+  preview = Registry::ProcessorClient.call(:preview,
+    JSON.generate({ action: "process", name: "preview.png", bytes: png }), max_output_bytes: 1.megabyte)
+  raise "preview round trip failed" unless JSON.parse(preview)["valid"] == true
+  puts "preview: synthetic image round trip OK"
+
+  card = Registry::ProcessorClient.call(:og, JSON.generate({ kind: "site", data: { stats_line: "Sandbox check" } }))
+  raise "social card round trip failed" unless card.b.start_with?("\x89PNG\r\n\x1a\n".b)
+  puts "og: synthetic card round trip OK"
+rescue StandardError => e
+  warn "FAIL: #{e.message}. Do not deploy until processor isolation works under the intended runtime policy."
+  exit 1
+end

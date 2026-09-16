@@ -1,0 +1,92 @@
+name: omarchy-registry-processors
+
+x-hardened: &hardened
+  user: "1001:1000"
+  read_only: true
+  init: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 64
+  mem_limit: 2g
+  cpus: 2
+  ulimits:
+    core: 0
+    nofile: 256
+  restart: unless-stopped
+  tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777"]
+  logging:
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "2"
+
+services:
+  media:
+    <<: *hardened
+    image: "${REGISTRY_PROCESSOR_IMAGE_PREFIX:-omarchy-registry-processor}-media:${REGISTRY_PROCESSOR_TAG:?set an immutable release tag}"
+    build:
+      context: ..
+      target: processor-media
+    network_mode: none
+    volumes: ["media_socket:/run/processor"]
+
+  ai:
+    <<: *hardened
+    image: "${REGISTRY_PROCESSOR_IMAGE_PREFIX:-omarchy-registry-processor}-ai:${REGISTRY_PROCESSOR_TAG:?set an immutable release tag}"
+    build:
+      context: ..
+      target: processor-ai
+    networks: [provider_link]
+    # Docker resolves its service aliases itself; external DNS forwarding has
+    # no resolver here. The only reachable service is the fixed gateway.
+    dns: [127.0.0.1]
+    volumes: ["ai_socket:/run/processor"]
+    depends_on: [gateway]
+
+  gateway:
+    <<: *hardened
+    image: "${REGISTRY_PROCESSOR_IMAGE_PREFIX:-omarchy-registry-processor}-gateway:${REGISTRY_PROCESSOR_TAG:?set an immutable release tag}"
+    build:
+      context: ..
+      target: provider-gateway
+    mem_limit: 256m
+    networks:
+      provider_link:
+        aliases: [registry-ai-gateway]
+      provider_egress: {}
+    environment:
+      REGISTRY_ALLOW_HTTP_MODEL: "${REGISTRY_ALLOW_HTTP_MODEL:-0}"
+    volumes:
+      - type: bind
+        source: "${REGISTRY_AI_CONFIG_DIR:-/opt/registry-ai}"
+        target: /ai
+        read_only: true
+        bind:
+          create_host_path: false
+    # No published ports; not joined to the app/Kamal network.
+
+networks:
+  provider_link:
+    internal: true
+    enable_ipv6: false
+    driver_opts:
+      # Requires Docker's isolated bridge gateway mode: an ordinary internal
+      # bridge still gives the host an address reachable by its containers.
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  provider_egress: {}
+
+volumes:
+  ai_socket:
+    name: "${REGISTRY_PROCESSOR_VOLUME_PREFIX:-omarchy_registry_processor}_ai"
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=1m,uid=1001,gid=1000,mode=0750,nosuid,nodev,noexec"
+  media_socket:
+    name: "${REGISTRY_PROCESSOR_VOLUME_PREFIX:-omarchy_registry_processor}_media"
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=1m,uid=1001,gid=1000,mode=0750,nosuid,nodev,noexec"

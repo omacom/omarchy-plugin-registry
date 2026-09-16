@@ -1,0 +1,25 @@
+{
+  "name": "theme_screenshots",
+  "expect": "valid",
+  "manifest": {
+    "schemaVersion": 1,
+    "packageType": "theme",
+    "id": "acme.weather",
+    "name": "Weather",
+    "version": "1.0.0",
+    "kinds": [
+      "theme"
+    ],
+    "entryPoints": {
+      "theme": "colors.toml"
+    },
+    "license": "MIT"
+  },
+  "files": {
+    "colors.toml": "accent = \"#112233\"\nbackground = \"#112233\"\nforeground = \"#112233\"\nred = \"#112233\"\ngreen = \"#112233\"\nyellow = \"#112233\"\nblue = \"#112233\"\nmagenta = \"#112233\"\ncyan = \"#112233\"\n",
+    "preview4.gif": "GIF89a",
+    "preview2.gif": "GIF89a",
+    "preview1.gif": "GIF89a",
+    "preview3.gif": "GIF89a"
+  }
+}

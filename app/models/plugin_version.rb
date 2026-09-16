@@ -82,8 +82,8 @@ class PluginVersion < ApplicationRecord
 
   # True when the seeded snapshot's EXACT commit carried passing legacy
   # verification (automated baseline or maintainer attestation). Gated on the
-  # system seed identity so ordinary publishes can't smuggle trust in via
-  # provenance.
+  # system seed identity. Display evidence only, never permission to skip or
+  # override the current review pipeline.
   def seed_verified?
     user&.system? && provenance&.dig("legacy", "verified") == true
   end

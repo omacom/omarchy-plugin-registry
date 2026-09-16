@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "puma"
+require_relative "../lib/registry/provider_gateway"
+
+abort "gateway must be non-root" if Process.uid.zero?
+abort "app mounts are forbidden" if %w[/rails /witness].any? { |path| File.exist?(path) }
+begin
+  app = Registry::ProviderGateway.from_directory(allow_http: ENV["REGISTRY_ALLOW_HTTP_MODEL"] == "1")
+rescue StandardError
+  abort "invalid provider configuration; credentials were not logged"
+end
+server = Puma::Server.new(app, Puma::Events.new, { min_threads: 0, max_threads: 2, http_content_length_limit: Registry::ProviderGateway::MAX_REQUEST,
+                                               first_data_timeout: 10, persistent_timeout: 5 })
+server.add_tcp_listener("0.0.0.0", 8080)
+server.run.join
