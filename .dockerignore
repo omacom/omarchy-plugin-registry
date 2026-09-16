@@ -12,6 +12,9 @@
 
 # Ignore all default key files.
 /config/master.key
+/config/credentials.yml.enc
+/config/credentials/
+/config/deploy.yml
 /config/credentials/*.key
 
 # Git ignore rules do not apply to workspace Docker builds.

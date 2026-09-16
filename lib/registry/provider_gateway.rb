@@ -11,11 +11,20 @@ module Registry
     MAX_RESPONSE = 1024**2
 
     def self.from_directory(path = "/ai", allow_http: false)
-      values = %w[openai_key anthropic_key base_url model effort chunk_chars].to_h do |name|
+      values = %w[openrouter_key openai_key anthropic_key base_url model effort chunk_chars].to_h do |name|
         file = File.join(path, name)
         value = File.file?(file) ? File.read(file, 8193).strip : nil
         raise ArgumentError, "oversized provider configuration" if value && value.bytesize > 8192
         [ name, value.to_s.empty? ? nil : value ]
+      end
+      if values["openrouter_key"]
+        # OpenRouter uses the OpenAI wire format. Its key is never sent to a
+        # stale local-model base_url left over from another deployment.
+        raise ArgumentError, "OpenRouter cannot be combined with another provider" if
+          %w[openai_key anthropic_key base_url].any? { |name| values[name] }
+        return new(provider: "openrouter", endpoint: "https://openrouter.ai/api/v1", key: values["openrouter_key"],
+          model: values["model"] || "meta/muse-spark-1.3-contributor", effort: values["effort"] || "high",
+          chunk_chars: Integer(values["chunk_chars"] || 120_000))
       end
       provider = values["openai_key"] || values["base_url"] ? "openai" : "anthropic"
       key = provider == "openai" ? values["openai_key"] || ("local" if values["base_url"]) : values["anthropic_key"]
@@ -25,15 +34,15 @@ module Registry
     end
 
     def initialize(provider:, endpoint:, key:, model:, effort: "high", chunk_chars: 120_000, allow_http: false)
-      raise ArgumentError, "invalid provider configuration" unless %w[openai anthropic].include?(provider) && key && !key.empty?
+      raise ArgumentError, "invalid provider configuration" unless %w[openai anthropic openrouter].include?(provider) && key && !key.empty?
       @uri = URI.parse(endpoint)
       unless @uri.is_a?(URI::HTTP) && @uri.host && (@uri.scheme == "https" || allow_http) && !@uri.userinfo && !@uri.query && !@uri.fragment
         raise ArgumentError, "provider endpoint requires HTTPS (HTTP needs explicit operator opt-in)"
       end
       raise ArgumentError, "invalid review budget" unless chunk_chars.between?(1024, 120_000)
       @provider, @key, @model = provider, key, model
-      @config = { provider:, model:, effort:, chunk_chars: }
-      @leaf = provider == "openai" ? "chat/completions" : "messages"
+      @config = { provider: provider == "openrouter" ? "openai" : provider, model:, effort:, chunk_chars: }
+      @leaf = provider == "anthropic" ? "messages" : "chat/completions"
     end
 
     def call(env)
@@ -48,7 +57,7 @@ module Registry
       return response(413, '{"error":"request too large"}') if raw.bytesize > MAX_REQUEST
       body = JSON.parse(raw)
       unless body.is_a?(Hash) && body["model"] == @model && body["messages"].is_a?(Array) &&
-          !body["stream"] && (body.keys & %w[tools tool_choice functions function_call]).empty?
+          !body["stream"] && (body.keys & %w[tools tool_choice functions function_call plugins models route provider]).empty?
         return response(422, '{"error":"unsupported review request"}')
       end
       response(200, forward(raw))
@@ -69,7 +78,7 @@ module Registry
       http.write_timeout = 30
       request = Net::HTTP::Post.new("#{@uri.path.delete_suffix('/')}/#{@leaf}")
       request["Content-Type"] = "application/json"
-      if @provider == "openai"
+      if @provider != "anthropic"
         request["Authorization"] = "Bearer #{@key}"
       else
         request["x-api-key"] = @key

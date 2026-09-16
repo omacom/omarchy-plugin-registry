@@ -26,10 +26,20 @@ Rails.application.configure do
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
-  # Store uploaded files on the local file system (see config/storage.yml for options).
-  # Cloudflare R2 when credentials are configured (tarball originals survive
-  # loss of the app volume); local disk otherwise. See docs/deploy.md.
-  config.active_storage.service = ENV["R2_ACCESS_KEY_ID"].present? ? :cloudflare : :local
+  # Production must select storage deliberately. Never silently put uploads
+  # on the app disk because one R2 setting was omitted. Asset builds need no
+  # runtime credentials; explicitly self-hosted installs may select local.
+  storage_service = ENV.fetch("ACTIVE_STORAGE_SERVICE", ENV["SECRET_KEY_BASE_DUMMY"].present? ? "local" : "cloudflare")
+  raise "ACTIVE_STORAGE_SERVICE must be cloudflare or local" unless %w[cloudflare local].include?(storage_service)
+  if storage_service == "cloudflare"
+    missing = %w[R2_ENDPOINT R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY].select { |name| ENV[name].blank? }
+    raise "Missing production storage settings: #{missing.join(', ')}" if missing.any?
+    endpoint = URI.parse(ENV.fetch("R2_ENDPOINT"))
+    unless endpoint.is_a?(URI::HTTPS) && endpoint.host && !endpoint.userinfo && !endpoint.query && !endpoint.fragment
+      raise "R2_ENDPOINT must be an HTTPS endpoint without credentials, query or fragment"
+    end
+  end
+  config.active_storage.service = storage_service.to_sym
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
   config.assume_ssl = true

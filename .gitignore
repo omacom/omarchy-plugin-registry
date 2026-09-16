@@ -32,6 +32,9 @@
 
 # Ignore key files for decrypting credentials and more.
 /config/*.key
+/config/credentials.yml.enc
+/config/credentials/
+/config/deploy.yml
 
 # Local deploy secrets: TLS cert/key, signing seed, registry password.
 /.kamal/local/

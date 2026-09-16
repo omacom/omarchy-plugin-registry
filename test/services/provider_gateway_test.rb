@@ -70,6 +70,52 @@ class ProviderGatewayTest < ActiveSupport::TestCase
     end
   end
 
+  test "OpenRouter configuration selects Muse and never exposes its key" do
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, "openrouter_key"), "synthetic-openrouter-key\n")
+      relay = Registry::ProviderGateway.from_directory(directory)
+      status, _, body = relay.call(request(method: "GET", path: "/configuration"))
+      assert_equal 200, status
+      settings = JSON.parse(body.join)
+      assert_equal "openai", settings["provider"]
+      assert_equal "meta/muse-spark-1.3-contributor", settings["model"]
+      assert_not_includes body.join, "synthetic-openrouter-key"
+      assert_not_includes body.join, "https://openrouter.ai"
+
+      File.write(File.join(directory, "model"), "explicit-model")
+      relay = Registry::ProviderGateway.from_directory(directory)
+      assert_equal "explicit-model", JSON.parse(relay.call(request(method: "GET", path: "/configuration")).last.join)["model"]
+    end
+  end
+
+  test "OpenRouter refuses stale endpoint or other provider credentials" do
+    %w[base_url openai_key anthropic_key].each do |name|
+      Dir.mktmpdir do |directory|
+        File.write(File.join(directory, "openrouter_key"), "synthetic-openrouter-key")
+        File.write(File.join(directory, name), "stale-provider-setting")
+        assert_raises(ArgumentError) { Registry::ProviderGateway.from_directory(directory) }
+      end
+    end
+  end
+
+  test "OpenRouter relay uses its API path and server-owned bearer key" do
+    with_upstream do |port, received|
+      relay = gateway(provider: "openrouter", endpoint: "http://127.0.0.1:#{port}/api/v1", allow_http: true)
+      assert_equal 200, relay.call(request).first
+      headers = received.pop
+      assert_match(/POST \/api\/v1\/chat\/completions /, headers)
+      assert_match(/Authorization: Bearer synthetic-key/i, headers)
+      refute_match(/X-Api-Key:/i, headers)
+    end
+  end
+
+  test "review requests cannot enable OpenRouter plugins or change routing" do
+    %w[plugins models route provider].each do |field|
+      body = { model: "fixture-model", messages: [], field => [] }
+      assert_equal 422, gateway.call(request(body:)).first
+    end
+  end
+
   private
 
   def with_upstream(status: "200 OK")
