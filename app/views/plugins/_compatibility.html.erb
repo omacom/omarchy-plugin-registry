@@ -1,11 +1,27 @@
-<%# locals: (version:, assessments:) %>
-<section>
-  <h2>Version compatibility</h2>
-  <% if version.manifest["compatibility"].present? %><p>Author requirements: <code><%= version.manifest["compatibility"].to_json %></code></p><% end %>
-  <p>Unknown means untested, not incompatible. Three independent problem reports raise a warning; only an audited confirmation blocks this release on the affected Omarchy build.</p>
-  <table class="table"><thead><tr><th>Omarchy version / build</th><th>Evidence</th></tr></thead><tbody>
-    <% assessments.each do |assessment| %><tr><td><%= assessment.omarchy_release.label %></td><td><%= link_to assessment.status.humanize, compatibility_path(assessment) %></td></tr><% end %>
-  </tbody></table>
-  <% if assessments.empty? %><p>Unknown — no compatibility evidence yet.</p><% end %>
-  <p><%= link_to "Works for me / report a problem", new_compatibility_report_path(publisher: version.plugin.publisher.name, name: version.plugin.name, version: version.version) %></p>
+<%# locals: (version:, assessments:, releases:, counts:) %>
+<section class="compatibility-panel" id="compatibility">
+  <h2>Omarchy compatibility</h2>
+  <p class="muted">For <%= version.plugin.package_type %> version <%= version.version %></p>
+  <p><strong>Author requirements:</strong> <%= compatibility_requirements(version) %></p>
+  <% by_release = assessments.index_by(&:omarchy_release_id) %>
+  <% targets = (releases.to_a + assessments.map(&:omarchy_release)).uniq(&:id).sort_by { |release| [Semver.parse(release.version).sort_key, release.build] }.reverse %>
+  <% if targets.any? %>
+    <ul class="compatibility-panel__targets">
+      <% targets.each do |release| %>
+        <% assessment = by_release[release.id] %>
+        <li>
+          <div><strong>Omarchy <%= release.version %></strong>
+            <% if release.build.present? %><span class="muted compatibility-panel__build">Build <%= release.build %></span><% end %>
+            <% if outside_compatibility_range?(version, release) %><span class="compatibility-panel__outside">Outside the author's supported range</span><% end %>
+          </div>
+          <div><% if assessment %><%= link_to compatibility_evidence_label(assessment, counts: counts[assessment.id]), compatibility_path(assessment) %>
+            <% else %><span class="muted">No reports yet</span><% end %></div>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="muted">No compatibility reports yet. Omarchy release targets are being added.</p>
+  <% end %>
+  <p class="muted">Author requirements and community reports are separate. A security review does not establish runtime compatibility.</p>
+  <p><%= link_to "Works for me / report a problem", new_compatibility_report_path(publisher: version.plugin.publisher.name, name: version.plugin.name, version: version.version), class: "button button--small" %></p>
 </section>

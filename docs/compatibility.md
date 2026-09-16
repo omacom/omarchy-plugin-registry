@@ -2,6 +2,8 @@
 
 Plugins and themes use the same policy. Author requirements describe supported versions and APIs; observed evidence describes one exact package archive on one exact Omarchy version/build. Ratings remain separate. A successful security scan does not prove compatibility, and neither scanning nor compatibility checks guarantee that a package is safe in every environment.
 
+The website supports both package types. The install/upgrade enforcement described below belongs to the companion client integration and is not yet shipped in stock Omarchy. Website reports can target verified official package versions; automatic client reporting additionally requires its detected version/build to agree with those identities. Some upstream packages retain a stale internal `version` file, so verify `.PKGINFO` and reconcile client detection before enabling enforcement. A catalog entry alone does not attest that a package works.
+
 ## Author contract
 
 ```json
@@ -16,7 +18,7 @@ Plugins and themes use the same policy. Author requirements describe supported v
 }
 ```
 
-`schemaVersion` versions manifest syntax. `compatibility.apiVersion` versions the theme or plugin runtime contract independently. It is an integer between 1 and 10000, not an Omarchy release number. Omarchy ships its supported API arrays in `default/omarchy/package-apis.json`; add a new API when changing the package contract and retain older APIs only when the implementation genuinely supports them.
+`schemaVersion` versions manifest syntax. `compatibility.apiVersion` versions the theme or plugin runtime contract independently. It is an integer between 1 and 10000, not an Omarchy release number. The companion Omarchy integration defines supported API arrays in `default/omarchy/package-apis.json`; add a new API when changing the package contract and retain older APIs only when the implementation genuinely supports them.
 
 Minimum is inclusive, maximum exclusive. Both are optional strict semver strings, bounded to 64 characters with numeric components of at most ten digits. Build metadata is ignored for precedence. Unknown fields, conflicting minimum declarations, inverted ranges and noninteger API versions are rejected by both registry and client. This is deliberately not a general range-expression language.
 
@@ -39,7 +41,9 @@ Reports are keyed by package version/SHA plus a cataloged Omarchy version/build.
 
 Positive reports and passing checks cannot override a confirmed decision. Publisher **owners** may acknowledge incompatibility; only moderators can clear a confirmed block. Both actions require fresh MFA, no sensitive-change cooldown, a reason/reproduction summary and a public audit event. A failure can be an Omarchy regression rather than a package bug. Clearing the decision does not erase unresolved reports or failed checks.
 
-The public version page and JSON expose evidence and links. Reproduction details are escaped text, bounded to 4000 characters, visible only to the publishing team and moderators. The CLI opens a prefilled report page from the receipt or clone provenance; it sends no logs or diagnostics automatically. Report pages and private inboxes are not cacheable.
+The main package page and individual version pages show human-readable author bounds alongside exact-release community evidence. Bounds are declarations, not certification; targets outside the declared range are labeled explicitly. Public JSON carries the same assessments and links.
+
+New reports create a linked community comment identifying the package version and Omarchy version/build. An optional public comment is bounded to 2000 characters; otherwise only a generic outcome is posted. Edits update the same comment and preserve moderation hides. Private reproduction details are escaped text, bounded to 4000 characters, visible only to the publishing team and moderators; they are never copied into comments. A problem must have a public description or private reproduction details. Historical private reports are not backfilled into public comments. The CLI opens a prefilled report page from the receipt or clone provenance; it sends no logs or diagnostics automatically. Report pages and private inboxes are not cacheable.
 
 ## Creator alerts
 

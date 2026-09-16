@@ -58,6 +58,23 @@ $ omarchy theme publish ./omarchy-night-theme</pre>
     <p>The raw upload endpoint is <code>/api/v1/themes/you/night/versions</code>.
       Device login and trusted-publishing tokens work for both package types.</p>
 
+    <h2>Declare Omarchy compatibility</h2>
+    <p>Plugins and themes use the same optional compatibility declaration in <code>manifest.json</code>:</p>
+    <pre>"compatibility": {
+  "apiVersion": 1,
+  "minOmarchyVersion": "4.0.4",
+  "maxOmarchyVersionExclusive": "5.0.0"
+}</pre>
+    <p>This example requires Omarchy 4.0.4 or newer, before 5.0.0. Declare only the
+      range your package supports. Requirements are shown separately from community
+      reports; passing security review does not establish runtime compatibility.</p>
+    <p>Users can report working or broken behavior for an exact package release and
+      Omarchy version/build. Reports appear as linked community comments, with
+      separate private reproduction details. Problem reports notify the publishing
+      team. Three independent reports raise a warning; a creator or moderator must
+      confirm incompatibility before the companion client blocks installation on the affected build.
+      Client enforcement requires that integration; it is not yet part of stock Omarchy.</p>
+
     <h2>Customize a release</h2>
     <pre>$ omarchy plugin clone you/weather
 $ omarchy theme clone you.night my-night --apply</pre>

@@ -7,6 +7,7 @@
   <% if @assessment.reason.present? %><p><%= @assessment.reason %></p><% end %>
   <p><%= link_to "Works for me / report a problem", new_compatibility_report_path(publisher: @version.plugin.publisher.name, name: @version.plugin.name, version: @version.version, omarchy_version: @assessment.omarchy_release.version, omarchy_build: @assessment.omarchy_release.build) %></p>
   <p><%= link_to "Package releases and alternatives", package_path(@version.plugin) %> · <%= link_to "Public decision audit", audit_log_path %></p>
+  <p><%= link_to "Community discussion", "#{package_path(@version.plugin)}#community" %></p>
   <% if @privileged %>
     <section>
       <h2>Private evidence</h2>

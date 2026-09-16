@@ -25,6 +25,7 @@ json.plugin do
         json.capabilities nil
       end
       json.provenance @latest.provenance.presence
+      json.compatibility_assessments @compatibility_entries
     end
   else
     json.latest nil
@@ -40,6 +41,17 @@ json.plugin do
     json.id comment.id
     json.body comment.body
     json.created_at comment.created_at
+    if (report = comment.compatibility_report)
+      assessment = report.compatibility_assessment
+      json.compatibility do
+        json.outcome report.outcome
+        json.modified report.modified
+        json.package_version assessment.plugin_version.version
+        json.omarchy_version assessment.omarchy_release.version
+        json.omarchy_build assessment.omarchy_release.build
+        json.url absolute_url(compatibility_path(assessment))
+      end
+    end
     json.author do
       json.name comment.user.name
       json.publisher_member @publisher_member_ids.include?(comment.user_id)

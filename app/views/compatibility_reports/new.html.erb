@@ -2,7 +2,7 @@
 <div class="content-page container">
   <h1>Does it work on your Omarchy?</h1>
   <p class="lede"><%= @version.plugin.full_name %>@<%= @version.version %></p>
-  <p>Report the version/build you actually tested. This is compatibility feedback, not a theme rating. Counts are public; details go to the publishing team and moderators. Do not include secrets or personal data. Nothing is uploaded automatically.</p>
+  <p>Choose the Omarchy version/build you tested. Your result and public comment appear in the package's community comments. Problem reports notify the publishing team. Private reproduction details are visible only to that team and moderators.</p>
   <% if @report.errors.any? %><p role="alert"><%= @report.errors.full_messages.to_sentence %></p><% end %>
   <% if @releases.empty? %>
     <p>No Omarchy releases have been registered for reporting yet.</p>
@@ -15,11 +15,13 @@
       <div class="field">
         <%= form.label :omarchy_release_id, "Omarchy version / build" %>
         <%= form.select :omarchy_release_id, @releases.map { |release| [release.label, release.id] }, { selected: @selected_release, prompt: "Choose your exact version/build" }, name: "omarchy_release_id", required: true %>
+        <p class="muted">For packaged Omarchy, <code>pacman -Q omarchy</code> shows your release and package build. Report only the version you actually tested.</p>
       </div>
       <div class="field"><%= form.label :outcome, "Result" %><%= form.select :outcome, [["Works for me", "works"], ["Report a problem", "problem"]], prompt: "Choose a result", required: true %></div>
       <div class="field"><%= form.label :category, "What is affected?" %><%= form.select :category, [["No issue", "none"], ["Appearance", "appearance"], ["Activation / loading", "activation"], ["Other", "other"]] %></div>
       <div class="field"><%= form.checkbox :modified %><%= form.label :modified, "I modified this package or am using an editable clone" %></div>
-      <div class="field"><%= form.label :details, "Reproduction steps, expected result, actual result (required for problems)" %><%= form.textarea :details, rows: 7, maxlength: 4000 %></div>
+      <div class="field"><%= form.label :public_comment, "Public comment (optional)" %><%= form.textarea :public_comment, rows: 4, minlength: 3, maxlength: 2000 %><p class="muted">Describe what works or what broke. This comment is public; leave out secrets and personal information.</p></div>
+      <div class="field"><%= form.label :details, "Private reproduction details (optional)" %><%= form.textarea :details, rows: 5, maxlength: 4000 %><p class="muted">For a problem, describe it in either the public comment or these private details. Nothing is uploaded automatically.</p></div>
       <%= form.submit "Save compatibility report", class: "button" %>
     <% end %>
   <% end %>

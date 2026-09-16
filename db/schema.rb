@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_05_172143) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_16_030000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -72,11 +72,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_172143) do
 
   create_table "comments", force: :cascade do |t|
     t.text "body", null: false
+    t.integer "compatibility_report_id"
     t.datetime "created_at", null: false
     t.datetime "hidden_at"
     t.integer "plugin_id", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["compatibility_report_id"], name: "index_comments_on_compatibility_report_id", unique: true
     t.index ["plugin_id", "created_at"], name: "index_comments_on_plugin_id_and_created_at"
     t.index ["plugin_id"], name: "index_comments_on_plugin_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
@@ -384,6 +386,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_172143) do
   add_foreign_key "api_tokens", "publishers"
   add_foreign_key "api_tokens", "users"
   add_foreign_key "audit_events", "users"
+  add_foreign_key "comments", "compatibility_reports"
   add_foreign_key "comments", "plugins"
   add_foreign_key "comments", "users"
   add_foreign_key "compatibility_assessments", "omarchy_releases"

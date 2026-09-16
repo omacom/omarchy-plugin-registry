@@ -22,8 +22,7 @@ class CompatibilityAssessment < ApplicationRecord
     "unknown"
   end
 
-  def entry
-    evidence = counts
+  def entry(evidence = counts)
     { "id" => plugin_version.plugin.manifest_id, "vers" => plugin_version.version,
       "sha256" => plugin_version.sha256, "omarchyVersion" => omarchy_release.version,
       "omarchyBuild" => omarchy_release.build, "status" => status(evidence),
@@ -50,7 +49,15 @@ class CompatibilityAssessment < ApplicationRecord
     raise ActiveRecord::RecordNotFound unless user.verified_at && user.suspended_at.nil?
     with_lock do
       report = compatibility_reports.find_or_initialize_by(user:)
+      new_report = report.new_record?
       report.update!(attributes)
+      if new_report || attributes.key?(:public_comment) || attributes.key?("public_comment")
+        comment = report.comment || report.build_comment(user:, plugin: plugin_version.plugin)
+        summary = report.outcome == "works" ? "Works for me." : "Reports a #{report.category == 'activation' ? 'loading' : report.category} problem."
+        comment.update!(body: report.public_comment.presence || summary, updated_at: Time.current)
+      else
+        report.comment&.touch
+      end
       touch
     end
     DataPlane::RegenerateJob.perform_later

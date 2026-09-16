@@ -4,16 +4,18 @@ class CompatibilityReportsController < ApplicationController
   after_action { response.headers["Cache-Control"] = "no-store" }
 
   def new
-    @report = CompatibilityReport.new(modified: params[:modified] == "1")
     @selected_release = OmarchyRelease.find_by(version: params[:omarchy_version], build: params[:omarchy_build].to_s)&.id
+    assessment = @version.compatibility_assessments.find_by(omarchy_release_id: @selected_release) if @selected_release
+    @report = assessment&.compatibility_reports&.find_by(user: Current.user) || CompatibilityReport.new(modified: params[:modified] == "1")
   end
 
   def create
     release = OmarchyRelease.find(params.expect(:omarchy_release_id))
     assessment = @version.with_lock { @version.compatibility_assessments.find_or_create_by!(omarchy_release: release) }
     assessment.record_report!(user: Current.user,
-      attributes: params.expect(compatibility_report: %i[outcome category details modified]))
-    redirect_to compatibility_path(assessment), status: :see_other, notice: "Report saved. Reports inform investigation; they do not block installs."
+      attributes: params.expect(compatibility_report: %i[outcome category details modified public_comment]))
+    redirect_to compatibility_path(assessment), status: :see_other,
+      notice: "Report saved and linked in the package comments. Problem reports alert the publishing team."
   rescue ActiveRecord::RecordInvalid => e
     @report = e.record
     @selected_release = release&.id
