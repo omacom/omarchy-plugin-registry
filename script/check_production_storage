@@ -9,7 +9,7 @@ payload = SecureRandom.random_bytes(32)
 service = ActiveStorage::Blob.service
 begin
   service.upload(key, StringIO.new(payload), checksum: Digest::MD5.base64digest(payload), content_type: "application/octet-stream")
-  abort "Production R2 read-back did not match" unless service.download(key) == payload
+  abort "Production R2 read-back did not match" unless service.download(key).b == payload.b
   puts "Production R2 upload and read-back passed."
 ensure
   service.delete(key)
