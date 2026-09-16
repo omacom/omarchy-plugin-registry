@@ -11,15 +11,11 @@ class ReviewHardeningTest < ActionDispatch::IntegrationTest
 
   teardown do
     Rails.application.config.x.ai_review_command = nil
-    Rails.application.config.x.skip_first_release_gate = true
+    Rails.application.config.x.enforce_review_policy = false
     Rails.application.config.x.publish_hold = 0
   end
 
-  # Trusted fixture command, never package content: echoes a complete advisory
-  # verdict bound to the request SHA without contacting a model or network.
-  def passing_adapter
-    %q(ruby -rjson -e 'request = JSON.parse(STDIN.read); puts JSON.generate({verdict: "pass", reasons: [], coverage: {complete: true, archive_sha256: request.fetch("sha256")}})')
-  end
+  def passing_adapter = AiReviewFixture.command
 
   def submit(files: nil, seed: false, version: "1.0.0")
     Registry::PublishVersion.new(user: seed ? Registry::SeedCatalog.system_user : @dev, publisher: @publisher,
@@ -27,14 +23,16 @@ class ReviewHardeningTest < ActionDispatch::IntegrationTest
       system_seed: seed, seed_provenance: seed ? { "legacy" => { "verified" => true } } : nil).call
   end
 
-  test "AI pass cannot approve a first executable release including a verified seed" do
-    Rails.application.config.x.skip_first_release_gate = false
+  test "complete AI and deterministic passes release a first executable version including a seed" do
+    Rails.application.config.x.enforce_review_policy = true
     Rails.application.config.x.ai_review_command = passing_adapter
     version = submit(seed: true)
     Registry::ReviewJob.perform_now(version)
-    assert version.reload.quarantined?
+    assert version.reload.published?
     assert_equal "pass", version.scan_results.dig("ai", "verdict")
-    assert_includes version.review_notes, "human review"
+    assert version.automated_review_passed?
+    assert_nil version.approved_by_id
+    assert_nil version.review_notes
   end
 
   test "AI pass without exact-archive coverage remains quarantined" do
@@ -50,12 +48,12 @@ class ReviewHardeningTest < ActionDispatch::IntegrationTest
     baseline = submit(files:)
     Registry::ReviewJob.perform_now(baseline)
     assert baseline.reload.published?
-    Rails.application.config.x.skip_first_release_gate = false
+    Rails.application.config.x.enforce_review_policy = true
     Rails.application.config.x.ai_review_command = passing_adapter
     version = submit(files:, version: "1.1.0")
     Registry::ReviewJob.perform_now(version)
     assert version.reload.quarantined?
-    assert_equal "pass", version.scan_results.dig("ai", "verdict")
+    assert_equal "skipped", version.scan_results.dig("ai", "verdict")
     assert_empty version.scan_results["capability_growth"]
     assert_includes version.review_notes, "dynamic execution/network"
   end

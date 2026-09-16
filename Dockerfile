@@ -73,7 +73,7 @@ USER 1001:1000
 ENTRYPOINT ["/processor/script/processor_server"]
 
 FROM processor-base AS processor-ai
-COPY lib/registry/ai_reviewer.rb lib/registry/ai_gateway.rb ./lib/registry/
+COPY lib/registry/ai_reviewer.rb lib/registry/ai_gateway.rb lib/registry/prompt_injection.rb ./lib/registry/
 COPY script/ai_review_adapter ./script/
 ENV REGISTRY_PROCESSOR_ROLE="ai"
 

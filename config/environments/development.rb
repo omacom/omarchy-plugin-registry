@@ -1,7 +1,7 @@
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
-  config.x.skip_first_release_gate = true
+  config.x.enforce_review_policy = false
   config.x.publish_hold = 0
   config.x.registry_base_url = "http://localhost:3000"
   # Settings specified here will take precedence over those in config/application.rb.

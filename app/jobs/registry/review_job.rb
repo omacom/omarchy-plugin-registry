@@ -3,6 +3,8 @@ module Registry
   # updates never skip it. Deterministic scan -> capability fingerprint ->
   # delta check -> AI review -> hold window -> live.
   class ReviewJob < ApplicationJob
+    POLICY_VERSION = 2
+
     queue_as :review
     discard_on ActiveJob::DeserializationError
     # One review per plugin at a time: concurrent reviews of back-to-back
@@ -18,6 +20,7 @@ module Registry
         return
       end
       plugin = version.plugin
+      started_at = Time.current
 
       tarball = TarballInspector.inspect_bytes(version.tarball.download)
       raise TarballInspector::InvalidTarball, "tarball checksum mismatch at review" unless tarball.sha256 == version.sha256
@@ -35,16 +38,27 @@ module Registry
       previous = version.review_baseline
       growth = CapabilityFingerprint.growth(previous&.capability_fingerprint, fingerprint)
 
-      # 3. Advisory AI review of the current source. Updates also carry changed
-      # paths and explicitly partial previous-source context.
-      if scanner.verdict == :pass
+      # Stop before model I/O when deterministic checks already found a
+      # blocker. AI cannot negotiate away findings or uncertainty.
+      policy_reason = if previous && growth.any?
+        "capability surface grew: #{growth.join(', ')}"
+      elsif Rails.application.config.x.enforce_review_policy &&
+          (fingerprint["dynamic_exec"].present? || fingerprint["dynamic_network"].present?)
+        "contains dynamic execution/network call sites — requires judgment review on every version"
+      end
+      if scanner.verdict == :pass && policy_reason.nil?
         changed_files = changed_files_since(previous, tarball) if AiReview.enabled?
         ai = AiReview.review(version:, tarball:, fingerprint:, scan_findings: findings,
           previous: previous, capability_growth: growth, changed_files: changed_files || [],
           previous_contents: @previous_contents || {})
       else
-        ai = AiReview::Result.new("skipped", [ "deterministic findings already require rejection or human review" ])
+        ai = AiReview::Result.new("skipped", [ "stopped before AI: deterministic checks require attention" ])
       end
+      checks = [ { "id" => "archive-integrity", "name" => "Archive structure and SHA-256", "status" => "passed",
+                   "detail" => "Validated archive paths, entry types, size limits and submitted checksum." } ] + scanner.checks
+      checks << { "id" => "capability-policy", "name" => "Capabilities and change since baseline",
+                  "status" => policy_reason ? "flagged" : "passed",
+                  "detail" => policy_reason || (previous ? "No new or unresolved capabilities." : "Initial capability baseline recorded.") }
 
       # An admin may have rejected or security-held this version while the
       # scan ran — never overwrite a terminal state with a pipeline outcome.
@@ -53,38 +67,40 @@ module Registry
 
         version.update!(
           capability_fingerprint: fingerprint,
-          scan_results: { "findings" => findings, "capability_growth" => growth,
-                          "ai" => { "verdict" => ai.verdict, "reasons" => ai.reasons, "coverage" => ai.coverage } }
+          scan_results: { "policy_version" => POLICY_VERSION, "scanner_version" => Scanner::VERSION,
+                          "archive_sha256" => tarball.sha256, "started_at" => started_at.iso8601,
+                          "finished_at" => Time.current.iso8601, "checks" => checks,
+                          "findings" => findings, "capability_growth" => growth,
+                          "ai" => { "verdict" => ai.verdict, "reasons" => ai.reasons, "coverage" => ai.coverage,
+                                    "model" => ai.model, "reviewer_version" => ai.reviewer_version } }
         )
 
         # Legacy provenance is evidence for a HUMAN, never an exemption from
-        # current findings or the first-release gate.
+        # current findings or complete-review requirements.
         case
         when scanner.verdict == :fail
           reject!(version, findings)
         when scanner.verdict == :flag
           quarantine!(version, "scanner flagged: #{findings.map { |f| f['rule'] }.uniq.join(', ')}")
-        when previous && growth.any?
-          quarantine!(version, "capability surface grew: #{growth.join(', ')}")
+        when policy_reason
+          quarantine!(version, policy_reason)
         when ai.flagged?
           quarantine!(version, "ai review flagged: #{ai.reasons.join('; ').first(300)}")
-        when previous.nil? && !Rails.application.config.x.skip_first_release_gate && (!plugin.theme? || !AiReview.enabled?)
-          quarantine!(version, "first release requires human review; AI cannot approve executable plugins")
-        when (fingerprint["dynamic_exec"].present? || fingerprint["dynamic_network"].present?) &&
-             !Rails.application.config.x.skip_first_release_gate
-          # Static analysis cannot see the VALUES flowing into a dynamic call
-          # site — a variable can turn malicious with no textual change at the
-          # site. Plugins containing dynamic execution/network therefore never
-          # ride pure-deterministic auto-release: every version needs judgment
-          # from a human, whether or not the advisory AI is enabled.
-          quarantine!(version, "contains dynamic execution/network call sites — requires judgment review on every version")
+        when Rails.application.config.x.enforce_review_policy && !version.automated_review_passed?
+          quarantine!(version, "complete AI review required for automatic publication; #{ai.reasons.join('; ').first(200)}")
         else
           hold_or_release(version)
         end
       end
     rescue TarballInspector::InvalidTarball, ActiveStorage::IntegrityError
       version.with_lock do
-        quarantine!(version, "archive integrity or inspection failed; review could not complete") if version.processing?
+        if version.processing?
+          version.update!(scan_results: { "policy_version" => POLICY_VERSION, "finished_at" => Time.current.iso8601,
+            "checks" => [ { "id" => "archive-integrity", "name" => "Archive structure and SHA-256", "status" => "failed",
+                            "detail" => "Archive integrity or inspection failed. Subsequent checks did not run." } ],
+            "ai" => { "verdict" => "skipped", "reasons" => [ "archive inspection failed" ] } })
+          quarantine!(version, "archive integrity or inspection failed; review could not complete")
+        end
       end
     end
 
@@ -113,7 +129,7 @@ module Registry
       hold = Rails.application.config.x.publish_hold
       # `held` marks "review passed" — the only state ReleaseVersion accepts.
       # Human approvals also enter held atomically with approval provenance.
-      version.update!(state: :held, hold_until: hold.to_i.positive? ? hold.from_now : Time.current)
+      version.update!(state: :held, review_notes: nil, hold_until: hold.to_i.positive? ? hold.from_now : Time.current)
       if hold.to_i.positive?
         ReleaseJob.set(wait_until: version.hold_until).perform_later(version)
       else

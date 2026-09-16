@@ -1,11 +1,11 @@
 module Registry
-  # Tool-less advisory review. A pass cannot replace mandatory human judgment
-  # or override deterministic findings. The output is data, never a command.
+  # Tool-less review. A complete pass is required for automatic publication;
+  # it cannot override deterministic findings. Output is data, never a command.
   class AiReview
     TIMEOUT_SECONDS = 900
     MAX_OUTPUT_BYTES = 1.megabyte
 
-    Result = Struct.new(:verdict, :reasons, :coverage) do
+    Result = Struct.new(:verdict, :reasons, :coverage, :model, :reviewer_version) do
       def flagged? = verdict == "flag"
     end
 
@@ -24,7 +24,7 @@ module Registry
       end
       payload = {
         plugin: version.plugin.full_name, version: version.version, sha256: tarball.sha256,
-        manifest: version.manifest, fingerprint: fingerprint, scan_findings: scan_findings,
+        manifest: tarball.manifest, fingerprint: fingerprint, scan_findings: scan_findings,
         previous: previous && { version: previous.version, fingerprint: previous.capability_fingerprint },
         changed_files:, previous_contents:, previous_contents_partial: previous.present?, capability_growth:,
         verified_assets: assets, incomplete_files: incomplete, sizes: tarball.sizes, digests: tarball.digests,
@@ -43,12 +43,19 @@ module Registry
       verdict = AiReviewer.parse_verdict(JSON.generate(parsed.slice("verdict", "reasons")))
       coverage = parsed["coverage"]
       if verdict["verdict"] == "pass" &&
-          !(coverage.is_a?(Hash) && coverage["complete"] == true && coverage["archive_sha256"] == tarball.sha256)
+          !(complete_coverage?(coverage, tarball.sha256, parsed["reviewer_version"]) &&
+            coverage["source_files"] == tarball.contents.size - assets.size && coverage["asset_files"] == assets.size)
         return Result.new("flag", [ "AI reviewer did not attest complete coverage of this archive" ], coverage)
       end
-      Result.new(verdict["verdict"], verdict["reasons"], coverage)
+      Result.new(verdict["verdict"], verdict["reasons"], coverage, parsed["model"].to_s.first(200), parsed["reviewer_version"])
     rescue StandardError => e
       Result.new("flag", [ "ai review unavailable (#{e.class})" ], { "complete" => false })
+    end
+    def self.complete_coverage?(coverage, sha256, reviewer_version)
+      coverage.is_a?(Hash) && coverage["complete"] == true && coverage["archive_sha256"] == sha256 &&
+        reviewer_version == AiReviewer::VERSION && coverage["chunks"].is_a?(Integer) && coverage["chunks"].positive? &&
+        coverage["passes"].is_a?(Array) && coverage["passes"].map { |pass| pass.is_a?(Hash) && pass["id"] } == AiReviewer::PASSES &&
+        coverage["passes"].all? { |pass| pass["verdict"] == "pass" && pass["chunks_completed"] == coverage["chunks"] && pass["chunks_total"] == coverage["chunks"] }
     end
   end
 end

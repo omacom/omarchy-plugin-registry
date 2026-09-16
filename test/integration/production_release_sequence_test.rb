@@ -1,11 +1,11 @@
 require "test_helper"
 
-# Proves the PRODUCTION-default release sequence end to end: the first-release
-# human gate and the publish hold window both enabled (tests elsewhere disable
-# them for convenience — this is the supply-chain path as deployed).
+# Proves automatic first release with complete AI evidence and the optional
+# hold window, using a trusted model fixture rather than a provider.
 class ProductionReleaseSequenceTest < ActionDispatch::IntegrationTest
   setup do
-    Rails.application.config.x.skip_first_release_gate = false
+    Rails.application.config.x.enforce_review_policy = true
+    Rails.application.config.x.ai_review_command = AiReviewFixture.command
     Rails.application.config.x.publish_hold = 15.minutes
 
     @admin = User.create!(email_address: "admin@example.com", name: "Admin", admin: true,
@@ -18,25 +18,21 @@ class ProductionReleaseSequenceTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    Rails.application.config.x.skip_first_release_gate = true
+    Rails.application.config.x.enforce_review_policy = false
+    Rails.application.config.x.ai_review_command = nil
     Rails.application.config.x.publish_hold = 0
   end
 
-  test "first release: quarantine -> human approval -> hold window -> live, in order" do
+  test "first release: complete automated review -> hold window -> live, without human approval" do
     post "/api/v1/plugins/acme/weather/versions", params: TarballBuilder.build,
       headers: { "Authorization" => "Bearer #{@token.plaintext_token}", "Content-Type" => "application/gzip" }
     assert_response :created
     perform_enqueued_jobs(at: Time.current) # review runs now; nothing future runs early
     version = PluginVersion.last
 
-    # 1. First release with AI disabled waits for a human — nothing served
-    assert version.reload.quarantined?
-    assert_not DataPlane.root.join(version.tarball_path).exist?
-
-    # 2. Human approval does NOT publish immediately — it enters the hold
-    sign_in_as @admin
-    post approve_admin_version_path(version)
-    perform_enqueued_jobs(at: Time.current)
+    # Complete checks enter the hold without manufacturing human approval.
+    assert version.automated_review_passed?
+    assert_nil version.approved_at
     assert version.reload.held?
     assert version.hold_until.future?
     assert_not DataPlane.root.join(version.tarball_path).exist?
@@ -56,18 +52,16 @@ class ProductionReleaseSequenceTest < ActionDispatch::IntegrationTest
     assert DataPlane.root.join(version.tarball_path).exist?
     entry = JSON.parse(DataPlane.read("index/acme/weather.json").lines.second)
     assert_equal version.sha256, entry["sha256"]
-    assert AuditEvent.exists?(action: "version.approve", public: true)
+    assert_not AuditEvent.exists?(action: "version.approve", public: true)
     assert AuditEvent.exists?(action: "version.publish", public: true)
   end
 
   test "clean update with a published baseline still waits out the hold" do
-    # Seed a published baseline under production rules (approve + hold)
+    # Seed a published baseline under production rules (AI checks + hold)
     post "/api/v1/plugins/acme/weather/versions", params: TarballBuilder.build,
       headers: { "Authorization" => "Bearer #{@token.plaintext_token}", "Content-Type" => "application/gzip" }
     perform_enqueued_jobs(at: Time.current)
     v1 = PluginVersion.last
-    sign_in_as @admin
-    post approve_admin_version_path(v1)
     travel_to 16.minutes.from_now
     perform_enqueued_jobs(at: Time.current) # the job approval scheduled
     assert v1.reload.published?

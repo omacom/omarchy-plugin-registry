@@ -37,7 +37,7 @@ coordinate data-plane publication; adding web Droplets alone is insufficient.
 | `REGISTRY_HOST` | Host-authorization allowlist (defaults to `plugins.omarchy.org`). Requests carrying any other `Host` are rejected — session cookies are never minted for attacker-pointed domains. `ADDITIONAL_HOSTS` (comma-separated) adds extras; `/up` is exempt for by-IP health checks. |
 | `SMTP_ADDRESS` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Login-code email delivery with STARTTLS; `MAIL_FROM` selects the verified sender |
 | `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Required for production storage. Use a private bucket and bucket-scoped object read/write credentials. Missing settings fail startup; no implicit personal bucket or local-disk fallback. `ACTIVE_STORAGE_SERVICE=local` is an explicit self-hosting option. |
-| `AI_REVIEW_COMMAND` | Optional advisory LLM review. Production accepts only `/rails/script/ai_review_adapter` and always runs it in the processor sandbox. Missing configuration, incomplete coverage, malformed results or sandbox/provider failure quarantine the version. The endpoint receives UNPUBLISHED source — treat it as a confidential-data processor. |
+| `AI_REVIEW_COMMAND` | Required for automatic publication. Tool-less, two-pass LLM review. Production accepts only `/rails/script/ai_review_adapter` and always runs it in the processor sandbox. Missing configuration, incomplete coverage, malformed results or sandbox/provider failure quarantine the version. The endpoint receives UNPUBLISHED source — treat it as a confidential-data processor. |
 
 ## Processor isolation: deployment prerequisite
 
@@ -158,8 +158,9 @@ The gateway exposes only the OpenAI-compatible protocol, model and review
 budgets to the isolated processor. It inserts the real key at the upstream,
 refuses model/routing overrides and tools/plugins, and never relays provider
 error details. An unavailable provider, malformed verdict or incomplete source
-review quarantines the submission. A passing AI verdict cannot bypass the
-first executable release's required human approval.
+review quarantines the submission. Clean first releases can publish automatically
+when deterministic checks and both AI passes complete for the exact archive.
+A passing model response cannot override a deterministic flag or capability hold.
 
 The selected provider receives unpublished package source. Verify model access,
 account credit and rate limits with a synthetic review before allowing uploads.
@@ -211,9 +212,10 @@ bin/rails 'registry:seed_demo[you@example.com]'
 
 This idempotently submits three static, clearly labeled demo widgets under the
 reserved `omarchy-demo` namespace, owned by that admin. It creates no fake
-ratings or downloads. They pass through normal scanning and AI review and wait
-for first-release human approval in `/admin`. Sign in, enroll MFA, inspect the
-exact source and approve them. Never turn off the review gate to populate a page.
+ratings or downloads. They pass through normal deterministic checks and both AI
+passes. Clean versions publish automatically after any configured hold; suspicious
+or incomplete reviews remain quarantined. Inspect their recorded checks in `/admin`.
+Never turn off review checks to populate a page.
 
 ## Seeding day
 
@@ -232,13 +234,28 @@ under-review and uninstallable.
 - `bin/rails registry:regenerate` rebuilds the whole data plane from the DB.
 - Publish hold window: off by default (`PUBLISH_HOLD_SECONDS`, 0). Set it to
   a number of seconds during an incident to delay review-clean versions going
-  live; deterministic scans, advisory AI, required human review and per-plugin
+  live; deterministic scans, required AI checks, quarantine and per-plugin
   submission quotas (5 pending, 12/day) provide separate controls.
 
-First executable releases always need human review, even with a passing AI
-result. Every version with dynamic execution/network call sites needs human
-judgment too. Constrained declarative themes can clear automatically with all
-checks complete. Test/doc filenames and legacy verification are not exemptions;
-uncertain or incomplete scans remain quarantined. Human approvals and takedowns
-are serialized with release state changes, and approved versions enter the same
-configured hold window before release.
+Every automatic release, including the first, requires deterministic checks and
+two independent tool-less AI passes: instruction integrity, then security behavior.
+Each pass sees every source chunk; suspicion stops remaining calls immediately.
+Known prompt-injection patterns in source, documentation, paths or metadata stop
+before model I/O. Unknown semantic attacks can still influence a model: these
+tripwires are not a guarantee of prompt-injection immunity or package safety.
+
+The reviewer has no tools, shell/exec dispatch, application credentials or arbitrary
+network route. Source and output remain JSON data. The fixed provider gateway
+accepts only text requests and rejects tools, plugins, external content blocks,
+routing overrides, tool responses and incomplete completions. These boundaries
+contain attempted execution independently of whether the model follows its prompt.
+
+Dynamic execution/network call sites, capability growth, deterministic findings,
+incomplete coverage and model failures still require attention. Test/doc filenames
+and legacy verification are not exemptions. The admin page records actual checks,
+status, model, per-pass chunk coverage, policy version, time and archive checksum;
+old reports never acquire fabricated passes. Release rechecks current, exact-archive
+evidence, and retains the existing live human-approval override and authorization
+checks. Human approvals and takedowns are serialized with publication and honor the
+same configured hold window. Development/test explicitly opt out of the mandatory
+AI/dynamic-call policy for local fixtures; production has no environment bypass.

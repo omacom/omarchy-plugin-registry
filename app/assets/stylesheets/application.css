@@ -1010,6 +1010,24 @@ a:hover > .omarchy-footer__wordmark, a:focus-visible > .omarchy-footer__wordmark
   font-size: 14px; line-height: 20px;
 }
 
+/* Review evidence uses the same rules, type and status colors as the site. */
+.review-checks__timestamp { margin-bottom: 24px; font-size: 13px; overflow-wrap: anywhere; }
+.review-checks__group { border-block-start: 1px solid var(--color-border-subtle); padding-block: 20px; }
+.review-checks__group > summary { cursor: pointer; font-family: var(--font-sans); font-size: 20px; font-weight: 500; }
+.review-checks__group > summary .muted { margin-left: 12px; font-family: var(--font-mono); font-size: 13px; font-weight: 400; }
+.review-checks__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.review-checks__heading h3 { margin: 0; font-size: 20px; }
+.review-checks__model, .review-checks__coverage, .review-checks__reason { margin-top: 12px; font-size: 13px; overflow-wrap: anywhere; }
+.review-checks__list { list-style: none; margin-top: 16px; padding: 0; }
+.review-checks__list li { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-block: 14px; border-bottom: 1px solid var(--color-border-subtle); }
+.review-checks__list li > div { min-width: 0; overflow-wrap: anywhere; }
+.review-checks__list strong { font-size: 14px; font-weight: 500; }
+.review-checks__list p { margin-top: 4px; font-size: 13px; }
+.review-checks__list .badge { flex-shrink: 0; font-size: 10px; padding: 4px 8px; }
+@media (max-width: 639.98px) {
+  .review-checks__group > summary .muted { display: block; margin: 6px 0 0; }
+}
+
 /* ---------- Small screens ---------- */
 
 @media (max-width: 700px) {

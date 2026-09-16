@@ -5,7 +5,7 @@ class ProviderGatewayTest < ActiveSupport::TestCase
     Registry::ProviderGateway.new(provider: "openai", endpoint: "https://model.example/v1", key: "synthetic-key", model: "fixture-model", **options)
   end
 
-  def request(method: "POST", path: "/v1/chat/completions", query: "", body: { model: "fixture-model", messages: [] })
+  def request(method: "POST", path: "/v1/chat/completions", query: "", body: { model: "fixture-model", messages: [ { role: "user", content: "review fixture" } ] })
     { "REQUEST_METHOD" => method, "PATH_INFO" => path, "QUERY_STRING" => query, "rack.input" => StringIO.new(JSON.generate(body)) }
   end
 
@@ -21,8 +21,8 @@ class ProviderGatewayTest < ActiveSupport::TestCase
     [ request(method: "CONNECT"), request(path: "/other"), request(query: "extra=1") ].each do |env|
       assert_equal 404, gateway.call(env).first
     end
-    [ { model: "another-model", messages: [] }, { model: "fixture-model", messages: [], tools: [] },
-      { model: "fixture-model", messages: [], stream: true } ].each do |body|
+    [ { model: "another-model", messages: [ { role: "user", content: "review fixture" } ] }, { model: "fixture-model", messages: [ { role: "user", content: "review fixture" } ], tools: [] },
+      { model: "fixture-model", messages: [ { role: "user", content: "review fixture" } ], stream: true } ].each do |body|
       assert_equal 422, gateway.call(request(body:)).first
     end
   end
@@ -60,7 +60,7 @@ class ProviderGatewayTest < ActiveSupport::TestCase
   end
 
   test "Anthropic uses its fixed path and server-owned authentication" do
-    with_upstream do |port, received|
+    with_upstream(payload: { content: [ { type: "text", text: "fixture" } ], stop_reason: "end_turn" }) do |port, received|
       relay = gateway(provider: "anthropic", endpoint: "http://127.0.0.1:#{port}/v1", allow_http: true)
       assert_equal 200, relay.call(request(path: "/v1/messages")).first
       headers = received.pop
@@ -110,15 +110,33 @@ class ProviderGatewayTest < ActiveSupport::TestCase
   end
 
   test "review requests cannot enable OpenRouter plugins or change routing" do
-    %w[plugins models route provider].each do |field|
-      body = { model: "fixture-model", messages: [], field => [] }
+    %w[plugins models route provider web_search_options parallel_tool_calls computer container mcp_servers].each do |field|
+      body = { model: "fixture-model", messages: [ { role: "user", content: "review fixture" } ], field => [] }
       assert_equal 422, gateway.call(request(body:)).first
+    end
+  end
+
+  test "messages cannot smuggle tool calls or external content blocks" do
+    [ { role: "tool", content: "fixture" },
+      { role: "user", content: "fixture", tool_calls: [] },
+      { role: "user", content: [ { type: "image_url", image_url: { url: "https://external.example/" } } ] } ].each do |message|
+      assert_equal 422, gateway.call(request(body: { model: "fixture-model", messages: [ message ] })).first
+    end
+  end
+
+  test "model tool requests and truncated responses cannot reach the reviewer as passes" do
+    [ { message: { content: '{"verdict":"pass","reasons":[]}', tool_calls: [ { type: "function" } ] }, finish_reason: "stop" },
+      { message: { content: '{"verdict":"pass","reasons":[]}' }, finish_reason: "length" } ].each do |choice|
+      with_upstream(payload: { choices: [ choice ] }) do |port, _|
+        relay = gateway(endpoint: "http://127.0.0.1:#{port}/v1", allow_http: true)
+        assert_equal 502, relay.call(request).first
+      end
     end
   end
 
   private
 
-  def with_upstream(status: "200 OK")
+  def with_upstream(status: "200 OK", payload: { choices: [ { message: { role: "assistant", content: "fixture" }, finish_reason: "stop" } ] })
     server = TCPServer.new("127.0.0.1", 0)
     received = Queue.new
     thread = Thread.new do
@@ -127,7 +145,7 @@ class ProviderGatewayTest < ActiveSupport::TestCase
       headers << socket.gets until headers.end_with?("\r\n\r\n")
       socket.read(headers[/Content-Length: (\d+)/i, 1].to_i)
       received << headers
-      body = "synthetic-upstream-diagnostic"
+      body = JSON.generate(payload)
       socket.write("HTTP/1.1 #{status}\r\nContent-Length: #{body.bytesize}\r\nLocation: /elsewhere\r\nConnection: close\r\n\r\n#{body}")
     ensure
       socket&.close

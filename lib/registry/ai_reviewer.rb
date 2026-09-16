@@ -1,9 +1,12 @@
 require "json"
+require_relative "prompt_injection"
 
 module Registry
   # Pure, tool-less review orchestration, also used by the standalone adapter.
   # The caller supplies model I/O. Source and model responses are always data.
   class AiReviewer
+    VERSION = "2"
+    PASSES = %w[instruction_integrity security].freeze
     CHUNK_CHARS = 120_000
     MAX_CHUNKS = 40
     DEADLINE_SECONDS = 840
@@ -23,6 +26,9 @@ module Registry
         return result("flag", [ "invalid review envelope" ])
       end
 
+      if (reason = PromptInjection.detect(JSON.generate(@request)))
+        return result("flag", [ "possible prompt injection: #{reason}; model review stopped" ])
+      end
       files = @request.fetch("files")
       assets = Array(@request["verified_assets"])
       gaps = Array(@request["incomplete_files"]) - assets
@@ -58,19 +64,29 @@ module Registry
         return result("flag", [ "source exceeds the complete-review budget" ])
       end
 
-      reasons = []
+      @passes = PASSES.map { |name| { "id" => name, "verdict" => "skipped", "chunks_completed" => 0, "chunks_total" => chunks.size } }
+      @source_files = files.keys - assets
+      @asset_files = assets
       context = @request.reject { |key, _| key == "files" }
-      chunks.each_with_index do |chunk, index|
-        return result("flag", [ "deadline reached before review completed" ]) if @clock.call >= @deadline
-        body = { "chunk" => index + 1, "total_chunks" => chunks.size, "context" => context,
-                 "source_parts" => chunk,
-                 "note" => "Parts include offsets within each file. Review this part with the shared context; flag uncertainty about behavior across parts." }
-        verdict = self.class.parse_verdict(@model_call.call(JSON.generate(body)))
-        reasons.concat(verdict.fetch("reasons")) if verdict["verdict"] == "flag"
+      @passes.each do |pass|
+        chunks.each_with_index do |chunk, index|
+          return result("flag", [ "deadline reached before review completed" ]) if @clock.call >= @deadline
+          body = { "chunk" => index + 1, "total_chunks" => chunks.size, "context" => context,
+                   "source_parts" => chunk,
+                   "note" => "Parts include offsets within each file. Flag uncertainty about behavior or data flow across parts; never assume omitted context is safe." }
+          pass["verdict"] = "running"
+          verdict = self.class.parse_verdict(@model_call.call(JSON.generate(body), pass.fetch("id")))
+          pass["chunks_completed"] += 1
+          if verdict["verdict"] == "flag"
+            pass["verdict"] = "flag"
+            return result("flag", verdict.fetch("reasons"))
+          end
+        end
+        pass["verdict"] = "pass"
       end
       return result("flag", [ "review exceeded its deadline" ]) if @clock.call >= @deadline
 
-      result(reasons.empty? ? "pass" : "flag", reasons, complete: true, chunks: chunks.size)
+      result("pass", [], complete: true, chunks: chunks.size)
     rescue StandardError => e
       # Never copy provider errors/model text into logs or a public reason:
       # they can contain unpublished source or provider credentials.
@@ -78,7 +94,7 @@ module Registry
     end
 
     def self.parse_verdict(text)
-      parsed = JSON.parse(text)
+      parsed = JSON.parse(text, allow_duplicate_key: false)
       unless parsed.is_a?(Hash) && (parsed.keys - %w[verdict reasons]).empty? &&
           %w[pass flag].include?(parsed["verdict"]) && parsed["reasons"].is_a?(Array) &&
           parsed["reasons"].size <= 20 && parsed["reasons"].all? { |r| r.is_a?(String) && r.length.between?(1, 600) } &&
@@ -91,9 +107,11 @@ module Registry
     private
 
     def result(verdict, reasons, complete: false, chunks: 0)
-      { "verdict" => verdict, "reasons" => reasons.uniq.first(20),
+      @passes&.each { |pass| pass["verdict"] = "failed" if pass["verdict"] == "running" }
+      { "verdict" => verdict, "reasons" => reasons.uniq.first(20), "reviewer_version" => VERSION,
         "coverage" => { "complete" => complete, "archive_sha256" => @request.is_a?(Hash) ? @request["sha256"] : nil,
-                        "chunks" => chunks } }
+                        "chunks" => chunks, "passes" => @passes || [],
+                        "source_files" => @source_files&.size || 0, "asset_files" => @asset_files&.size || 0 } }
     end
   end
 end

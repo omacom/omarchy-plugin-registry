@@ -5,7 +5,7 @@ namespace :registry do
     Registry::DemoCatalog.import(admin:).each do |version|
       puts "#{version.plugin.full_name}@#{version.version}: #{version.state} (admin review: /admin/versions/#{version.id})"
     end
-    puts "Jobs run the scanner and AI reviewer. Approve clean first releases in /admin after enrolling a second factor."
+    puts "Jobs run deterministic and AI checks. Clean releases publish automatically; inspect flagged or incomplete reviews in /admin."
   end
 
   desc "Grant admin to an account (the supported bootstrap for a fresh deployment)"

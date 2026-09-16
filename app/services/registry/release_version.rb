@@ -62,6 +62,14 @@ module Registry
         return version
       end
 
+      if Rails.application.config.x.enforce_review_policy && !approval_live && !version.automated_review_passed?
+        version.update!(state: :quarantined, hold_until: nil,
+          review_notes: "automatic release stopped: complete review evidence is missing or outdated")
+        AuditEvent.record!(action: "version.review_evidence_missing", subject: version,
+          metadata: { plugin: version.plugin.full_name, version: version.version })
+        return version
+      end
+
       raise ArgumentError, "release has no hold deadline" unless version.hold_until
       return version if version.hold_until.future?
 

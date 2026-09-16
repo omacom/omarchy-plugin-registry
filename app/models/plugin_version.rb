@@ -65,6 +65,18 @@ class PluginVersion < ApplicationRecord
     end
   end
 
+  # Stored processor evidence is bound to the exact archive and current
+  # policy. A stale held job cannot release bytes lacking completed checks.
+  def automated_review_passed?
+    report = scan_results || {}
+    checks = report["checks"]
+    ai = report["ai"] || {}
+    report["policy_version"] == Registry::ReviewJob::POLICY_VERSION && report["scanner_version"] == Registry::Scanner::VERSION && report["archive_sha256"] == sha256 &&
+      checks.is_a?(Array) && checks.any? && checks.all? { |check| check.is_a?(Hash) && %w[passed not_applicable].include?(check["status"]) } &&
+      (%w[archive-integrity file-types scan-truncated prompt-injection capability-policy] - checks.map { |check| check["id"] }).empty? &&
+      ai["verdict"] == "pass" && Registry::AiReview.complete_coverage?(ai["coverage"], sha256, ai["reviewer_version"])
+  end
+
   # The original legacy-marketplace listing time, honored as published_at at
   # release. Gated on the system seed identity: ordinary publishes must never
   # backdate themselves through crafted provenance.

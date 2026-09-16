@@ -38,22 +38,22 @@ module OmarchyPluginRegistry
     config.x.registry_base_url = ENV.fetch("REGISTRY_BASE_URL", "https://plugins.omarchy.org")
 
     # Publish hold window: a delay before a review-clean version goes live.
-    # Off by default — deterministic scans + required human review are security
+    # Off by default — deterministic scans + complete AI review are security
     # gates, and per-plugin submission quotas throttle abuse; a bare timer with
     # nothing watching it only delays honest publishes. Re-enable per incident
     # by setting PUBLISH_HOLD_SECONDS (it becomes the trigger surface for
     # automatic anomaly checks if we add them).
     config.x.publish_hold = ENV.fetch("PUBLISH_HOLD_SECONDS", "0").to_i.seconds
 
-    # Advisory LLM review (JSON in/out, including exact-archive coverage).
+    # Tool-less LLM review (JSON in/out, including exact-archive coverage).
     # Production accepts only /rails/script/ai_review_adapter, sandboxed.
-    # Development/test may use trusted fixture commands. Unset = disabled.
+    # Development/test may use trusted fixture commands. Missing AI blocks automatic publication.
     config.x.ai_review_command = ENV["AI_REVIEW_COMMAND"]
 
-    # First executable releases and every version with dynamic call sites need
-    # human judgment regardless of AI. First themes need it when AI is off.
-    # Development/test explicitly opt out for local publishing.
-    config.x.skip_first_release_gate = false
+    # Automatic publication requires all checks and complete, archive-bound AI
+    # review. Dynamic call sites still require judgment. Only development/test
+    # opt out for local fixtures; production has no environment bypass.
+    config.x.enforce_review_policy = true
 
     # Static JWKS override for OIDC trusted publishing (tests inject one;
     # production fetches GitHub's and caches it)

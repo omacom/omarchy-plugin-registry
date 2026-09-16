@@ -9,6 +9,7 @@ module Registry
   class ProviderGateway
     MAX_REQUEST = 8 * 1024**2
     MAX_RESPONSE = 1024**2
+    REQUEST_KEYS = %w[model messages stream temperature max_tokens max_completion_tokens reasoning_effort thinking system output_config].freeze
 
     def self.from_directory(path = "/ai", allow_http: false)
       values = %w[openrouter_key openai_key anthropic_key base_url model effort chunk_chars].to_h do |name|
@@ -56,8 +57,9 @@ module Registry
       raw = env.fetch("rack.input").read(MAX_REQUEST + 1)
       return response(413, '{"error":"request too large"}') if raw.bytesize > MAX_REQUEST
       body = JSON.parse(raw)
-      unless body.is_a?(Hash) && body["model"] == @model && body["messages"].is_a?(Array) &&
-          !body["stream"] && (body.keys & %w[tools tool_choice functions function_call plugins models route provider]).empty?
+      unless body.is_a?(Hash) && (body.keys - REQUEST_KEYS).empty? && body["model"] == @model &&
+          body["messages"].is_a?(Array) && body["messages"].any? && body["messages"].all? { |message| text_message?(message) } &&
+          (!body.key?("system") || text_content?(body["system"])) && !body["stream"]
         return response(422, '{"error":"unsupported review request"}')
       end
       response(200, forward(raw))
@@ -95,7 +97,30 @@ module Registry
           end
         end
       end
+      parsed = JSON.parse(output)
+      safe = if @provider == "anthropic"
+        parsed["stop_reason"] == "end_turn" && parsed["content"].is_a?(Array) &&
+          parsed["content"].all? { |block| %w[text thinking redacted_thinking].include?(block["type"]) }
+      else
+        parsed["choices"].is_a?(Array) && parsed["choices"].any? && parsed["choices"].all? do |choice|
+          message = choice["message"]
+          choice["finish_reason"] == "stop" && message.is_a?(Hash) && message["content"].is_a?(String) &&
+            (message["tool_calls"].nil? || message["tool_calls"] == []) && message["function_call"].nil?
+        end
+      end
+      raise ArgumentError, "incomplete or non-text model response" unless safe
       output
+    end
+
+    def text_message?(message)
+      message.is_a?(Hash) && (message.keys - %w[role content]).empty? &&
+        %w[system developer user].include?(message["role"]) && text_content?(message["content"])
+    end
+
+    def text_content?(content)
+      content.is_a?(String) || (content.is_a?(Array) && content.all? do |block|
+        block.is_a?(Hash) && (block.keys - %w[type text]).empty? && block["type"] == "text" && block["text"].is_a?(String)
+      end)
     end
 
     def response(status, body)

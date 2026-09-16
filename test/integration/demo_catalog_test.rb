@@ -3,12 +3,12 @@ require "test_helper"
 class DemoCatalogTest < ActionDispatch::IntegrationTest
   setup do
     @admin = User.create!(email_address: "demo-admin@example.com", admin: true)
-    @previous_gate = Rails.application.config.x.skip_first_release_gate
-    Rails.application.config.x.skip_first_release_gate = false
+    @previous_gate = Rails.application.config.x.enforce_review_policy
+    Rails.application.config.x.enforce_review_policy = true
   end
 
   teardown do
-    Rails.application.config.x.skip_first_release_gate = @previous_gate
+    Rails.application.config.x.enforce_review_policy = @previous_gate
   end
 
   test "demo seeds go through review without manufactured approval or activity" do
@@ -17,7 +17,7 @@ class DemoCatalogTest < ActionDispatch::IntegrationTest
     assert_equal 3, versions.size
     versions.each do |version|
       assert version.reload.quarantined?
-      assert_match(/first release/, version.review_notes)
+      assert_match(/complete AI review required/, version.review_notes)
       assert_equal "demo", version.provenance["source"]
       assert_nil version.approved_by_id
       assert_nil version.plugin.latest_version

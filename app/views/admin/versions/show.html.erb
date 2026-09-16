@@ -1,6 +1,6 @@
 <% content_for :title, "Review #{@plugin.full_name}@#{@version.version} — Admin" %>
 <div class="content-page container">
-  <p class="eyebrow">Human review</p>
+  <p class="eyebrow">Release review</p>
   <h1><%= @plugin.full_name %>@<%= @version.version %></h1>
   <p class="lede">
     <%= state_badge(@version.state) %>
@@ -96,31 +96,7 @@
     </dl>
   </section>
 
-  <section>
-    <h2>Scan findings (<%= (@version.scan_results&.dig("findings") || []).size %>)</h2>
-    <% findings = @version.scan_results&.dig("findings") || [] %>
-    <% if findings.any? %>
-      <table class="table">
-        <thead><tr><th>Rule</th><th>Severity</th><th>File</th><th>Detail</th></tr></thead>
-        <tbody>
-          <% findings.each do |finding| %>
-            <tr>
-              <td><code><%= finding["rule"] %></code></td>
-              <td><%= state_badge(finding["severity"] == "fail" ? :rejected : :quarantined) %></td>
-              <td><code><%= finding["file"] %></code></td>
-              <td><%= finding["detail"] %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% else %>
-      <p class="muted">No deterministic findings.</p>
-    <% end %>
-    <% ai = @version.scan_results&.dig("ai") %>
-    <% if ai %>
-      <p class="u-gap-top"><span class="eyebrow">AI review</span> <%= ai["verdict"] %> — <%= Array(ai["reasons"]).join("; ") %></p>
-    <% end %>
-  </section>
+  <%= render "review_checks", version: @version %>
 
   <section>
     <h2>Capability fingerprint</h2>

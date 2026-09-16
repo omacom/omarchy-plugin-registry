@@ -3,7 +3,7 @@ require "zlib"
 
 module Registry
   # Explicit launch fixtures, never part of db:prepare. They use the normal
-  # scan, AI and first-release human gate and record honest demo provenance.
+  # deterministic scans and complete AI checks and record honest demo provenance.
   class DemoCatalog
     PUBLISHER = "omarchy-demo"
     SAMPLES = {

@@ -64,16 +64,48 @@ module Registry
       api.telegram.org transfer.sh oshi.at temp.sh
     ].freeze
 
+    VERSION = "2"
+    CHECK_LABELS = {
+      "file-types" => "File types and readable source",
+      "scan-truncated" => "Complete deterministic source coverage",
+      "polyglot-executable" => "Binary asset signatures and embedded payloads",
+      "prompt-injection" => "Prompt-injection tripwires",
+      "bidi-unicode" => "Bidirectional source hiding",
+      "invisible-unicode" => "Invisible source characters",
+      "curl-pipe-shell" => "Downloaded shell execution",
+      "base64-decode-exec" => "Base64 decode-and-execute",
+      "eval-construct" => "Dynamic code evaluation",
+      "raw-ip-url" => "Raw IP network destinations",
+      "suspicious-host" => "Suspicious network hosts",
+      "credential-paths" => "Credential and key access",
+      "hardcoded-private-key" => "Embedded private keys",
+      "hardcoded-token" => "Embedded credential tokens",
+      "python-decode-exec" => "Decoded Python execution",
+      "shell-history-tamper" => "Shell history tampering",
+      "home-write" => "Writes outside package storage",
+      "system-write" => "Writes to system paths",
+      "embedded-shebang" => "Embedded script payloads",
+      "obfuscation-entropy" => "Packed or obfuscated text",
+      "dormant-plugin-update" => "Dormant release history"
+    }.freeze
+
     attr_reader :findings
 
     def initialize(tarball, plugin: nil)
       @tarball = tarball
       @plugin = plugin
       @findings = []
+      @checked_rules = {}
     end
 
     def scan
       @tarball.contents.each do |path, content|
+        record_check("file-types", path)
+        record_check("scan-truncated", path)
+        record_check("prompt-injection", path)
+        if (reason = PromptInjection.detect(path)) || (text_like?(content) && (reason = PromptInjection.detect(content)))
+          findings << Finding.new("prompt-injection", :flag, path, "possible prompt injection: #{reason}")
+        end
         if scannable?(path, content)
           if text_like?(content)
             text = content.dup.force_encoding(Encoding::UTF_8)
@@ -94,6 +126,7 @@ module Registry
               "content is binary despite a #{File.extname(path)} extension")
           end
         elsif genuine_asset?(path, content)
+          record_check("polyglot-executable", path)
           # Polyglots: a valid asset header with executable content behind it
           # still runs if invoked. The inspector computed payload markers over
           # the FULL bytes (past the retention window), which is the check
@@ -139,6 +172,30 @@ module Registry
       return :fail if findings.any? { |f| f.severity == :fail }
       return :flag if findings.any? { |f| f.severity == :flag }
       :pass
+    end
+
+    # Persist what actually ran. Older reviews cannot reconstruct passes from
+    # an empty findings array, and inapplicable asset checks are not "passed".
+    def checks
+      CHECK_LABELS.filter_map do |rule, label|
+        next unless @checked_rules.key?(rule) || rule == "polyglot-executable"
+        matching = if rule == "file-types"
+          findings.select { |f| %w[binary-payload binary-in-text-extension].include?(f.rule) }
+        else
+          findings.select { |f| f.rule == rule }
+        end
+        status = if !@checked_rules.key?(rule)
+          "not_applicable"
+        elsif matching.any? { |f| f.severity == :fail }
+          "failed"
+        elsif matching.any?
+          "flagged"
+        else
+          "passed"
+        end
+        { "id" => rule, "name" => label, "status" => status,
+          "files_checked" => @checked_rules.fetch(rule, []).size, "findings_count" => matching.size }
+      end
     end
 
     # These bytes received the full-byte asset checks; all other content must
@@ -255,6 +312,7 @@ module Registry
 
     # Long high-entropy blobs are the signature of obfuscated payloads.
     def check_entropy(path, text)
+      record_check("obfuscation-entropy", path)
       # Embedded media data-URIs (icons inside SVGs, design mocks in HTML)
       # are the standard idiom for high-entropy base64 — strip them before
       # hunting for packed payloads, which don't announce their MIME type.
@@ -269,6 +327,7 @@ module Registry
 
     def scan_metadata
       return unless @plugin&.persisted?
+      record_check("dormant-plugin-update", "manifest.json")
       last = @plugin.versions.published.order(published_at: :desc).first
       if last&.published_at && last.published_at < 6.months.ago
         findings << Finding.new("dormant-plugin-update", :flag, "manifest.json",
@@ -284,10 +343,15 @@ module Registry
     PATTERN_LITERAL_CONTEXT = /\\[sbdwSBDW]|\(\?:|\[\^|re\.compile\(|new\s+RegExp\(/
 
     def check(path, text, rule, severity, pattern, detail)
+      record_check(rule, path)
       return unless (match = text.match(pattern))
       context = "#{match.pre_match.last(80)}#{match[0]}#{match.post_match.first(80)}"
       hint = context.match?(PATTERN_LITERAL_CONTEXT) ? " [match sits inside an apparent pattern literal — likely a detection signature, verify by eye]" : ""
       findings << Finding.new(rule, severity, path, "#{detail}: #{match[0].to_s.strip.first(80)}#{hint}")
+    end
+
+    def record_check(rule, path)
+      (@checked_rules[rule] ||= Set.new) << path
     end
 
     def entropy(string)
