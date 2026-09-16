@@ -1,6 +1,6 @@
 require "test_helper"
 
-class DemoCatalogTest < ActiveSupport::TestCase
+class DemoCatalogTest < ActionDispatch::IntegrationTest
   setup do
     @admin = User.create!(email_address: "demo-admin@example.com", admin: true)
     @previous_gate = Rails.application.config.x.skip_first_release_gate
@@ -22,10 +22,10 @@ class DemoCatalogTest < ActiveSupport::TestCase
       assert_nil version.approved_by_id
       assert_nil version.plugin.latest_version
       assert_empty version.plugin.ratings
-      assert version.plugin.summary.include?("Launch demo")
+      assert version.manifest["description"].include?("Launch demo")
       assert_empty version.scan_results["findings"]
     end
-    assert_equal 3, AuditEvent.where(action: "plugin.seed_demo", actor: @admin).count
+    assert_equal 3, AuditEvent.where(action: "plugin.seed_demo", user: @admin).count
     assert_no_difference [ "PluginVersion.count", "User.count", "AuditEvent.count" ] do
       assert_equal versions.map(&:id), Registry::DemoCatalog.import(admin: @admin).map(&:id)
     end

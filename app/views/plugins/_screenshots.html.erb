@@ -1,0 +1,7 @@
+<%# locals: (plugin:) %>
+<% screenshots = plugin.screenshot_previews %>
+<% if screenshots.any? %>
+  <section class="screenshot-gallery" aria-label="<%= plugin.full_name %> screenshots">
+    <%= render partial: "plugins/screenshot", collection: screenshots, locals: { package_name: plugin.full_name, total: screenshots.size } %>
+  </section>
+<% end %>

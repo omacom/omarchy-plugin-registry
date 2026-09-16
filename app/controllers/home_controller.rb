@@ -71,7 +71,7 @@ class HomeController < ApplicationController
     # active sort/filter, so the top of the page always features what the
     # community actually installs.
     if @page == 1 && @query.blank? && @category.nil? && @tag.nil?
-      visible = package_scope.directory_visible.includes(:publisher).with_attached_preview_card
+      visible = package_scope.directory_visible.includes(:publisher).with_previews
         .select("plugins.*", "#{FIRST_PUBLISHED_SQL} AS first_published_at", "#{LAST_PUBLISHED_SQL} AS last_published_at")
       @recent = visible
         .where("#{FIRST_PUBLISHED_SQL} >= ?", ApplicationHelper::CARD_RECENCY.ago)
@@ -123,7 +123,7 @@ class HomeController < ApplicationController
   end
 
   def filtered_scope
-    scope = package_scope.directory_visible.includes(:publisher).with_attached_preview_card
+    scope = package_scope.directory_visible.includes(:publisher).with_previews
 
     if @terms[:text].any?
       like = "%#{ActiveRecord::Base.sanitize_sql_like(@terms[:text].join(' ').downcase)}%"

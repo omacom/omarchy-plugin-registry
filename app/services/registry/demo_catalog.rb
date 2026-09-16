@@ -30,7 +30,7 @@ module Registry
       SAMPLES.map do |name, (title, label)|
         existing = publisher.plugins.find_by(name:)&.versions&.find_by(version: "0.1.0")
         if existing
-          raise ArgumentError, "refusing to replace a non-demo version" unless existing.system_seed? && existing.provenance["source"] == "demo"
+          raise ArgumentError, "refusing to replace a non-demo version" unless existing.user.system? && existing.provenance["source"] == "demo"
           next existing
         end
         version = PublishVersion.new(user: SeedCatalog.system_user, publisher:, plugin_name: name,

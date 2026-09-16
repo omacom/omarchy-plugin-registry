@@ -1,0 +1,16 @@
+<%# locals: (screenshot:, screenshot_counter:, screenshot_iteration:, package_name:, total:) %>
+<% label = "#{package_name} screenshot #{screenshot_counter + 1} of #{total}" %>
+<% image_path = rails_storage_proxy_path(screenshot[:image]) %>
+<figure class="screenshot-gallery__item" data-controller="lightbox">
+  <button class="plugin-preview screenshot-gallery__preview" type="button" data-action="lightbox#open" aria-label="Enlarge <%= label %>">
+    <img src="<%= image_path %>" alt="<%= label %>" decoding="async"
+      loading="<%= screenshot_counter.zero? ? 'eager' : 'lazy' %>"
+      width="<%= screenshot[:meta].dig('detail', 'width') %>" height="<%= screenshot[:meta].dig('detail', 'height') %>">
+  </button>
+  <% if total > 1 %><figcaption class="muted"><%= screenshot_counter + 1 %> / <%= total %></figcaption><% end %>
+  <dialog class="lightbox" data-lightbox-target="dialog" data-action="click->lightbox#backdropClose" aria-label="<%= label %>">
+    <button class="lightbox__close" type="button" data-action="lightbox#close" aria-label="Close screenshot">×</button>
+    <img src="<%= image_path %>" alt="<%= label %>" loading="lazy" decoding="async"
+      width="<%= screenshot[:meta].dig('detail', 'width') %>" height="<%= screenshot[:meta].dig('detail', 'height') %>">
+  </dialog>
+</figure>

@@ -55,7 +55,7 @@ class PasskeysSystemTest < ApplicationSystemTestCase
     visit new_session_path
 
     click_button "Sign in with a passkey"
-    assert_text "DASHBOARD", wait: 10 # authenticated header appears
+    assert_link "Dashboard", wait: 10 # authenticated header appears
     visit dashboard_path
     assert_text "Hey, Dev"
   end

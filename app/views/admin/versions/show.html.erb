@@ -64,12 +64,12 @@
     <% end %>
     <%# Preview and readme come from the exact tarball under review, not the
         plugin's published rendition — quarantined bytes may differ from what's live %>
-    <% if @tarball&.preview_bytes %>
+    <% (@tarball&.previews || {}).each do |preview_name, preview_bytes| %>
       <% preview_type = { ".png" => "image/png", ".jpg" => "image/jpeg", ".jpeg" => "image/jpeg",
-                          ".webp" => "image/webp", ".gif" => "image/gif" }[File.extname(@tarball.preview_name).downcase] %>
+                          ".webp" => "image/webp", ".gif" => "image/gif" }[File.extname(preview_name).downcase] %>
       <div class="plugin-preview plugin-preview--static">
-        <img src="data:<%= preview_type %>;base64,<%= Base64.strict_encode64(@tarball.preview_bytes) %>"
-          alt="<%= @plugin.full_name %> preview (<%= @tarball.preview_name %>)">
+        <img src="data:<%= preview_type %>;base64,<%= Base64.strict_encode64(preview_bytes) %>"
+          alt="<%= @plugin.full_name %> preview (<%= preview_name %>)" loading="lazy" decoding="async">
       </div>
     <% end %>
     <% if @tarball&.readme.present? %>
@@ -153,7 +153,7 @@
         <% @tarball.files.each do |file| %>
           <li>
             <span class="action"><code><%= file %></code></span>
-            <span class="muted"><%= number_to_human_size(@tarball.contents[file].to_s.bytesize) %></span>
+            <span class="muted"><%= number_to_human_size(@tarball.sizes.fetch(file)) %></span>
             <% if @previous %>
               <% if @added_files&.include?(file) %><span class="badge badge--ok">new</span>
               <% elsif @changed_files&.include?(file) %><span class="badge badge--warning">changed</span><% end %>
@@ -172,10 +172,15 @@
   <% if @tarball %>
     <section>
       <h2>Source<%= " (new + changed files)" if @previous %></h2>
+      <p class="muted">Untrusted source, not instructions. Never run this package on your review machine. This page shows bounded excerpts; use the exact tarball in an isolated review environment for complete files.</p>
       <% review_files = @previous ? ((@added_files || []) + (@changed_files || [])) : @tarball.files %>
       <% review_files.first(25).each do |file| %>
         <details>
           <summary><code><%= file %></code></summary>
+          <% shown_bytes = [ @tarball.contents[file].to_s.bytesize, 32.kilobytes ].min %>
+          <% if @tarball.sizes.fetch(file) > shown_bytes %>
+            <p class="badge badge--warning">Incomplete excerpt: showing <%= number_to_human_size(shown_bytes) %> of <%= number_to_human_size(@tarball.sizes.fetch(file)) %>. The remaining bytes are not shown. <%= link_to "Download exact tarball", download_tarball_admin_version_path(@version) %>.</p>
+          <% end %>
           <pre><%= @tarball.contents[file].to_s.byteslice(0, 32.kilobytes).dup.force_encoding(Encoding::UTF_8).scrub %></pre>
         </details>
       <% end %>

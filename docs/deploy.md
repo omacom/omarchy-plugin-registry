@@ -1,54 +1,29 @@
-# Deploying plugins.omarchy.org
+# Deploying the registry
 
-One Rails app (control plane) + a directory of static files (data plane) synced
-to object storage behind a CDN. Installs never touch Rails.
+The public repository owns the application, Dockerfile and generic processor
+isolation configuration. Host inventory, Kamal configuration, encrypted Rails
+credentials and rollout instructions live in a separate private deployment
+repository. Never commit actual hosts, account-specific R2 endpoints, provider
+keys, signing seeds or encrypted production credentials here.
 
-## Kamal (the supported path)
+The Omarchy deployment repository is `omacom/omarchy-plugin-registry-deploy`.
+It pins a full application commit and builds the application and three processor
+images from that same revision. Only the public application checkout enters the
+Docker build context. Kamal uses a registry reached over SSH; credentials are
+injected at runtime from the private repo's encrypted Rails credentials.
 
-`config/deploy.yml` deploys web + jobs to a single host. Current target is the
-E2E staging box `omarchy-plugins` (Proxmox, Debian 13), reached over Tailscale:
+Use that repository's `bin/credentials edit`, `bin/preflight` and `bin/deploy`.
+The first launch uses `https://plugins-2.omarchy.org`; `plugins.omarchy.org` is
+the later canonical hostname. DNS, TLS, Rails host authorization and passkey
+origins must change together. Existing passkeys are tied to the old hostname:
+keep email login and TOTP available so users can enroll again after cutover.
 
-- **TLS**: terminated at the Cloudflare edge. The tunnel is the encrypted
-  transport to the VM and hands requests to kamal-proxy over the private
-  docker network as plain HTTP (`proxy.ssl: false`; `config.assume_ssl` keeps
-  Rails treating them as https). No origin certificate exists to renew.
-- **Image registry**: self-hosted `registry:2` on the VM (htpasswd user
-  `kamal`, password in `.kamal/local/registry_password`, data under
-  `/opt/registry`). Internal deploy plumbing only — it's the one remaining
-  tailscale-FQDN name and carries the one remaining cert (renew ~90 days:
-  `tailscale cert` on the VM, copy to `/opt/registry/certs/`,
-  `docker restart registry`); swap to ghcr.io/omacom-io when an org PAT
-  with write:packages exists.
-- **Public ingress**: a Cloudflare Tunnel accessory (`cloudflared`) serves
-  `omarchy-plugins.ryanhughes.me` — the canonical `REGISTRY_BASE_URL` and the
-  ONLY hostname the app answers to. Tunnel is remotely managed (ingress
-  config in the Cloudflare dashboard, token in `.kamal/local/tunnel_token`);
-  DNS is a proxied CNAME `omarchy-plugins` →
-  `3fe84e30-e646-43e0-8352-4e1bb474b152.cfargotunnel.com`. Passkeys bind to
-  the canonical host — enroll them on the public domain.
-- **Mail**: a Mailpit accessory catches login-code email — web UI at
-  `http://omarchy-plugins:8025`. Swap the `SMTP_*` env for a real provider
-  before launch.
-- **Secrets**: everything `.kamal/secrets` reads lives git-ignored in
-  `.kamal/local/` (TLS cert/key, `signing_seed`, `registry_password`) —
-  back that directory up; the signing seed especially (custody note below).
-
-```sh
-bin/kamal setup                                            # first deploy
-bin/kamal app exec 'bin/rails registry:grant_admin[you@omarchy.org]'
-bin/kamal deploy                                           # every deploy after
-```
-
-`bin/kamal console` / `logs` / `shell` / `dbc` are aliased. The config mounts
-`omarchy_registry_storage` at `/rails/storage` (databases + data plane — the
-volume the rest of this document is about) and a separate
-`omarchy_registry_witness` volume for `REGISTRY_WITNESS_PATH` (ideally backed
-by a second disk so an app-volume restore can't also roll back the witness —
-not possible on the current single-volume staging box; revisit for
-production). Production cutover to plugins.omarchy.org: swap `proxy.host`,
-the `REGISTRY_*`/`SMTP_*` env, `ssl: true` (needs public 80/443), and the
-image registry. The sections below describe what the deploy must provide and
-apply to any orchestration.
+The app uses SQLite with persistent storage. Web and jobs must share the same
+volume on one host. R2 stores private Active Storage originals and generated
+previews; it does **not** back up accounts, memberships, jobs, or revocations.
+The signed data plane remains local and can be served through Cloudflare. For
+multiple application hosts, first replace SQLite with a shared database and
+coordinate data-plane publication; adding web Droplets alone is insufficient.
 
 ## Required environment
 
@@ -60,7 +35,8 @@ apply to any orchestration.
 | `REGISTRY_PREVIOUS_SIGNING_PUBKEY` | Rotation only: the OLD base64 public key. **Rotation is a coordinated incompatible event** — deployed clients pin one key and fail closed until they re-pin. A key swap requires `REGISTRY_ALLOW_KEY_ROTATION=1`, this variable matching the on-disk trust root (so every surviving signed file keeps verifying fail-closed), **and** `REGISTRY_ROTATION_ACK=clients-must-repin` acknowledging the client impact. Remove all three after the first post-rotation regeneration. |
 | `REGISTRY_WITNESS_PATH` | Strongly recommended: a file on storage SEPARATE from the app volume (second disk, object-store mount). Each regeneration records the signed kill-list generation there; after a full-volume restore the witness proves the data plane is older than the last published kill list and regeneration refuses to sign a newer empty one until `registry:import_revocations` restores the authoritative copy (`REGISTRY_RESTORE_ACK=1` overrides once, deliberately). Unset = a full-volume restore to a pre-revocation state is locally undetectable. |
 | `REGISTRY_HOST` | Host-authorization allowlist (defaults to `plugins.omarchy.org`). Requests carrying any other `Host` are rejected — session cookies are never minted for attacker-pointed domains. `ADDITIONAL_HOSTS` (comma-separated) adds extras; `/up` is exempt for by-IP health checks. |
-| `SMTP_ADDRESS` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Login-code email delivery |
+| `SMTP_ADDRESS` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Login-code email delivery with STARTTLS; `MAIL_FROM` selects the verified sender |
+| `R2_ENDPOINT` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Required for production storage. Use a private bucket and bucket-scoped object read/write credentials. Missing settings fail startup; no implicit personal bucket or local-disk fallback. `ACTIVE_STORAGE_SERVICE=local` is an explicit self-hosting option. |
 | `AI_REVIEW_COMMAND` | Optional advisory LLM review. Production accepts only `/rails/script/ai_review_adapter` and always runs it in the processor sandbox. Missing configuration, incomplete coverage, malformed results or sandbox/provider failure quarantine the version. The endpoint receives UNPUBLISHED source — treat it as a confidential-data processor. |
 
 ## Processor isolation: deployment prerequisite
@@ -116,7 +92,7 @@ production isolation; never accept hostile uploads there.
    build from that trusted checkout on the host. Do not use floating tags.
 2. Prepare the existing provider directory without printing its contents.
    Gateway UID 1001/GID 1000 needs read access; restrict files to that
-   operator-controlled group. It supports `openai_key` or `anthropic_key`,
+   operator-controlled group. It supports `openrouter_key`, `openai_key` or `anthropic_key`,
    optional `base_url`, `model`, `effort`, and `chunk_chars` (1024–120000).
    No app keys belong there. Set `REGISTRY_ALLOW_HTTP_MODEL=1` only for a
    deliberately selected trusted HTTP model server.
@@ -131,9 +107,9 @@ production isolation; never accept hostile uploads there.
    For prebuilt images, set `REGISTRY_PROCESSOR_IMAGE_PREFIX`, pull, and use
    `up -d --no-build`. The read-only audit needs Ruby and Docker CLI on PATH;
    it can run from an authorized workstation using
-   `DOCKER_HOST=ssh://root@omarchy-plugins`. It never reads credentials or
+   `DOCKER_HOST=ssh://YOUR_DEPLOY_HOST`. It never reads credentials or
    executes submitted code. Keep the default production socket-volume names
-   used in `config/deploy.yml`.
+   used in the private Kamal configuration.
 4. Run the app image preflight with only those sockets attached:
 
    ```sh
@@ -169,6 +145,25 @@ contexts as well as Git. Ordinary Kamal builds use a clean Git clone; direct
 workspace builds rely on `.dockerignore`. No deployed secret exposure was
 established by the missing exclusion alone.
 
+## OpenRouter review
+
+Mount `openrouter_key` in the gateway's `/ai` directory. The gateway uses the
+fixed HTTPS endpoint `https://openrouter.ai/api/v1` and defaults to
+`meta/muse-spark-1.3-contributor`. An optional `model` file explicitly pins a
+different model; `effort` defaults to `high`. Do not leave `base_url`,
+`openai_key`, or `anthropic_key` alongside `openrouter_key`: ambiguous provider
+configuration fails startup. Local development's adapter supports the same key.
+
+The gateway exposes only the OpenAI-compatible protocol, model and review
+budgets to the isolated processor. It inserts the real key at the upstream,
+refuses model/routing overrides and tools/plugins, and never relays provider
+error details. An unavailable provider, malformed verdict or incomplete source
+review quarantines the submission. A passing AI verdict cannot bypass the
+first executable release's required human approval.
+
+The selected provider receives unpublished package source. Verify model access,
+account credit and rate limits with a synthetic review before allowing uploads.
+
 ## Pieces
 
 1. **Web**: `bin/thrust bin/rails server` (Dockerfile is ready). SQLite lives
@@ -203,6 +198,22 @@ bin/rails registry:grant_admin[you@omarchy.org]   # admin bootstrap — required
 The new admin signs in (email code), enrolls a passkey or TOTP, and `/admin`
 unlocks. Every containment control requires an admin with a verified second
 factor.
+
+## Launch demo catalog
+
+Do not run the development seeds in production. They include synthetic users
+and activity and are intentionally disabled there. Instead, after bootstrapping
+the real admin account:
+
+```sh
+bin/rails 'registry:seed_demo[you@example.com]'
+```
+
+This idempotently submits three static, clearly labeled demo widgets under the
+reserved `omarchy-demo` namespace, owned by that admin. It creates no fake
+ratings or downloads. They pass through normal scanning and AI review and wait
+for first-release human approval in `/admin`. Sign in, enroll MFA, inspect the
+exact source and approve them. Never turn off the review gate to populate a page.
 
 ## Seeding day
 

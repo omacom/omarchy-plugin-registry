@@ -3,7 +3,7 @@
 <% content_for :social, social_meta(
      title: @plugin.full_name,
      description: @plugin.summary.presence || "#{@plugin.full_name} on Omarchy Hub.",
-     image_path: og_package_path(@plugin),
+     image_path: og_plugin_path(@publisher.name, @plugin.name),
      url_path: package_path(@plugin)) %>
 
 <%= render "shared/notices", notices: @notices %>
@@ -43,22 +43,7 @@
         <%= render "shared/copy_button", label: "Copy install command" %>
       </div>
     <% end %>
-    <% if @plugin.preview? && @plugin.preview_detail.attached? %>
-      <div data-controller="lightbox">
-        <button class="plugin-preview" type="button" data-action="lightbox#open"
-          aria-label="Enlarge <%= @plugin.full_name %> preview">
-          <img src="<%= rails_storage_proxy_path(@plugin.preview_detail) %>"
-            alt="<%= @plugin.full_name %> preview" decoding="async"
-            width="<%= @plugin.preview_detail_meta["width"] %>" height="<%= @plugin.preview_detail_meta["height"] %>">
-        </button>
-        <dialog class="lightbox" data-lightbox-target="dialog" data-action="click->lightbox#backdropClose"
-          aria-label="<%= @plugin.full_name %> preview">
-          <button class="lightbox__close" type="button" data-action="lightbox#close" aria-label="Close preview">×</button>
-          <img src="<%= rails_storage_proxy_path(@plugin.preview_detail) %>"
-            alt="<%= @plugin.full_name %> preview" loading="lazy" decoding="async">
-        </dialog>
-      </div>
-    <% end %>
+    <%= render "plugins/screenshots", plugin: @plugin %>
 
     <div class="readme" data-controller="readme-code">
       <% if @plugin.readme.present? %>

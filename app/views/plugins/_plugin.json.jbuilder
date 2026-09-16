@@ -68,5 +68,13 @@ else
   json.preview nil
 end
 
+json.screenshots plugin.screenshot_previews do |screenshot|
+  json.source screenshot[:meta]["source"]
+  json.animated screenshot[:meta]["animated"]
+  json.url absolute_url(rails_storage_proxy_path(screenshot[:image]))
+  json.width screenshot[:meta].dig("detail", "width")
+  json.height screenshot[:meta].dig("detail", "height")
+end
+
 json.url absolute_url(package_path(plugin))
 json.install_command(plugin.installable? ? plugin.install_command : nil)

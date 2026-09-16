@@ -19,7 +19,7 @@ class PreviewPipelineTest < ActionDispatch::IntegrationTest
     Vips::Image.black(width, height).add(60).cast("uchar").pngsave_buffer
   end
 
-  test "a published preview lands in the index picker and the plugin page" do
+  test "a published preview lands in the directory and the plugin page" do
     perform_enqueued_jobs do
       publish TarballBuilder.build(files: {
         "Widget.qml" => "import QtQuick\nItem {}\n", "preview.png" => png_bytes })
@@ -33,11 +33,10 @@ class PreviewPipelineTest < ActionDispatch::IntegrationTest
     assert_equal "preview.png", plugin.preview_meta["source"]
 
     get "/"
-    assert_select ".index-picker__card-visual img"
+    assert_select ".plugin-card__preview"
     get "/plugins/acme/weather"
     assert_select "button.plugin-preview[aria-label='Enlarge acme/weather screenshot 1 of 1']" do
       assert_select "img[width][height]", 1
-      assert_select ".plugin-preview__zoom[aria-hidden='true']", text: "zoom ↗", count: 1
     end
     assert_select "dialog.lightbox" do
       assert_select "img[width][height]", 1

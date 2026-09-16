@@ -3,7 +3,7 @@
 <% content_for :social, social_meta(
      title: "#{@plugin.full_name}@#{@version.version}",
      description: @version.manifest["description"].presence || @plugin.summary.presence || "#{@plugin.full_name} on the Omarchy plugin registry.",
-     image_path: og_package_path(@plugin),
+     image_path: og_plugin_path(@publisher.name, @plugin.name),
      url_path: package_version_path(@plugin, @version.version)) %>
 
 <%# Withdrawn / not-yet-cleared come from Registry::PluginNotices so the JSON
