@@ -4,10 +4,8 @@
    this file maps them to semantic --color-* names and styles every
    component in the site's idiom: Geist/JetBrains Mono, square corners,
    hairline rules, elevation rings, brand accents.
-   NOTE: omarchy-themes.css must stay @imported FIRST — the theme files are
-   the --t-* token source for everything below. */
-
-@import "./omarchy-themes.css";
+   The layout loads omarchy-themes.css first through the asset helper so both
+   stylesheets use fingerprinted URLs in production. */
 
 /* ---------- Fonts ---------- */
 
