@@ -9,36 +9,55 @@ module Registry
     # thumbnail behind thousands of slow jobs. Same reasoning that keeps
     # mailers off it.
     queue_as :previews
+    discard_on ActiveJob::DeserializationError
     # Serialized per plugin: two racing runs could interleave purge/attach and
     # leave a card without its detail image.
     limits_concurrency to: 1, key: ->(plugin) { "preview_plugin_#{plugin.id}" }
 
     def perform(plugin)
+      plugin.reload
       latest = plugin.active? ? plugin.latest_published_version : nil
-      return clear!(plugin) if latest.nil? || !latest.tarball.attached?
-
-      tarball = TarballInspector.inspect_bytes(latest.tarball.download)
-      return clear!(plugin) if tarball.preview_bytes.nil?
-
-      renditions = PreviewImage.process(tarball.preview_bytes, name: tarball.preview_name)
-      plugin.preview_card.attach(
-        io: StringIO.new(renditions[:card]), filename: "#{plugin.name}-card.webp", content_type: "image/webp")
-      plugin.preview_detail.attach(
-        io: StringIO.new(renditions[:detail]), filename: "#{plugin.name}-detail.webp", content_type: "image/webp")
-      plugin.update!(preview_meta: renditions[:meta])
-    rescue TarballInspector::InvalidTarball, PreviewImage::InvalidPreview
+      renditions = []
+      if latest&.tarball&.attached?
+        tarball = TarballInspector.inspect_bytes(latest.tarball.download)
+        raise TarballInspector::InvalidTarball, "preview archive checksum mismatch" unless tarball.sha256 == latest.sha256
+        renditions = tarball.previews.map { |name, bytes| PreviewImage.process(bytes, name:) }
+      end
+      replace!(plugin, latest, renditions)
+    rescue TarballInspector::InvalidTarball, PreviewImage::InvalidPreview, ActiveStorage::IntegrityError
       # Historic tarball unreadable or preview no longer processable — cosmetic
       # only, never worth failing the job (and never worth keeping a preview
       # that belongs to a different version).
-      clear!(plugin)
+      replace!(plugin, latest, [])
     end
 
     private
 
-    def clear!(plugin)
-      plugin.preview_card.purge if plugin.preview_card.attached?
-      plugin.preview_detail.purge if plugin.preview_detail.attached?
-      plugin.update!(preview_meta: {}) if plugin.preview_meta.present?
+    def replace!(plugin, latest, renditions)
+      # Processing is outside the transaction. Publish the complete gallery
+      # together, only if it still belongs to the effective latest release.
+      plugin.with_lock do
+        current = plugin.active? ? plugin.latest_published_version : nil
+        if current&.id != latest&.id
+          self.class.perform_later(plugin)
+          next
+        end
+        cover, *others = renditions
+        plugin.preview_card = attachment(cover[:card], "#{plugin.name}-card.webp") if cover
+        plugin.preview_detail = attachment(cover[:detail], "#{plugin.name}-detail.webp") if cover
+        plugin.preview_card = plugin.preview_detail = nil unless cover
+        plugin.preview_screenshots = others.map do |rendition|
+          filename = "#{File.basename(rendition[:meta].fetch('source'), '.*')}-detail.webp"
+          rendition[:meta]["detail_file"] = filename
+          attachment(rendition[:detail], filename)
+        end
+        plugin.preview_meta = cover ? cover[:meta].merge("version" => latest.version, "screenshots" => others.map { |r| r[:meta] }) : {}
+        plugin.save!
+      end
+    end
+
+    def attachment(bytes, filename)
+      { io: StringIO.new(bytes), filename:, content_type: "image/webp", identify: false, metadata: { analyzed: true } }
     end
   end
 end

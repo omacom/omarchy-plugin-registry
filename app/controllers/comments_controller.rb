@@ -6,9 +6,9 @@ class CommentsController < ApplicationController
     plugin = find_plugin
     comment = plugin.comments.new(user: Current.user, body: params[:body])
     if comment.save
-      redirect_to plugin_path(plugin.publisher.name, plugin.name), notice: "Comment posted."
+      redirect_to helpers.package_path(plugin), notice: "Comment posted."
     else
-      redirect_to plugin_path(plugin.publisher.name, plugin.name), alert: comment.errors.full_messages.join("; ")
+      redirect_to helpers.package_path(plugin), alert: comment.errors.full_messages.join("; ")
     end
   end
 

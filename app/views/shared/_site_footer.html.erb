@@ -35,6 +35,7 @@
             <a href="https://cloudflare.com" class="omarchy-footer__link">
               <svg viewBox="0 0 256 116" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid" class="omarchy-footer__credits-cf"><path fill="currentColor" d="M176.332 108.348c1.593-5.31 1.062-10.622-1.593-13.809-2.656-3.187-6.374-5.31-11.154-5.842L71.17 87.634c-.531 0-1.062-.53-1.593-.53-.531-.532-.531-1.063 0-1.594.531-1.062 1.062-1.594 2.124-1.594l92.946-1.062c11.154-.53 22.839-9.56 27.087-20.182l5.312-13.809c0-.532.531-1.063 0-1.594C191.203 20.182 166.772 0 138.091 0 111.535 0 88.697 16.995 80.73 40.896c-5.311-3.718-11.684-5.843-19.12-5.31-12.747 1.061-22.838 11.683-24.432 24.43-.531 3.187 0 6.374.532 9.56C16.996 70.107 0 87.103 0 108.348c0 2.124 0 3.718.531 5.842 0 1.063 1.062 1.594 1.594 1.594h170.489c1.062 0 2.125-.53 2.125-1.594l1.593-5.842Z"/><path fill="currentColor" d="M205.544 48.863h-2.656c-.531 0-1.062.53-1.593 1.062l-3.718 12.747c-1.593 5.31-1.062 10.623 1.594 13.809 2.655 3.187 6.373 5.31 11.153 5.843l19.652 1.062c.53 0 1.062.53 1.593.53.53.532.53 1.063 0 1.594-.531 1.063-1.062 1.594-2.125 1.594l-20.182 1.062c-11.154.53-22.838 9.56-27.087 20.182l-1.063 4.78c-.531.532 0 1.594 1.063 1.594h70.108c1.062 0 1.593-.531 1.593-1.593 1.062-4.25 2.124-9.03 2.124-13.81 0-27.618-22.838-50.456-50.456-50.456"/></svg>Cloudflare</a>
           </p>
+          <p data-quiet>Compute by <a href="https://www.digitalocean.com" class="omarchy-footer__link"><svg viewBox="0 0 103 103" fill="currentColor" aria-hidden="true" class="omarchy-footer__credits-do"><path d="M52.1,102.1l0-19.6c20.8,0,36.8-20.6,28.9-42.4C78,32,71.6,25.5,63.5,22.6 c-21.8-7.9-42.4,8.1-42.4,28.9c0,0,0,0,0,0l-19.6,0c0-33.1,32-58.9,66.7-48.1c15.2,4.7,27.2,16.8,31.9,31.9 C110.9,70.1,85.2,102.1,52.1,102.1z"/><polygon points="52.1,82.5 32.6,82.5 32.6,63 32.6,63 52.1,63 52.1,63"/><polygon points="32.6,97.5 17.6,97.5 17.6,97.5 17.6,82.5 32.6,82.5 32.6,97.5"/><polygon points="17.6,82.5 5,82.5 5,82.5 5,70 5,70 17.6,70 17.6,70"/></svg>DigitalOcean</a></p>
         </div>
       </div>
 
@@ -44,8 +45,8 @@
           <ul>
             <li><a href="https://omarchy.org/news/" class="omarchy-footer__link">News</a></li>
             <li><a href="https://omarchy.org/manual/" class="omarchy-footer__link">Manual</a></li>
-            <li><a href="https://plugins.omarchy.org" class="omarchy-footer__link">Plugins</a></li>
-            <li><a href="https://themes.omarchy.org" class="omarchy-footer__link">Themes</a></li>
+            <li><a href="<%= root_path %>" class="omarchy-footer__link">Plugins</a></li>
+            <li><a href="<%= themes_path %>" class="omarchy-footer__link">Themes</a></li>
           </ul>
         </nav>
         <nav aria-label="Community" data-quiet>
@@ -55,15 +56,17 @@
             <li><a href="https://omarchy.org/meetups/" class="omarchy-footer__link">Meetups</a></li>
             <li><a href="https://omarchy.org/teams/" class="omarchy-footer__link">Teams</a></li>
             <li><a href="https://omarchy.org/workstations/" class="omarchy-footer__link">Workstations</a></li>
+            <li><a href="https://omarchy.org/doctrine/" class="omarchy-footer__link">Doctrine</a></li>
           </ul>
         </nav>
         <nav aria-label="Foundation" data-quiet>
           <h2>Foundation</h2>
           <ul>
             <li><a href="https://omarchy.org/foundation/" class="omarchy-footer__link">About</a></li>
+            <li><a href="https://omarchy.org/staff/" class="omarchy-footer__link">Staff</a></li>
             <li><a href="https://omarchy.org/patrons/" class="omarchy-footer__link">Patrons</a></li>
             <li><a href="https://omarchy.org/sponsorships/" class="omarchy-footer__link">Sponsorships</a></li>
-            <li><a href="https://omarchy.org/air/" class="omarchy-footer__link">Artists in Residence</a></li>
+            <li><a href="https://omarchy.org/air/" class="omarchy-footer__link">AIR</a></li>
           </ul>
         </nav>
         <nav aria-label="Project" data-quiet>
@@ -79,36 +82,7 @@
     </div>
 
     <nav aria-label="Language" class="omarchy-footer__lang">
-      <a href="https://omarchy.org" hreflang="en" lang="en" class="omarchy-footer__link">English</a>
-      <a href="https://omarchy.dk" hreflang="da" lang="da" class="omarchy-footer__link">Dansk</a>
-      <a href="https://omarchy.ae" hreflang="ar" lang="ar" class="omarchy-footer__link">العربية</a>
-      <a href="https://omarchy.fi" hreflang="fi" lang="fi" class="omarchy-footer__link">Suomi</a>
-      <a href="https://omarchy.fr" hreflang="fr" lang="fr" class="omarchy-footer__link">Français</a>
-      <a href="https://omarchy.gr" hreflang="el" lang="el" class="omarchy-footer__link">Ελληνικά</a>
-      <a href="https://omarchy.hu" hreflang="hu" lang="hu" class="omarchy-footer__link">Magyar</a>
-      <a href="https://omarchy.in" hreflang="hi" lang="hi" class="omarchy-footer__link">हिन्दी</a>
-      <a href="https://omarchy.is" hreflang="is" lang="is" class="omarchy-footer__link">Íslenska</a>
-      <a href="https://omarchy.jp" hreflang="ja" lang="ja" class="omarchy-footer__link">日本語</a>
-      <a href="https://omarchy.kr" hreflang="ko" lang="ko" class="omarchy-footer__link">한국어</a>
-      <a href="https://omarchy.mx" hreflang="es-MX" lang="es-MX" class="omarchy-footer__link">Español (México)</a>
-      <a href="https://omarchy.ph" hreflang="fil" lang="fil" class="omarchy-footer__link">Filipino</a>
-      <a href="https://omarchy.pt" hreflang="pt" lang="pt" class="omarchy-footer__link">Português</a>
-      <a href="https://omarchy.se" hreflang="sv" lang="sv" class="omarchy-footer__link">Svenska</a>
-      <a href="https://omarchy.tr" hreflang="tr" lang="tr" class="omarchy-footer__link">Türkçe</a>
-      <a href="https://vi.omarchy.org" hreflang="vi" lang="vi" class="omarchy-footer__link">Tiếng Việt</a>
-      <a href="https://ur.omarchy.org" hreflang="ur" lang="ur" class="omarchy-footer__link">اردو</a>
-      <a href="https://bn.omarchy.org" hreflang="bn" lang="bn" class="omarchy-footer__link">বাংলা</a>
-      <a href="https://ca.omarchy.org" hreflang="ca" lang="ca" class="omarchy-footer__link">Català</a>
-      <a href="https://si.omarchy.org" hreflang="si" lang="si" class="omarchy-footer__link">සිංහල</a>
-      <a href="https://ta.omarchy.org" hreflang="ta" lang="ta" class="omarchy-footer__link">தமிழ்</a>
-      <a href="https://th.omarchy.org" hreflang="th" lang="th" class="omarchy-footer__link">ไทย</a>
-      <a href="https://uz.omarchy.org" hreflang="uz" lang="uz" class="omarchy-footer__link">Oʻzbekcha</a>
-      <a href="https://it.omarchy.org" hreflang="it" lang="it" class="omarchy-footer__link">Italiano</a>
-      <a href="https://zh.omarchy.org" hreflang="zh-CN" lang="zh-CN" class="omarchy-footer__link">简体中文</a>
-      <a href="https://pl.omarchy.org" hreflang="pl" lang="pl" class="omarchy-footer__link">Polski</a>
-      <a href="https://lt.omarchy.org" hreflang="lt" lang="lt" class="omarchy-footer__link">Lietuvių</a>
-      <a href="https://ga.omarchy.org" hreflang="ga" lang="ga" class="omarchy-footer__link">Gaeilge</a>
-      <a href="https://nl.omarchy.org" hreflang="nl" lang="nl" class="omarchy-footer__link">Nederlands</a>
+      <%= render "shared/site_languages" %>
     </nav>
 
     <div class="omarchy-footer__bottom">

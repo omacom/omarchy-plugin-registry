@@ -1,22 +1,21 @@
-<section class="hero" data-hero-sentinel>
+<% content_for :title, "Omarchy #{@package_type.pluralize.capitalize}" %>
+<section class="hero">
   <div class="container hero__inner">
     <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
-    <% host = request.host.to_s %>
-    <% if host.start_with?("themes.") %>
-      <p class="page-subtitle">Community themes</p>
-      <p class="hero__lede">Make it yours: Install → Style → Themes. Every theme below ships as a
-        plugin — one command away, same as everything else here.</p>
+    <% if @package_type == "theme" %>
+      <h1 class="page-subtitle">Community themes</h1>
+      <p class="hero__lede">Community palettes, scanned releases, and verified downloads — one command away.</p>
     <% else %>
-      <p class="page-subtitle">Plugin directory</p>
+      <h1 class="page-subtitle">Plugin directory</h1>
       <p class="hero__lede">Hosted, scanned, and revocable — every version is immutable, checksummed, and one
         command away. Discovery belongs on a web page. This is the web page.</p>
     <% end %>
-    <div class="hero__install">
-      <span class="prompt">$</span><span>omarchy plugin add <span class="prompt">publisher/name</span></span>
+    <div class="hero__install" data-controller="clipboard" data-clipboard-text-value="omarchy <%= @package_type || "plugin" %> add publisher/name">
+      <code><span class="prompt" aria-hidden="true">$</span> omarchy <%= @package_type || "plugin" %> add <span class="prompt">publisher/name</span></code>
       <%= render "shared/copy_button", label: "Copy install command", variant: "copy-button--inline" %>
     </div>
     <div class="hero__stats">
-      <div class="hero__stat"><b><%= @stats[:plugins] %></b><span>plugins</span></div>
+      <div class="hero__stat"><b><%= @stats.fetch(@package_type.pluralize.to_sym) %></b><span><%= @package_type.pluralize %></span></div>
       <div class="hero__stat"><b><%= @stats[:publishers] %></b><span>publishers</span></div>
       <div class="hero__stat"><b><%= compact_number(@stats[:downloads]) %></b><span>downloads</span></div>
     </div>
@@ -24,17 +23,17 @@
 </section>
 
 <% if @popular&.any? %>
-  <section class="showcase" aria-label="Popular plugins">
+  <section class="showcase" aria-label="Popular <%= @package_type == 'theme' ? 'themes' : 'plugins' %>">
     <div class="container">
       <div class="showcase__head">
         <div>
-          <h2 class="showcase__title">A plugin for every dream, every desire</h2>
-          <p class="showcase__desc">Thousands of community plugins are available for Omarchy.
-            These are the ones the community installs most — don't find what you need?
+          <h2 class="showcase__title"><%= @package_type == "theme" ? "A theme for every mood" : "A plugin for every dream, every desire" %></h2>
+          <p class="showcase__desc">Explore community <%= @package_type.pluralize %> for Omarchy.
+            Don't find what you need?
             Just put your agent on the job, then share when done.</p>
         </div>
         <%= link_to directory_path(sort: "downloads"), class: "showcase__action" do %>
-          All plugins <span aria-hidden="true">→</span>
+          All <%= @package_type == "theme" ? "themes" : "plugins" %> <span aria-hidden="true">→</span>
         <% end %>
       </div>
       <div class="plugin-grid showcase__grid">
@@ -42,7 +41,7 @@
       </div>
       <div class="showcase__actions">
         <%= link_to directory_path(sort: "downloads"), class: "showcase__action", style: "display:inline-flex" do %>
-          All plugins <span aria-hidden="true">→</span>
+          All <%= @package_type == "theme" ? "themes" : "plugins" %> <span aria-hidden="true">→</span>
         <% end %>
       </div>
     </div>
@@ -50,7 +49,7 @@
 <% end %>
 
 <% if @recent&.any? %>
-  <section class="recent-band" aria-label="Recently added plugins">
+  <section class="recent-band" aria-label="Recently added <%= @package_type == 'theme' ? 'themes' : 'plugins' %>">
     <div class="container">
       <div class="recent-band__head">
         <p class="eyebrow">Recently added</p>
@@ -58,7 +57,7 @@
       </div>
       <div class="recent-band__row">
         <% @recent.each do |plugin| %>
-          <%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "recent-card" do %>
+          <%= link_to package_path(plugin), class: "recent-card" do %>
             <span class="recent-card__name"><span class="ns"><%= plugin.publisher.name %>/</span><%= plugin.name %></span>
             <span class="recent-card__summary"><%= plugin.summary %></span>
             <span class="recent-card__meta">v<%= plugin.latest_version %>
@@ -70,14 +69,17 @@
   </section>
 <% end %>
 
-<section class="directory container" data-controller="search-focus">
-  <%= form_with url: root_path, method: :get, class: "directory__bar" do %>
-    <input type="search" name="q" value="<%= @query %>"
-      placeholder="Search plugins… (try @publisher, tag:media, kind:bar)" aria-label="Search plugins"
-      data-search-focus-target="input" aria-keyshortcuts="Control+K">
+<section class="directory container">
+  <%= form_with url: directory_path(q: nil, sort: nil, category: nil, tag: nil), method: :get, class: "directory__bar" do %>
+    <div class="directory__search">
+      <%= render "shared/icon", name: "search" %>
+      <input id="directory-search" type="search" name="q" value="<%= @query %>"
+        placeholder="Search <%= @package_type.pluralize %>…" aria-label="Search <%= @package_type.pluralize %>"
+        spellcheck="false" autocomplete="off" enterkeyhint="search" aria-keyshortcuts="Control+K Meta+K">
+      <kbd class="directory__kbd" aria-hidden="true">Ctrl K</kbd>
+    </div>
     <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
     <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
-    <kbd class="directory__kbd" title="Focus search">Ctrl K</kbd>
     <div class="directory__sort">
       <% HomeController::SORTS.each_key do |sort| %>
         <%= link_to sort, directory_path(sort: (sort unless sort == "downloads")), class: ("active" if @sort == sort) %>
@@ -104,8 +106,8 @@
     </nav>
   <% end %>
 
-  <% if @query.present? || @category || @tag %>
-    <p class="muted directory__count" role="status"><%= pluralize(@total, "plugin") %> found</p>
+  <% if @query.present? || @category || @tag || @package_type %>
+    <p class="muted directory__count" role="status"><%= pluralize(@total, @package_type || "package") %> found</p>
   <% end %>
 
   <% if @plugins.any? %>
@@ -115,7 +117,7 @@
   <% elsif @page > 1 %>
     <p class="muted">Nothing on this page — <%= link_to "back to the first page", directory_path %>.</p>
   <% else %>
-    <p class="muted"><% if @query.present? || @category || @tag %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", root_path %>.<% else %>No plugins published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
+    <p class="muted"><% if @query.present? || @category || @tag %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", directory_path(q: nil, sort: nil, category: nil, tag: nil) %>.<% else %>No <%= @package_type.pluralize %> published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
   <% end %>
 
   <% if @page > 1 || @more %>

@@ -1,47 +1,38 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Ctrl+K (or Cmd+K) jumps to the directory search box from anywhere on the
-// page; Escape blurs it again. Also serves the header search button (which
-// lives outside the form): focusing works whether this controller wraps the
-// search form or the button calls focus() directly.
+// One global shortcut owner in the header, including after Turbo navigation.
 export default class extends Controller {
-  static targets = ["input"]
+  static values = { url: { type: String, default: "/#directory-search" } }
 
   connect() {
     this.shortcut = (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault()
-        this.focusInput()
-      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") this.focus(event)
+    }
+    this.onLoad = () => {
+      if (location.hash === "#directory-search") this.focus()
     }
     document.addEventListener("keydown", this.shortcut)
+    document.addEventListener("turbo:load", this.onLoad)
+    this.onLoad()
   }
 
   disconnect() {
     document.removeEventListener("keydown", this.shortcut)
+    document.removeEventListener("turbo:load", this.onLoad)
   }
 
-  // Header search button action: jump to the directory search wherever it is.
   focus(event) {
+    // The brand remains a normal home link for modified and middle clicks.
+    if (event?.type === "click" && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
     event?.preventDefault()
-    if (this.hasInputTarget) {
-      this.focusInput()
-      return
-    }
+    this.application.getControllerForElementAndIdentifier(this.element, "site-header")?.closeMenu()
     const input = document.querySelector('input[type="search"][name="q"]')
     if (input) {
-      input.focus()
+      input.focus({ preventScroll: true })
       input.select()
-      // In-page affordance only: the page itself never smooth-scrolls
-      // (see application.css), so this explicit smooth jump is safe here.
-      input.scrollIntoView({ block: "center", behavior: "smooth" })
+      input.scrollIntoView({ block: "center" })
     } else {
-      window.location.href = "/"
+      window.location.href = this.urlValue
     }
-  }
-
-  focusInput() {
-    this.inputTarget.focus()
-    this.inputTarget.select()
   }
 }

@@ -8,7 +8,8 @@ import {
   SITE_THEMES,
   OPEN_PICKER_EVENT,
   HINT_KEY,
-  applyTheme,
+  switchTheme,
+  paintFavicon,
   readTheme,
 } from "lib/omarchy-theme"
 
@@ -35,21 +36,28 @@ const isTyping = (target) => {
 }
 
 export default class extends Controller {
-  static targets = ["deck", "name", "hint"]
+  static targets = ["panel", "deck", "name", "hint"]
 
   connect() {
     this.open = false
     this.index = 0
     this.restoreFocus = null
+    this.restoreRing = false
+    this.disconnected = false
+    this.swipe = { id: -1, from: 0, moved: 0 }
     this.warmed = new Set()
     this.onGlobalKey = (e) => this.globalKey(e)
     this.onOpenRequest = () => this.openPicker()
+    this.onBeforeCache = () => this.close(false)
     window.addEventListener("keydown", this.onGlobalKey)
     window.addEventListener(OPEN_PICKER_EVENT, this.onOpenRequest)
+    document.addEventListener("turbo:before-cache", this.onBeforeCache)
+    paintFavicon()
     // Some WebViews lack requestIdleCallback; retain a timeout fallback.
     const idle =
       window.requestIdleCallback ?? ((cb) => window.setTimeout(cb, 1500))
     idle(() => {
+      if (this.disconnected) return
       const at = SITE_THEMES.findIndex((t) => t.id === readTheme())
       this.warmAround(at >= 0 ? at : 0)
     })
@@ -59,12 +67,15 @@ export default class extends Controller {
     } catch {
       /* storage unavailable: show nothing rather than nag every visit */
     }
-    if (!seen) window.setTimeout(() => this.showHint(), 1600)
+    if (!seen) this.hintTimer = window.setTimeout(() => this.showHint(), 1600)
   }
 
   disconnect() {
+    this.disconnected = true
+    window.clearTimeout(this.hintTimer)
     window.removeEventListener("keydown", this.onGlobalKey)
     window.removeEventListener(OPEN_PICKER_EVENT, this.onOpenRequest)
+    document.removeEventListener("turbo:before-cache", this.onBeforeCache)
   }
 
   markHintSeen() {
@@ -100,13 +111,17 @@ export default class extends Controller {
   // the browser, and never fire while someone is typing, or searching the
   // plugin directory would open the picker on the first letter.
   globalKey(event) {
+    const chord = event.code === "Space" && event.metaKey && event.ctrlKey && event.shiftKey
     const plainT =
       event.key.toLowerCase() === "t" &&
       !event.metaKey &&
       !event.ctrlKey &&
       !event.altKey &&
       !isTyping(event.target)
-    if (!plainT) return
+    if (!plainT && !chord) {
+      if (this.open) this.pickerKey(event)
+      return
+    }
     event.preventDefault()
     if (this.open) this.close()
     else this.openPicker()
@@ -117,25 +132,56 @@ export default class extends Controller {
     const at = SITE_THEMES.findIndex((t) => t.id === current)
     this.index = at >= 0 ? at : 0
     this.restoreFocus = document.activeElement
+    this.restoreRing = this.restoreFocus?.matches(":focus-visible") ?? false
+    this.swipe = { id: -1, from: 0, moved: 0 }
     this.open = true
     this.markHintSeen()
-    this.element.hidden = false
-    document.documentElement.dataset.navMenu = "open"
+    this.panelTarget.hidden = false
     this.paint()
     this.dialog().focus()
   }
 
   close(restore = true) {
     this.open = false
-    this.element.hidden = true
-    delete document.documentElement.dataset.navMenu
+    this.panelTarget.hidden = true
     if (restore && this.restoreFocus?.focus) {
-      this.restoreFocus.focus({ preventScroll: true })
+      this.restoreFocus.focus({ focusVisible: this.restoreRing, preventScroll: true })
     }
   }
 
   dialog() {
     return this.element.querySelector('[role="dialog"]')
+  }
+
+  dismiss() {
+    this.close()
+  }
+
+  swipeStart(event) {
+    this.swipeCancel()
+    if (event.pointerType !== "touch") return
+    this.swipe = { id: event.pointerId, from: event.clientX, moved: 0 }
+  }
+
+  swipeMove(event) {
+    if (event.pointerId === this.swipe.id) this.swipe.moved = event.clientX - this.swipe.from
+  }
+
+  swipeEnd(event) {
+    if (event.pointerId !== this.swipe.id) return
+    this.swipe.id = -1
+    if (Math.abs(this.swipe.moved) > 44) this.step(this.swipe.moved < 0 ? 1 : -1)
+  }
+
+  swipeCancel() {
+    this.swipe = { id: -1, from: 0, moved: 0 }
+  }
+
+  swallowSwipe(event) {
+    if (Math.abs(this.swipe.moved) <= 44) return
+    this.swipe.moved = 0
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   pickerKey(event) {
@@ -160,12 +206,12 @@ export default class extends Controller {
     this.paint()
   }
 
-  go(event) {
-    const at = Number(event.currentTarget.dataset.index)
-    if (Number.isInteger(at)) {
-      this.index = at
-      this.paint()
-    }
+  previous() {
+    this.step(-1)
+  }
+
+  next() {
+    this.step(1)
   }
 
   pick(event) {
@@ -181,11 +227,8 @@ export default class extends Controller {
 
   choose() {
     const next = SITE_THEMES[this.index]
-    this.close(false)
-    if (next.id !== readTheme()) applyTheme(next.id)
-    if (this.restoreFocus?.focus) {
-      this.restoreFocus.focus({ preventScroll: true })
-    }
+    if (next.id === readTheme()) this.close()
+    else switchTheme(next.id, () => this.close(), { frosted: true })
   }
 
   // Decode only the visible previews and their neighbors.
@@ -206,7 +249,7 @@ export default class extends Controller {
   paint() {
     this.warmAround(this.index)
     const half = SITE_THEMES.length / 2
-    this.deckTarget.innerHTML = ""
+    this.deckTarget.querySelectorAll(".omarchy-theme-card").forEach((card) => card.remove())
     SITE_THEMES.forEach((theme, i) => {
       const raw = i - this.index
       const offset =
@@ -248,9 +291,9 @@ export default class extends Controller {
       img.height = 1012
       img.draggable = false
       img.className = "omarchy-theme-card__img"
-      if (depth !== 0) img.style.filter = "brightness(0.55)"
+      if (depth !== 0) img.style.filter = "brightness(var(--card-dim))"
       img.addEventListener("error", () => {
-        if (img.dataset.retried) return
+        if (img.hasAttribute("data-retried")) return
         img.dataset.retried = ""
         window.setTimeout(() => {
           img.src = `${previewSrc(theme.id)}?retry`
@@ -265,6 +308,7 @@ export default class extends Controller {
     const theme = SITE_THEMES[this.index]
     this.nameTarget.textContent = theme.name
     this.nameTarget.dataset.theme = theme.id
+    this.nameTarget.setAttribute("aria-label", `Use ${theme.name}`)
     this.nameTarget.classList.toggle("omarchy-theme-name--light", !!theme.light)
   }
 }

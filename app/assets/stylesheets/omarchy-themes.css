@@ -1,10 +1,11 @@
 /* omarchy-site theme tokens, ported 1-1 from omacom/omarchy-site
    src/styles.css ("theme values"). [data-theme] selectors became
    html[data-theme] so they outrank :root without !important.
-   Applied via data-theme on <html> + the omarchy-theme Stimulus controller. */
+   The picker label also takes the browsed theme tokens, as on omarchy.org. */
 
 :root,
-html[data-theme="tokyo-night"] {
+html[data-theme="tokyo-night"],
+.omarchy-theme-name[data-theme="tokyo-night"] {
   --t-bg-deep: #13141c;
   --t-bg: #1a1b26;
   --t-surface: #1f2230;
@@ -37,7 +38,8 @@ html[data-theme="tokyo-night"] {
   --t-hdr-surface: #2d3044;
 }
 
-html[data-theme="white"] {
+html[data-theme="white"],
+.omarchy-theme-name[data-theme="white"] {
   --t-bg-deep: #f5f5f5;
   --t-bg: #ffffff;
   --t-surface: #ffffff;
@@ -74,7 +76,8 @@ html[data-theme="white"] {
   --t-hdr-surface: #000000;
 }
 
-html[data-theme="catppuccin"] {
+html[data-theme="catppuccin"],
+.omarchy-theme-name[data-theme="catppuccin"] {
   --t-bg-deep: #161622;
   --t-bg: #1e1e2e;
   --t-surface: #282839;
@@ -107,7 +110,8 @@ html[data-theme="catppuccin"] {
   --t-hdr-surface: #383852;
 }
 
-html[data-theme="gruvbox"] {
+html[data-theme="gruvbox"],
+.omarchy-theme-name[data-theme="gruvbox"] {
   --t-bg-deep: #1e1e1e;
   --t-bg: #282828;
   --t-surface: #32302f;
@@ -140,7 +144,8 @@ html[data-theme="gruvbox"] {
   --t-hdr-surface: #484645;
 }
 
-html[data-theme="matte-black"] {
+html[data-theme="matte-black"],
+.omarchy-theme-name[data-theme="matte-black"] {
   --t-bg-deep: #0d0d0d;
   --t-bg: #121212;
   --t-surface: #181818;
@@ -173,7 +178,8 @@ html[data-theme="matte-black"] {
   --t-hdr-surface: #212121;
 }
 
-html[data-theme="rose-pine"] {
+html[data-theme="rose-pine"],
+.omarchy-theme-name[data-theme="rose-pine"] {
   --t-bg-deep: #ede7e1;
   --t-bg: #faf4ed;
   --t-surface: #fffaf3;
@@ -210,7 +216,8 @@ html[data-theme="rose-pine"] {
   --t-hdr-surface: #000000;
 }
 
-html[data-theme="catppuccin-latte"] {
+html[data-theme="catppuccin-latte"],
+.omarchy-theme-name[data-theme="catppuccin-latte"] {
   --t-bg-deep: #e3e4e8;
   --t-bg: #eff1f5;
   --t-surface: #f8f9fb;
@@ -251,7 +258,8 @@ html[data-theme="catppuccin-latte"] {
   --t-partner-cloudflare: #c2410c;
 }
 
-html[data-theme="ethereal"] {
+html[data-theme="ethereal"],
+.omarchy-theme-name[data-theme="ethereal"] {
   --t-bg-deep: #040816;
   --t-bg: #060b1e;
   --t-surface: #0c122c;
@@ -284,7 +292,8 @@ html[data-theme="ethereal"] {
   --t-hdr-surface: #10183c;
 }
 
-html[data-theme="everforest"] {
+html[data-theme="everforest"],
+.omarchy-theme-name[data-theme="everforest"] {
   --t-bg-deep: #21272c;
   --t-bg: #2d353b;
   --t-surface: #303a40;
@@ -317,7 +326,8 @@ html[data-theme="everforest"] {
   --t-hdr-surface: #485760;
 }
 
-html[data-theme="flexoki-light"] {
+html[data-theme="flexoki-light"],
+.omarchy-theme-name[data-theme="flexoki-light"] {
   --t-bg-deep: #f2efe4;
   --t-bg: #fffcf0;
   --t-surface: #f9f6ea;
@@ -358,7 +368,8 @@ html[data-theme="flexoki-light"] {
   --t-partner-cloudflare: #c2410c;
 }
 
-html[data-theme="hackerman"] {
+html[data-theme="hackerman"],
+.omarchy-theme-name[data-theme="hackerman"] {
   --t-bg-deep: #080910;
   --t-bg: #0b0c16;
   --t-surface: #10121f;
@@ -391,7 +402,8 @@ html[data-theme="hackerman"] {
   --t-hdr-surface: #16182b;
 }
 
-html[data-theme="kanagawa"] {
+html[data-theme="kanagawa"],
+.omarchy-theme-name[data-theme="kanagawa"] {
   --t-bg-deep: #17171e;
   --t-bg: #1f1f28;
   --t-surface: #202838;
@@ -424,7 +436,8 @@ html[data-theme="kanagawa"] {
   --t-hdr-surface: #323a4e;
 }
 
-html[data-theme="last-horizon"] {
+html[data-theme="last-horizon"],
+.omarchy-theme-name[data-theme="last-horizon"] {
   --t-bg-deep: #090809;
   --t-bg: #0c0b0c;
   --t-surface: #0c0b0c;
@@ -457,7 +470,8 @@ html[data-theme="last-horizon"] {
   --t-hdr-surface: #121112;
 }
 
-html[data-theme="lumon"] {
+html[data-theme="lumon"],
+.omarchy-theme-name[data-theme="lumon"] {
   --t-bg-deep: #101b21;
   --t-bg: #16242d;
   --t-surface: #182836;
@@ -490,7 +504,8 @@ html[data-theme="lumon"] {
   --t-hdr-surface: #243a4c;
 }
 
-html[data-theme="lupine"] {
+html[data-theme="lupine"],
+.omarchy-theme-name[data-theme="lupine"] {
   --t-bg-deep: #ececec;
   --t-bg: #fafafa;
   --t-surface: #ffffff;
@@ -531,7 +546,8 @@ html[data-theme="lupine"] {
   --t-partner-cloudflare: #c2410c;
 }
 
-html[data-theme="miasma"] {
+html[data-theme="miasma"],
+.omarchy-theme-name[data-theme="miasma"] {
   --t-bg-deep: #191919;
   --t-bg: #222222;
   --t-surface: #272727;
@@ -564,7 +580,8 @@ html[data-theme="miasma"] {
   --t-hdr-surface: #393939;
 }
 
-html[data-theme="nord"] {
+html[data-theme="nord"],
+.omarchy-theme-name[data-theme="nord"] {
   --t-bg-deep: #222730;
   --t-bg: #2e3440;
   --t-surface: #343b49;
@@ -597,7 +614,8 @@ html[data-theme="nord"] {
   --t-hdr-surface: #4e576c;
 }
 
-html[data-theme="osaka-jade"] {
+html[data-theme="osaka-jade"],
+.omarchy-theme-name[data-theme="osaka-jade"] {
   --t-bg-deep: #0c1512;
   --t-bg: #111c18;
   --t-surface: #1a2a22;
@@ -630,7 +648,8 @@ html[data-theme="osaka-jade"] {
   --t-hdr-surface: #23382e;
 }
 
-html[data-theme="retro-82"] {
+html[data-theme="retro-82"],
+.omarchy-theme-name[data-theme="retro-82"] {
   --t-bg-deep: #031222;
   --t-bg: #05182e;
   --t-surface: #081e37;
@@ -663,7 +682,8 @@ html[data-theme="retro-82"] {
   --t-hdr-surface: #0a2a4e;
 }
 
-html[data-theme="ristretto"] {
+html[data-theme="ristretto"],
+.omarchy-theme-name[data-theme="ristretto"] {
   --t-bg-deep: #211b1b;
   --t-bg: #2c2525;
   --t-surface: #342a28;
@@ -696,7 +716,8 @@ html[data-theme="ristretto"] {
   --t-hdr-surface: #4c3e3c;
 }
 
-html[data-theme="solitude"] {
+html[data-theme="solitude"],
+.omarchy-theme-name[data-theme="solitude"] {
   --t-bg-deep: #0c0e10;
   --t-bg: #101315;
   --t-surface: #101315;
@@ -729,7 +750,8 @@ html[data-theme="solitude"] {
   --t-hdr-surface: #181d20;
 }
 
-html[data-theme="vantablack"] {
+html[data-theme="vantablack"],
+.omarchy-theme-name[data-theme="vantablack"] {
   --t-bg-deep: #090909;
   --t-bg: #000000;
   --t-surface: #0d0d0d;

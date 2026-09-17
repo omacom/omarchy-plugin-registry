@@ -1,4 +1,4 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: "Omarchy Plugins <registry@omarchy.org>"
+  default from: ENV.fetch("MAIL_FROM", "Omarchy Plugins <registry@omarchy.org>")
   layout "mailer"
 end

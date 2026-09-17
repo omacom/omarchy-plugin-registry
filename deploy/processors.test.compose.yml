@@ -1,0 +1,30 @@
+# Local-only overlay. The fake model is not part of a real deployment.
+services:
+  gateway:
+    environment:
+      REGISTRY_ALLOW_HTTP_MODEL: "1"
+    volumes:
+      - type: bind
+        source: ../test/fixtures/files/processor_ai
+        target: /ai
+        read_only: true
+    depends_on: [fake-model]
+
+  fake-model:
+    image: "${REGISTRY_PROCESSOR_IMAGE_PREFIX:-omarchy-registry-processor}-gateway:${REGISTRY_PROCESSOR_TAG:?set a test tag}"
+    entrypoint: [ruby, /fake_model_server.rb]
+    user: "1001:1000"
+    cap_drop: [ALL]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 32
+    networks: [provider_egress]
+    volumes: ["../test/fixtures/files/fake_model_server.rb:/fake_model_server.rb:ro"]
+
+networks:
+  # Even the fake upstream's network has no outbound or host route.
+  provider_egress:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated

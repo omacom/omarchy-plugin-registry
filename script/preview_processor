@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+if File.directory?("/usr/local/bundle")
+  ENV["GEM_HOME"] ||= "/usr/local/bundle"
+  ENV["BUNDLE_PATH"] ||= "/usr/local/bundle"
+  ENV["BUNDLE_WITHOUT"] ||= "development"
+  ENV["BUNDLE_DEPLOYMENT"] ||= "1"
+end
+require "bundler/setup"
+require "json"
+require "base64"
+require_relative "../lib/registry/preview_processor"
+
+begin
+  raw = $stdin.read(14 * 1024 * 1024 + 1)
+  raise ArgumentError, "oversized input" if raw.bytesize > 14 * 1024 * 1024
+  request = JSON.parse(raw)
+  bytes = Base64.strict_decode64(request.fetch("bytes"))
+  name = request.fetch("name")
+  case request["action"]
+  when "validate"
+    Registry::PreviewProcessor.validate!(bytes, name:)
+    puts JSON.generate({ valid: true })
+  when "process"
+    result = Registry::PreviewProcessor.process(bytes, name:)
+    puts JSON.generate({ valid: true, card: Base64.strict_encode64(result[:card]),
+                         detail: Base64.strict_encode64(result[:detail]), meta: result[:meta] })
+  else
+    raise ArgumentError, "unsupported processor action"
+  end
+rescue Registry::PreviewProcessor::InvalidPreview => e
+  puts JSON.generate({ error: e.message.to_s[0, 300] })
+rescue StandardError => e
+  puts JSON.generate({ error: "preview processing failed (#{e.class})" })
+end

@@ -18,7 +18,7 @@ module Registry
     # seed_provenance carries the legacy-marketplace lineage (source repo,
     # reviewed commit, original id, original listing time) — accepted only on
     # the system_seed path, never from a client-supplied publish.
-    def initialize(user:, publisher:, plugin_name:, tarball_bytes:, token: nil, system_seed: false, seed_provenance: nil)
+    def initialize(user:, publisher:, plugin_name:, tarball_bytes:, token: nil, system_seed: false, seed_provenance: nil, package_type: nil)
       @user = user
       @publisher = publisher
       @plugin_name = plugin_name
@@ -26,6 +26,7 @@ module Registry
       @token = token
       @system_seed = system_seed
       @seed_provenance = system_seed ? seed_provenance : nil
+      @expected_package_type = package_type
     end
 
     def call
@@ -77,9 +78,14 @@ module Registry
     # corrected version and the plugin reactivates — but only AFTER the new
     # submission passes validation (see create_version!).
     def find_or_build_plugin!
+      package_type = tarball.manifest.fetch("packageType", "plugin")
+      fail! "packageType must be plugin or theme" unless Plugin::PACKAGE_TYPES.include?(package_type)
+      if @expected_package_type && package_type != @expected_package_type
+        fail! "this endpoint accepts #{@expected_package_type} packages, not #{package_type}"
+      end
       @plugin = publisher.plugins.find_by(name: plugin_name)
       if plugin.nil?
-        @plugin = publisher.plugins.new(name: plugin_name)
+        @plugin = publisher.plugins.new(name: plugin_name, package_type: package_type)
         # Seeds grandfather legacy omarchy-* names; interactive publishes don't
         plugin.allow_reserved = true if @system_seed
         fail! plugin.errors.full_messages.join("; ") unless plugin.valid?
@@ -91,6 +97,7 @@ module Registry
       elsif !plugin.active?
         fail! "#{plugin.full_name} is #{plugin.state.humanize.downcase} and cannot accept new versions", status: :forbidden
       end
+      fail! "package type is immutable for #{plugin.full_name}" unless plugin.package_type == package_type
       check_submission_limits!
     end
 
@@ -163,10 +170,11 @@ module Registry
     # The preview is optional, but a broken one fails HERE — instant CLI
     # feedback — instead of freezing junk into an immutable release.
     def validate_preview!
-      return if tarball.preview_bytes.nil?
-      PreviewImage.validate!(tarball.preview_bytes, name: tarball.preview_name)
-    rescue PreviewImage::InvalidPreview => e
-      fail! e.message
+      tarball.previews.each do |name, bytes|
+        PreviewImage.validate!(bytes, name:)
+      rescue PreviewImage::InvalidPreview => e
+        fail! "#{name}: #{e.message}"
+      end
     end
 
     # Structural validation is synchronous (instant CLI feedback); everything

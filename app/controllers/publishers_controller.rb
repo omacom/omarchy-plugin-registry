@@ -7,7 +7,7 @@ class PublishersController < ApplicationController
     # includes/with_attached: the shared plugin partial reads publisher and
     # preview for every row, and both formats render it.
     @plugins = @publisher.plugins.directory_visible
-      .includes(:publisher).with_attached_preview_card
+      .includes(:publisher).with_previews
       .order(downloads_count: :desc)
     freshen(@publisher, @plugins)
   end

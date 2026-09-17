@@ -1,5 +1,10 @@
 # Client contract — `omarchy plugin` ⇄ plugins.omarchy.org
 
+This contract also serves `omarchy theme`. [packages.md](packages.md) defines the
+theme manifest, typed endpoints, data/config/state layout, per-file receipts,
+editable clones and migration rules. That extension supersedes the legacy
+plugin-only paths and receipt assumptions below.
+
 The registry-side contract for the Quattro CLI work. The client stays a thin
 fetch-verify-unpack; everything clever is server-side. Git installs remain the
 dev escape hatch behind `--unsafe`.
@@ -51,6 +56,15 @@ public read surfaces as JSON on the same URLs, negotiated by format:
 `/plugins.json`, `/plugins/<publisher>/<name>.json`,
 `/plugins/<publisher>/<name>/<version>.json`, `/publishers/<name>.json`.
 
+The website's root is the plugin section; `/themes` is the separate theme section.
+Their grids, popular/recent shelves, search, facets, counts and pagination stay
+within the selected type. `/plugins.json` and `/themes.json` follow the same rule;
+query parameters cannot change their types. The explicit `/packages.json` native
+catalog can aggregate both, with optional `package_type` filtering. Publisher
+pages separate plugins and themes, and publisher JSON exposes distinct `plugins`
+and `themes` arrays with `plugin_count` and `theme_count`. Detail/version URLs
+under the wrong type return 404.
+
 Full reference, including query parameters, paging, and payload shapes:
 **[browse-api.md](browse-api.md)**.
 
@@ -77,11 +91,13 @@ invisible in the desktop browser.
    `test/conformance/corpus/*.json` — run the same corpus against
    `omarchy-plugin-validate` in Quattro CI so the two validators can never
    silently diverge),
-   id-collision check, move to `~/.config/omarchy/plugins/<id>/`, land
+   id-collision check, move to `${XDG_DATA_HOME:-~/.local/share}/omarchy/plugins/<id>/`, land
    **disabled** (enable stays a separate consent step).
 5. Write an install receipt next to the manifest:
    `{"source": "registry", "publisher": ..., "name": ..., "version": ..., "sha256": ...}`.
-   No receipt = local dev plugin: never updated, never revoked.
+   Receipts also record registry origin, package type, optional version pin and
+   file hashes/modes. No receipt means no registry update or revocation; local
+   clones carry a separate origin record and are never automatically updated.
 6. Show the capability summary (`caps`) in the confirmation prompt.
 
 ## `omarchy plugin update`
@@ -98,7 +114,7 @@ empty almost always — document it as the one background network touch, with a
 config switch to disable). On a hit for an installed plugin@version:
 
 1. Disable the plugin immediately via the existing IPC.
-2. Rename `~/.config/omarchy/plugins/<id>` to `<id>.quarantined-<date>`.
+2. Move the package into the user state quarantine directory, outside discovery.
 3. `omarchy-notification-send` with the reason and a link to the plugin page.
 
 ## Publishing (CLI side)
@@ -136,10 +152,13 @@ config switch to disable). On a hit for an installed plugin@version:
   verify sha256, install, and record the pin in the install receipt so
   `omarchy plugin update` skips it until the pin is removed. The site's
   per-version pages advertise this syntax.
-- Optional root preview: exactly one of `preview.png|jpg|jpeg|webp|gif`
-  (animated GIF allowed). The registry renders card/detail/share images from
-  it; a corrupt or format-mismatched preview fails the publish. Client-side
-  `omarchy-plugin-validate` should check the magic bytes match the extension.
+- Optional root screenshots: up to four slots named `preview1` through `preview4`,
+  with one `.png`, `.jpg`, `.jpeg`, `.webp` or `.gif` per slot. Legacy `preview`
+  aliases slot 1; duplicate slots and out-of-range numbers are rejected. Gaps
+  are allowed; numeric order determines the cover and gallery. Each image is
+  at most 10 MiB within the existing archive limit. Every image must pass the
+  server's isolated decoder; client validation checks slots, bytes and magic
+  without decoding. The browse API keeps `preview` and adds `screenshots`.
 
 ## Demotions at launch
 

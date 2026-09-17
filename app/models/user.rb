@@ -2,6 +2,8 @@
 # (LoginCode); TOTP — and eventually passkeys — is the second factor required
 # to publish. No password ever exists to phish.
 class User < ApplicationRecord
+  has_many :compatibility_reports, dependent: :destroy
+  has_many :compatibility_notifications, dependent: :destroy
   has_many :sessions, dependent: :destroy
   has_many :login_codes, dependent: :destroy
   has_many :memberships, dependent: :destroy

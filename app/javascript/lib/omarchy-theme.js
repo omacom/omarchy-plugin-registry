@@ -3,6 +3,8 @@
 // reads SITE_THEMES from the page. No framework, no view transitions —
 // applyTheme stamps, persists, and notifies; the header/footer listen for
 // THEME_EVENT to re-read their colors.
+import { runThemeViewTransition } from "lib/theme-transition"
+
 export const SITE_THEMES = [
   { id: "catppuccin", name: "Catppuccin" },
   { id: "catppuccin-latte", name: "Catppuccin Latte", light: true },
@@ -49,6 +51,13 @@ export function readTheme() {
     /* storage unavailable */
   }
   return DEFAULT_THEME
+}
+
+export function switchTheme(id, after, options = {}) {
+  runThemeViewTransition(() => {
+    applyTheme(id)
+    after?.()
+  }, options)
 }
 
 // Stamp the saved palette (or a system-matching random one) before first

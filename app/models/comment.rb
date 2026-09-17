@@ -3,6 +3,7 @@
 class Comment < ApplicationRecord
   belongs_to :plugin, counter_cache: true
   belongs_to :user
+  belongs_to :compatibility_report, optional: true
   has_many :reports, as: :reportable, dependent: :destroy
 
   validates :body, presence: true, length: { minimum: 3, maximum: 2_000 }

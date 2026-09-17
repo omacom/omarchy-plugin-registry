@@ -12,11 +12,11 @@ local:
 # CRC checksums.
 cloudflare:
   service: S3
-  endpoint: <%= ENV.fetch("R2_ENDPOINT", "https://29ac8c38cc3371d2f4ceda8bf3db43c1.r2.cloudflarestorage.com") %>
-  access_key_id: <%= ENV["R2_ACCESS_KEY_ID"] %>
-  secret_access_key: <%= ENV["R2_SECRET_ACCESS_KEY"] %>
+  endpoint: <%= ENV["R2_ENDPOINT"]&.to_json %>
+  access_key_id: <%= ENV["R2_ACCESS_KEY_ID"]&.to_json %>
+  secret_access_key: <%= ENV["R2_SECRET_ACCESS_KEY"]&.to_json %>
   region: auto
-  bucket: <%= ENV.fetch("R2_BUCKET", "omarchy-plugin-registry") %>
+  bucket: <%= ENV["R2_BUCKET"]&.to_json %>
   request_checksum_calculation: when_required
   response_checksum_validation: when_required
 

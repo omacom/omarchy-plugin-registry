@@ -1,5 +1,8 @@
 class OgController < ApplicationController
   allow_unauthenticated_access
+  rescue_from Registry::OgCard::Unavailable do
+    head :service_unavailable
+  end
 
   CACHE_TTL = 6.hours
 

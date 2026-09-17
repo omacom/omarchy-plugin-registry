@@ -1,4 +1,13 @@
 namespace :registry do
+  desc "Submit three labeled demo plugins through normal review (requires an existing admin email)"
+  task :seed_demo, [ :email ] => :environment do |_task, args|
+    admin = User.find_by(email_address: args[:email].to_s.strip.downcase)
+    Registry::DemoCatalog.import(admin:).each do |version|
+      puts "#{version.plugin.full_name}@#{version.version}: #{version.state} (admin review: /admin/versions/#{version.id})"
+    end
+    puts "Jobs run deterministic and AI checks. Clean releases publish automatically; inspect flagged or incomplete reviews in /admin."
+  end
+
   desc "Grant admin to an account (the supported bootstrap for a fresh deployment)"
   task :grant_admin, [ :email ] => :environment do |_t, args|
     abort "usage: rails registry:grant_admin[you@example.com]" if args[:email].blank?

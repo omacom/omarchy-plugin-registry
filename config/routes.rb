@@ -10,6 +10,9 @@ Rails.application.routes.draw do
   post "onboarding", to: "onboarding#create"
 
   resource :dashboard, only: :show, controller: "dashboard"
+  resources :compatibilities, only: %i[index show], controller: "compatibilities"
+  resources :compatibility_reports, only: %i[new create]
+  resources :compatibility_decisions, only: :create
   namespace :settings do
     resource :two_factor, only: %i[show update destroy], controller: "two_factor"
     resources :passkeys, only: %i[create destroy] do
@@ -43,14 +46,20 @@ Rails.application.routes.draw do
   # on "/?format=json". Same action, same query parameters (q, sort, category,
   # tag, page); no second HTML directory to keep canonical.
   get "plugins.json", to: "home#index", as: :directory_json,
-    defaults: { format: "json" }, format: false
-  get "plugins/:publisher/:name", to: "plugins#show", as: :plugin
+    defaults: { format: "json", package_type: "plugin" }, format: false
+  get "packages.json", to: "home#index", as: :packages_json,
+    defaults: { format: "json", package_catalog: true }, format: false
+  get "themes", to: "home#index", as: :themes, defaults: { package_type: "theme" }
+  get "themes/:publisher/:name", to: "plugins#show", as: :theme, defaults: { package_type: "theme" }
+  get "themes/:publisher/:name/:version", to: "plugins#version", as: :theme_version,
+    defaults: { package_type: "theme" }, constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
+  get "plugins/:publisher/:name", to: "plugins#show", as: :plugin, defaults: { package_type: "plugin" }
   # The version segment is dotted (semver), so the router would otherwise
   # swallow a ".json" suffix into :version and 404 instead of negotiating the
   # format. Constraining it to semver characters that do NOT end in ".json"
   # lets Rails split the format itself — no hand-rolled suffix parsing.
   get "plugins/:publisher/:name/:version", to: "plugins#version", as: :plugin_version,
-    constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
+    defaults: { package_type: "plugin" }, constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
   post "plugins/:publisher/:name/rating", to: "ratings#create", as: :plugin_rating
   post "plugins/:publisher/:name/comments", to: "comments#create", as: :plugin_comments
   resources :comments, only: :destroy
@@ -70,6 +79,8 @@ Rails.application.routes.draw do
 
   namespace :admin do
     root "dashboard#show"
+    resources :omarchy_releases, only: %i[index create]
+    resources :compatibility_checks, only: :create
     resources :versions, only: :show do
       member do
         get :download_tarball
@@ -107,6 +118,10 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       post "plugins/:publisher/:plugin/versions", to: "versions#create",
+        defaults: { package_type: "plugin" },
+        constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} }
+      post "themes/:publisher/:plugin/versions", to: "versions#create",
+        defaults: { package_type: "theme" },
         constraints: { publisher: %r{[^/]+}, plugin: %r{[^/]+} }
       post "device/code", to: "device#code"
       post "device/token", to: "device#token"
@@ -129,6 +144,8 @@ Rails.application.routes.draw do
   get "all.json", to: "data_plane#all", format: false
   get "revocations.json.sig", to: "data_plane#revocations", defaults: { sig: "1" }, format: false
   get "revocations.json", to: "data_plane#revocations", format: false
+  get "compatibility.json.sig", to: "data_plane#compatibility", defaults: { sig: "1" }, format: false
+  get "compatibility.json", to: "data_plane#compatibility", format: false
   get "legacy-map.json.sig", to: "data_plane#legacy_map", defaults: { sig: "1" }, format: false
   get "legacy-map.json", to: "data_plane#legacy_map", format: false
   get "signing-key.pub", to: "data_plane#signing_key", format: false

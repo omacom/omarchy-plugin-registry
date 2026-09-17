@@ -1,0 +1,70 @@
+<% report = version.scan_results || {} %>
+<% checks = Array(report["checks"]) %>
+<% findings = Array(report["findings"]) %>
+<% ai = report["ai"] || {} %>
+<section id="review-checks">
+  <h2>Review checks</h2>
+  <% if report["finished_at"].present? %>
+    <p class="muted review-checks__timestamp">Last run: <%= report["finished_at"] %> · Policy <%= report["policy_version"] %></p>
+  <% end %>
+
+  <details class="review-checks__group" <%= "open" if checks.any? { |check| %w[failed flagged].include?(check["status"]) } %>>
+    <summary>
+      <span>Deterministic checks</span>
+      <span class="muted"><%= checks.count { |check| check["status"] == "passed" } %> passed<% if checks.any? { |check| %w[flagged failed].include?(check["status"]) } %> · <%= checks.count { |check| %w[flagged failed].include?(check["status"]) } %> need attention<% end %></span>
+    </summary>
+    <% if checks.any? %>
+      <ul class="review-checks__list">
+        <% checks.each do |check| %>
+          <li>
+            <div><strong><%= check["name"] %></strong>
+              <% if check["detail"].present? %><p class="muted"><%= check["detail"] %></p>
+              <% elsif check["status"] == "not_applicable" %><p class="muted">No matching assets in this archive.</p>
+              <% elsif check.key?("files_checked") %><p class="muted"><%= pluralize(check["files_checked"], "file") %> checked<%= " · #{pluralize(check['findings_count'], 'finding')}" if check["findings_count"].to_i.positive? %></p><% end %>
+            </div>
+            <%= review_check_badge(check["status"]) %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="muted">No per-check results recorded<%= ". This review predates detailed check reporting" if report.present? %>.</p>
+    <% end %>
+  </details>
+
+  <div class="review-checks__group">
+    <div class="review-checks__heading"><h3>AI review</h3><%= review_check_badge(ai["verdict"]) %></div>
+    <% if ai["model"].present? %><p class="muted review-checks__model"><%= ai["model"] %></p><% end %>
+    <% coverage = ai["coverage"] || {} %>
+    <% if coverage["passes"].present? %>
+      <ul class="review-checks__list">
+        <% coverage["passes"].each do |pass| %>
+          <li>
+            <div><strong><%= pass["id"] == "instruction_integrity" ? "Prompt injection and review manipulation" : "Source behavior and security" %></strong>
+              <p class="muted"><%= pass["chunks_completed"] %> of <%= pluralize(pass["chunks_total"], "source chunk") %> reviewed</p>
+            </div>
+            <%= review_check_badge(pass["verdict"]) %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+    <% if coverage["complete"] == true %>
+      <p class="muted review-checks__coverage">Complete source coverage for this archive<% if coverage.key?("source_files") %>: <%= pluralize(coverage["source_files"], "source file") %>, <%= pluralize(coverage["asset_files"], "asset") %> checked deterministically<% end %>.</p>
+    <% elsif ai["verdict"] == "flag" %>
+      <p class="muted review-checks__coverage">Review stopped. Complete AI coverage was not recorded.</p>
+    <% end %>
+    <% Array(ai["reasons"]).each do |reason| %><p class="review-checks__reason"><%= reason %></p><% end %>
+    <% if ai.empty? %><p class="muted">No AI review result recorded.</p><% end %>
+  </div>
+
+  <% if findings.any? %>
+    <h3 class="u-gap-top">Findings (<%= findings.size %>)</h3>
+    <ul class="review-checks__list">
+      <% findings.each do |finding| %>
+        <li>
+          <div><strong><%= finding["rule"] %></strong><p><code><%= finding["file"] %></code></p><p class="muted"><%= finding["detail"] %></p></div>
+          <%= review_check_badge(finding["severity"]) %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

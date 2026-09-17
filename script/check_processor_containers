@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Read-only inspection of the processor deployment. No docker exec, environment
+# dumps, credential reads, workload execution, or host policy changes.
+require "json"
+require "open3"
+
+project = ARGV.fetch(0, "omarchy-registry-processors")
+abort "invalid Compose project" unless project.match?(/\A[a-z0-9][a-z0-9_-]*\z/)
+
+def docker(*args)
+  stdout, _, status = Open3.capture3("docker", *args)
+  raise "Docker inspection failed" unless status.success?
+  stdout
+end
+
+begin
+  security = JSON.parse(docker("info", "--format", "{{json .SecurityOptions}}"))
+  raise "Docker must use its built-in seccomp profile" unless security.include?("name=seccomp,profile=builtin")
+  containers = %w[ai media gateway].to_h do |role|
+    ids = docker("ps", "--filter", "label=com.docker.compose.project=#{project}",
+      "--filter", "label=com.docker.compose.service=#{role}", "--format", "{{.ID}}").split
+    raise "expected one running #{role} container" unless ids.size == 1
+    format = '{"host":{{json .HostConfig}},"mounts":{{json .Mounts}},"user":{{json .Config.User}},"networks":{{json .NetworkSettings.Networks}}}'
+    config = JSON.parse(docker("inspect", "--format", format, ids.first))
+    host = config.fetch("host")
+    unless config["user"] == "1001:1000" && host["ReadonlyRootfs"] && !host["Privileged"] &&
+        Array(host["CapAdd"]).empty? && host["CapDrop"] == [ "ALL" ] &&
+        host["SecurityOpt"] == [ "no-new-privileges:true" ] && host["PidMode"].to_s.empty? && host["IpcMode"] == "private" &&
+        host["Memory"].to_i.between?(1, 2 * 1024**3) && host["PidsLimit"].to_i.between?(1, 64) && host["NanoCpus"].to_i.positive? &&
+        (host["PortBindings"] || {}).empty?
+      raise "#{role}: container privilege/resource policy differs from the supported configuration"
+    end
+    unless Array(host["Ulimits"]).any? { |limit| limit["Name"] == "core" && limit["Soft"].zero? && limit["Hard"].zero? } &&
+        host.fetch("Tmpfs", {}).keys == [ "/tmp" ] &&
+        (%w[noexec nosuid nodev size=128m] - host["Tmpfs"]["/tmp"].split(",")).empty?
+      raise "#{role}: temporary storage/core-dump policy differs from the supported configuration"
+    end
+    mounts = config.fetch("mounts")
+    expected = role == "gateway" ? "/ai" : "/run/processor"
+    unless mounts.size == 1 && mounts.first["Destination"] == expected && mounts.first["RW"] == (role != "gateway")
+      raise "#{role}: unexpected or incorrectly writable mounts"
+    end
+    if role != "gateway"
+      options = JSON.parse(docker("volume", "inspect", "--format", "{{json .Options}}", mounts.first.fetch("Name")))
+      unless options["type"] == "tmpfs" && (%w[size=1m uid=1001 gid=1000 nosuid nodev noexec] - options.fetch("o").split(",")).empty?
+        raise "#{role}: socket storage must be a bounded in-memory volume"
+      end
+    end
+    puts "#{role}: default seccomp, dropped capabilities, private namespaces, bounded resources and minimal mounts OK"
+    [ role, config ]
+  end
+  raise "media networking is enabled" unless containers["media"].dig("host", "NetworkMode") == "none"
+  ai_networks = containers["ai"].fetch("networks").keys
+  gateway_networks = containers["gateway"].fetch("networks").keys
+  unless ai_networks.size == 1 && gateway_networks.size == 2 && (ai_networks - gateway_networks).empty? &&
+      containers["ai"].dig("host", "Dns") == [ "127.0.0.1" ]
+    raise "AI must have only its gateway link and no external DNS resolver"
+  end
+  network = JSON.parse(docker("network", "inspect", ai_networks.first)).fetch(0)
+  unless network["Internal"] && !network["EnableIPv6"] && network.dig("Options", "com.docker.network.bridge.gateway_mode_ipv4") == "isolated" &&
+      network.fetch("Containers").size == 2 && network.dig("IPAM", "Config").all? { |config| config["Gateway"].to_s.empty? } &&
+      containers["ai"]["networks"].values.all? { |endpoint| endpoint["Gateway"].to_s.empty? && endpoint["IPv6Gateway"].to_s.empty? }
+    raise "AI link must be an isolated internal bridge containing only AI and gateway"
+  end
+  puts "network: media offline; AI has no host/external gateway and only its provider relay as peer"
+rescue StandardError => e
+  warn "FAIL: #{e.message}"
+  exit 1
+end

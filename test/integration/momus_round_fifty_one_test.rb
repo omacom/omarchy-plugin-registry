@@ -14,7 +14,7 @@ class MomusRoundFiftyOneTest < ActionDispatch::IntegrationTest
   end
 
   teardown do
-    Rails.application.config.x.skip_first_release_gate = true
+    Rails.application.config.x.enforce_review_policy = false
     Rails.application.config.x.publish_hold = 0
   end
 

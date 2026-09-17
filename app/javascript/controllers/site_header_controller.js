@@ -8,16 +8,34 @@ import { THEME_EVENT, OPEN_PICKER_EVENT } from "lib/omarchy-theme"
 
 export default class extends Controller {
   connect() {
-    this.bar = this.element
+    this.bar = this.element.querySelector(".omarchy-bar")
+    this.beforeCache = () => {
+      this.setMenu(false)
+      this.closeLanguages()
+    }
+    document.addEventListener("turbo:before-cache", this.beforeCache)
     this.onScroll = () => this.paint()
-    this.onResize = () => this.survey()
+    this.onResize = () => {
+      if (window.matchMedia("(min-width: 900px)").matches) this.setMenu(false)
+      this.survey()
+    }
     this.onTheme = () => this.survey()
     this.onKey = (e) => {
-      if (e.key === "Escape" && this.menuOpen()) this.setMenu(false)
+      if (e.key !== "Escape") return
+      if (this.languageTrigger) this.closeLanguages(true)
+      else if (this.menuOpen()) {
+        this.setMenu(false)
+        this.toggleTarget.focus()
+      }
     }
     this.toggleTarget?.addEventListener("click", this.toggle)
     this.toggleCloseTarget?.addEventListener("click", this.toggle)
-    this.scrimTarget?.addEventListener("click", () => this.setMenu(false))
+    this.onScrim = () => this.setMenu(false)
+    this.scrimTarget?.addEventListener("click", this.onScrim)
+    this.onOutside = (event) => {
+      if (!event.target.closest("[data-lang-pop], [data-language-toggle]")) this.closeLanguages()
+    }
+    document.addEventListener("click", this.onOutside)
     window.addEventListener("scroll", this.onScroll, { passive: true })
     window.addEventListener("resize", this.onResize)
     window.addEventListener(THEME_EVENT, this.onTheme)
@@ -46,40 +64,47 @@ export default class extends Controller {
     this.arrivals?.disconnect()
     this.toggleTarget?.removeEventListener("click", this.toggle)
     this.toggleCloseTarget?.removeEventListener("click", this.toggle)
+    this.scrimTarget?.removeEventListener("click", this.onScrim)
+    document.removeEventListener("click", this.onOutside)
+    document.removeEventListener("turbo:before-cache", this.beforeCache)
+    delete document.documentElement.dataset.navMenu
   }
 
   // -- theme picker (one deck for the whole page) ---------------------------
 
   openPicker(event) {
     event?.preventDefault()
-    if (this.menuOpen()) this.setMenu(false)
+    this.setMenu(false)
+    this.closeLanguages()
     window.dispatchEvent(new CustomEvent(OPEN_PICKER_EVENT))
   }
 
-  // -- language popover (mirrors the main site's switcher; single locale
-  // here, so it links this path on every omarchy locale domain) ------------
-
+  // The directory is English; these links open Omarchy's translated sites.
   openLanguages(event) {
-    event?.preventDefault()
+    event.preventDefault()
     const pop = this.element.querySelector("[data-lang-pop]")
-    if (!pop) return
-    const willOpen = pop.hidden
-    this.element
-      .querySelectorAll("[data-lang-pop]")
-      .forEach((el) => (el.hidden = true))
-    pop.hidden = !willOpen
-    if (willOpen) {
-      const close = (e) => {
-        if (!pop.contains(e.target)) {
-          pop.hidden = true
-          document.removeEventListener("click", close)
-        }
-      };
-      document.addEventListener("click", close)
-    }
+    const open = pop.hidden
+    this.closeLanguages()
+    if (!open) return
+    this.setMenu(false)
+    this.languageTrigger = event.currentTarget
+    this.languageTrigger.setAttribute("aria-expanded", "true")
+    pop.hidden = false
+    pop.querySelector("a").focus()
   }
 
-  // -- mobile menu (omarchy-site's sheet, same breakpoint) -----------------
+  closeLanguages(restoreFocus = false) {
+    this.element.querySelector("[data-lang-pop]").hidden = true
+    this.languageTrigger?.setAttribute("aria-expanded", "false")
+    if (restoreFocus) this.languageTrigger?.focus()
+    this.languageTrigger = null
+  }
+
+  closeMenu() {
+    this.setMenu(false)
+  }
+
+  // -- responsive menu (omarchy-site's sheet, plus account actions) -----------------
 
   toggle = () => this.setMenu(!this.menuOpen())
 
@@ -89,6 +114,7 @@ export default class extends Controller {
 
   setMenu(open) {
     if (open) {
+      this.closeLanguages()
       this.element.dataset.menu = "open"
       this.bar.dataset.menu = "open"
       document.documentElement.dataset.navMenu = "open"
@@ -148,25 +174,21 @@ export default class extends Controller {
       .map((node) => ({
         top: node.getBoundingClientRect().top + window.scrollY,
         bottom: node.getBoundingClientRect().bottom + window.scrollY,
-        colour: this.groundOf(node),
+        colour: this.groundOf(node) || "var(--color-bg)",
       }))
-      .filter((g) => g.colour)
+
     this.paint()
   }
 
   groundOf(node) {
-    let el = node
-    while (el && el !== document.documentElement) {
-      const bg = getComputedStyle(el).backgroundColor
-      const m = bg.match(/rgba?\(([^)]+)\)/)
-      if (m) {
-        const parts = m[1].split(",").map((s) => parseFloat(s))
-        if ((parts[3] ?? 1) >= 0.98) {
-          const [r, g, b] = parts.map((n) => Math.round(n))
-          return `#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`
-        }
-      }
-      el = el.parentElement
+    // Canvas resolves rgb, oklch and color-mix to the same sRGB value.
+    const context = this.colourContext ||= document.createElement("canvas").getContext("2d", { willReadFrequently: true })
+    for (let el = node; el; el = el.parentElement) {
+      context.clearRect(0, 0, 1, 1)
+      context.fillStyle = getComputedStyle(el).backgroundColor
+      context.fillRect(0, 0, 1, 1)
+      const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data
+      if (alpha >= 250) return `rgb(${r}, ${g}, ${b})`
     }
     return null
   }
@@ -194,7 +216,7 @@ export default class extends Controller {
       this.bar.classList.remove("omarchy-bar--sheet")
       // On a phone the bar never goes bare past the hero: while an edge is
       // crossing it, paint the split edge itself so nothing leaks through.
-      if (phone && !this.heroUp && top !== bottom) {
+      if (phone && top !== bottom) {
         const edge =
           top && bottom
             ? Math.min(top.bottom, bottom.top > y ? bottom.top : Infinity)
@@ -223,7 +245,7 @@ export default class extends Controller {
     }
     this.bar.toggleAttribute(
       "data-nav-past-hero",
-      !this.heroUp || y + (this.height || 56) >= (this.heroBottom || 0)
+      !this.heroUp || (phone ? y + this.height : y) >= this.heroBottom
     )
   }
 }

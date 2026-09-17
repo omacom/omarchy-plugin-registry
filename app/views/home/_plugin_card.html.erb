@@ -1,7 +1,7 @@
 <%# Directory + publisher card, ported 1-1 from omarchy-site's PluginCard:
     16:9 preview (monogram fallback), name + stats row, two-line summary,
     type footer — with the registry's own hearts/stars/downloads fields. %>
-<%= link_to plugin_path(plugin.publisher.name, plugin.name), class: "plugin-card" do %>
+<%= link_to package_path(plugin), class: "plugin-card" do %>
   <% if plugin.preview? %>
     <img class="plugin-card__preview" src="<%= rails_storage_proxy_path(plugin.preview_card) %>"
       alt="" loading="lazy" decoding="async"

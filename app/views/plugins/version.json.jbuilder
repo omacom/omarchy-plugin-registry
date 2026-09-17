@@ -1,6 +1,7 @@
 # A single version, with the readme extracted from that version's own frozen
 # tarball — old versions document themselves as they were.
 json.schema_version 1
+json.compatibility_assessments @compatibility_assessments.map(&:entry)
 
 json.plugin do
   json.partial! "plugins/plugin", plugin: @plugin

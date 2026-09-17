@@ -13,13 +13,15 @@ class PluginsController < ApplicationController
     @versions = visible_versions.order(version_sort_key: :desc)
     @latest = @plugin.latest_published_version
     @notices = Registry::PluginNotices.for_plugin(plugin: @plugin, versions: @versions, privileged: @privileged)
-    @comments = @plugin.comments.visible.includes(:user).order(created_at: :desc).limit(50)
+    @comments = @plugin.comments.visible.includes(:user, compatibility_report: { compatibility_assessment: [ :omarchy_release, :plugin_version ] }).order(created_at: :desc).limit(50)
+    load_compatibility(@latest)
     # One query for the whole list — the publisher badge must not cost a
     # membership lookup per comment
     @publisher_member_ids = @plugin.publisher.memberships.accepted.pluck(:user_id).to_set
     @my_rating = authenticated? ? @plugin.ratings.find_by(user: Current.user) : nil
     @plugin.record_view! if Rails.application.config.x.count_views && @plugin.ever_public?
-    freshen(@plugin, @latest, @versions, @comments, @notices.map(&:kind))
+    freshen(@plugin, @latest, @versions, @comments, @notices.map(&:kind),
+      @compatibility_releases, @compatibility_entries)
   end
 
   def version
@@ -29,14 +31,29 @@ class PluginsController < ApplicationController
     @versions = visible_versions.order(version_sort_key: :desc)
     @notices = Registry::PluginNotices.for_version(version: @version)
     @readme = version_readme(@version)
-    freshen(@plugin, @version, @latest, @notices.map(&:kind))
+    load_compatibility(@version)
+    freshen(@plugin, @version, @latest, @notices.map(&:kind), @compatibility_releases, @compatibility_entries)
   end
 
   private
 
+  def load_compatibility(version)
+    @compatibility_assessments = version ? version.compatibility_assessments.includes(:omarchy_release).order(updated_at: :desc).limit(100).to_a : []
+    @compatibility_releases = OmarchyRelease.order(created_at: :desc).limit(20)
+    @compatibility_counts = Hash.new { |hash, key| hash[key] = {} }
+    CompatibilityReport.eligible.where(compatibility_assessment_id: @compatibility_assessments.map(&:id))
+      .group(:compatibility_assessment_id, :outcome).count.each do |(id, outcome), count|
+        @compatibility_counts[id][outcome] = count
+      end
+    @compatibility_entries = @compatibility_assessments.map { |assessment| assessment.entry(@compatibility_counts[assessment.id]) }
+  end
+
   def load_plugin!
     @publisher = Publisher.find_by!(name: params[:publisher])
     @plugin = @publisher.plugins.find_by!(name: params[:name])
+    if (type = request.path_parameters[:package_type]) && @plugin.package_type != type
+      raise ActiveRecord::RecordNotFound
+    end
     @privileged = authenticated? && (Current.user.admin? || Current.user.member_of?(@publisher))
     # An unreleased plugin page 404s for the public — indistinguishable from
     # a name that never existed.

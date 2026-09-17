@@ -21,6 +21,9 @@ production:
   data_plane_reconcile:
     class: DataPlane::RegenerateJob
     schedule: every 10 minutes
+  compatibility_alerts:
+    class: CompatibilityAlertsJob
+    schedule: every 10 minutes
   repo_stats_sweep:
     class: Registry::RepoStatsSweepJob
     schedule: at 4am every day

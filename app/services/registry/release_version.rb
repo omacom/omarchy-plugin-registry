@@ -9,7 +9,9 @@ module Registry
     end
 
     def self.locked_call(version, actor:)
-      raise ArgumentError, "cannot release a #{version.state} version" unless version.releasable?
+      # Only the review pipeline or an atomic human approval may enter held.
+      # Quarantine is NEVER releasable by a stale scheduled job or direct call.
+      raise ArgumentError, "cannot release a #{version.state} version" unless version.held?
       if Revocation.exists?(plugin: version.plugin, version: version.version)
         raise ArgumentError, "version is on the kill list and can never be released"
       end
@@ -59,6 +61,17 @@ module Registry
           metadata: { plugin: version.plugin.full_name, version: version.version })
         return version
       end
+
+      if Rails.application.config.x.enforce_review_policy && !approval_live && !version.automated_review_passed?
+        version.update!(state: :quarantined, hold_until: nil,
+          review_notes: "automatic release stopped: complete review evidence is missing or outdated")
+        AuditEvent.record!(action: "version.review_evidence_missing", subject: version,
+          metadata: { plugin: version.plugin.full_name, version: version.version })
+        return version
+      end
+
+      raise ArgumentError, "release has no hold deadline" unless version.hold_until
+      return version if version.hold_until.future?
 
       bytes = version.tarball.download
       raise "tarball checksum mismatch at release" unless Digest::SHA256.hexdigest(bytes) == version.sha256

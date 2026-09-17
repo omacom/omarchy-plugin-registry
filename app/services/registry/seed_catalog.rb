@@ -114,7 +114,7 @@ module Registry
       owner_repo = entry["repository"].to_s[%r{\Ahttps://github\.com/([^/]+/[^/]+?)(?:\.git)?\z}, 1]
       legacy = { "id" => legacy_id, "listed_at" => entry["listed_at"].presence,
                  # Exact-commit passing evidence from the legacy marketplace —
-                 # ReviewJob releases flags (never fails) on its strength.
+                 # Advisory provenance for humans, never a review exemption.
                  "verified" => entry["verified"] == true || nil,
                  "verification" => entry["verification_method"].presence }.compact
       { "source" => "legacy-marketplace",

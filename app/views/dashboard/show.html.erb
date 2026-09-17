@@ -1,4 +1,4 @@
-<% content_for :title, "Dashboard — Omarchy Plugins" %>
+<% content_for :title, "Dashboard — Omarchy Hub" %>
 <div class="content-page container">
   <p class="eyebrow">Dashboard</p>
   <h1>Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
@@ -41,6 +41,7 @@
     </div>
   <% end %>
 
+  <p><%= link_to "Compatibility inbox", compatibilities_path %></p>
   <% @publishers.each do |publisher| %>
     <section>
       <h2><%= publisher.name %> <% if publisher.org? %><span class="badge">org</span><% end %></h2>
@@ -78,7 +79,7 @@
           <tbody>
             <% publisher.plugins.each do |plugin| %>
               <tr>
-                <td><%= link_to plugin.name, plugin_path(publisher.name, plugin.name) %></td>
+                <td><%= link_to plugin.name, package_path(plugin) %></td>
                 <td><%= plugin.latest_version || "—" %></td>
                 <td><%= compact_number(plugin.downloads_count) %></td>
                 <td><%= state_badge(plugin.state) %></td>

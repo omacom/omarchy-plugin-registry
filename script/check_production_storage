@@ -1,0 +1,18 @@
+# Run with bin/rails runner script/check_production_storage after deployment.
+# One synthetic object is uploaded, read back and deleted; no user blobs are touched.
+require "securerandom"
+require "stringio"
+
+abort "Expected the production R2 service" unless Rails.application.config.active_storage.service == :cloudflare
+key = "deployment-probes/#{SecureRandom.uuid}"
+payload = SecureRandom.random_bytes(32)
+service = ActiveStorage::Blob.service
+begin
+  service.upload(key, StringIO.new(payload), checksum: Digest::MD5.base64digest(payload), content_type: "application/octet-stream")
+  abort "Production R2 read-back did not match" unless service.download(key).b == payload.b
+  puts "Production R2 upload and read-back passed."
+ensure
+  service.delete(key)
+end
+abort "Production R2 probe was not deleted" if service.exist?(key)
+puts "Production R2 cleanup passed."
