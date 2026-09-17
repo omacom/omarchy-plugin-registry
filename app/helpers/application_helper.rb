@@ -103,8 +103,10 @@ module ApplicationHelper
   # what changes. Page deliberately resets unless overridden: a filter change
   # always lands on its own first page.
   def directory_path(overrides = {})
-    root_path({ q: @query.presence, sort: (@sort if @sort != "downloads"),
-                category: @category, tag: @tag, package_type: @package_type }.merge(overrides).compact)
+    options = { q: @query.presence, sort: (@sort if @sort != "downloads"),
+      category: @category, tag: @tag, package_type: @package_type || @plugin&.package_type || "plugin" }.merge(overrides)
+    type = options.delete(:package_type)
+    type == "theme" ? themes_path(options.compact) : root_path(options.compact)
   end
 
   CARD_RECENCY = 14.days

@@ -15,9 +15,14 @@
 
 <section class="directory container">
   <% if @plugins.any? %>
-    <div class="plugin-grid">
-      <%= render partial: "home/plugin_card", collection: @plugins, as: :plugin %>
-    </div>
+    <% @plugins.group_by(&:package_type).sort.each do |type, packages| %>
+      <section aria-label="<%= type.pluralize.capitalize %>">
+        <h2><%= type.pluralize.capitalize %></h2>
+        <div class="plugin-grid">
+          <%= render partial: "home/plugin_card", collection: packages, as: :plugin %>
+        </div>
+      </section>
+    <% end %>
   <% else %>
     <p class="muted">No published packages yet.</p>
   <% end %>

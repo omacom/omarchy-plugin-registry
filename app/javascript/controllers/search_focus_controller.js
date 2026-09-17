@@ -2,6 +2,8 @@ import { Controller } from "@hotwired/stimulus"
 
 // One global shortcut owner in the header, including after Turbo navigation.
 export default class extends Controller {
+  static values = { url: { type: String, default: "/#directory-search" } }
+
   connect() {
     this.shortcut = (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") this.focus(event)
@@ -30,7 +32,7 @@ export default class extends Controller {
       input.select()
       input.scrollIntoView({ block: "center" })
     } else {
-      window.location.href = "/#directory-search"
+      window.location.href = this.urlValue
     }
   }
 }

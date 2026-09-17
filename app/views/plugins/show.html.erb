@@ -16,10 +16,10 @@
     <% if @plugin.category || @plugin.tags.any? %>
       <div class="page-head__chips">
         <% if @plugin.category %>
-          <%= link_to Registry::Taxonomy.label(@plugin.category), root_path(category: @plugin.category), class: "chip" %>
+          <%= link_to Registry::Taxonomy.label(@plugin.category), directory_path(category: @plugin.category), class: "chip" %>
         <% end %>
         <% @plugin.tags.each do |tag| %>
-          <%= link_to "tag:#{tag}", root_path(tag: tag), class: "chip" %>
+          <%= link_to "tag:#{tag}", directory_path(tag: tag), class: "chip" %>
         <% end %>
       </div>
     <% end %>

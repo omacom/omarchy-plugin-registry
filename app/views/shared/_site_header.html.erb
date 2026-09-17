@@ -1,13 +1,15 @@
 <%# Shared Omarchy chrome with local directory and account navigation. %>
-<% current = if @package_type == "theme" || @plugin&.theme? || request.path.start_with?("/themes")
+<% current = if @package_type == "theme" || @plugin&.theme? || @version&.plugin&.theme? || request.path.start_with?("/themes")
   :themes
 elsif controller_name.in?([ "home", "plugins", "plugin_versions" ])
   :plugins
 end %>
-<header class="omarchy-header" dir="ltr" data-controller="site-header search-focus">
+<% search_label = "Search #{current == :themes ? 'themes' : 'plugins'}" %>
+<header class="omarchy-header" dir="ltr" data-controller="site-header search-focus"
+        data-search-focus-url-value="<%= current == :themes ? themes_path(anchor: 'directory-search') : root_path(anchor: 'directory-search') %>">
   <div class="omarchy-bar">
     <div class="omarchy-bar__inner">
-      <%= link_to "https://omarchy.org", class: "omarchy-brand mark-draw-trigger", aria: { label: "Search plugins and themes" }, data: { action: "click->search-focus#focus" }, title: "Search plugins and themes (Ctrl+K)" do %>
+      <%= link_to "https://omarchy.org", class: "omarchy-brand mark-draw-trigger", aria: { label: search_label }, data: { action: "click->search-focus#focus" }, title: "#{search_label} (Ctrl+K)" do %>
         <%= render "shared/omarchy_mark", class: "omarchy-brand__mark", uid: "h" %>
         <span class="omarchy-brand__wordmark" aria-hidden="true"></span>
       <% end %>
@@ -15,7 +17,7 @@ end %>
       <nav aria-label="Main" class="omarchy-nav">
         <a href="https://omarchy.org/news/">News</a>
         <a href="https://omarchy.org/manual/">Manual</a>
-        <%= link_to "Plugins", root_path(package_type: "plugin"), aria: { current: ("page" if current == :plugins) } %>
+        <%= link_to "Plugins", root_path, aria: { current: ("page" if current == :plugins) } %>
         <%= link_to "Themes", themes_path, aria: { current: ("page" if current == :themes) } %>
       </nav>
 
@@ -85,10 +87,10 @@ end %>
     <nav aria-label="Main pages">
       <a href="https://omarchy.org/news/">News</a>
       <a href="https://omarchy.org/manual/">Manual</a>
-      <%= link_to "Plugins", root_path(package_type: "plugin"), aria: { current: ("page" if current == :plugins) } %>
+      <%= link_to "Plugins", root_path, aria: { current: ("page" if current == :plugins) } %>
       <%= link_to "Themes", themes_path, aria: { current: ("page" if current == :themes) } %>
       <button type="button" class="omarchy-menu__search" data-action="click->search-focus#focus">
-        <span class="omarchy-menu__row"><%= render "shared/icon", name: "search", class: "size-5" %>Search plugins and themes</span>
+        <span class="omarchy-menu__row"><%= render "shared/icon", name: "search", class: "size-5" %><%= search_label %></span>
       </button>
       <button type="button" data-action="click->site-header#openPicker">
         <span class="omarchy-menu__row"><%= render "shared/icon", name: "palette", class: "size-5" %>Change the theme</span>

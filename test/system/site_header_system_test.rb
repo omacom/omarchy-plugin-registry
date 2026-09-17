@@ -47,14 +47,14 @@ class SiteHeaderSystemTest < ApplicationSystemTestCase
     find("body").send_keys([ :control, "k" ])
     assert_selector "#directory-search:focus"
     within("nav[aria-label='Main']") { click_link "Plugins" }
-    assert_current_path root_path(package_type: "plugin")
+    assert_current_path root_path
     assert_selector "nav[aria-label='Main'] a[aria-current='page']", text: "Plugins"
   end
 
   test "mobile search closes the sheet and languages can be opened and dismissed" do
     page.current_window.resize_to(390, 844)
     find("button[aria-label='Menu']").click
-    within("#site-menu") { click_button "Search plugins and themes" }
+    within("#site-menu") { click_button "Search plugins" }
     assert_no_selector "#site-menu"
     assert_selector "#directory-search:focus"
 
@@ -72,5 +72,33 @@ class SiteHeaderSystemTest < ApplicationSystemTestCase
     page.current_window.resize_to(1280, 800)
     assert_no_selector "#site-menu"
     assert_no_selector "[data-menu-scrim]"
+  end
+
+  test "theme search shortcuts and controls stay in the theme section" do
+    publisher = Publisher.create!(name: "acme", kind: :org)
+    theme = publisher.plugins.create!(name: "ocean", package_type: "theme", latest_version: "1.0.0", category: "appearance")
+    theme.versions.create!(version: "1.0.0", state: :published, published_at: Time.current,
+      sha256: "a" * 64, size_bytes: 0, manifest: {})
+    visit theme_path("acme", "ocean")
+    find("body").send_keys([ :control, "k" ])
+    assert_current_path(themes_path) { |url| url.fragment == "directory-search" }
+    assert_selector "#directory-search:focus"
+    fill_in "directory-search", with: "missing-theme"
+    find("#directory-search").send_keys(:enter)
+    assert_current_path themes_path, ignore_query: true
+    assert_text "Nothing matches"
+    click_link "clear filters"
+    assert_current_path themes_path
+    within(".directory__sort") { click_link "name" }
+    assert_current_path themes_path(sort: "name")
+    assert_selector "nav[aria-label='Main'] a[aria-current='page']", text: "Themes"
+
+    page.current_window.resize_to(390, 844)
+    visit theme_path("acme", "ocean")
+    find("button[aria-label='Menu']").click
+    within("#site-menu") { click_button "Search themes" }
+    assert_current_path(themes_path) { |url| url.fragment == "directory-search" }
+    assert_selector "#directory-search:focus"
+    assert_no_selector "#site-menu"
   end
 end

@@ -1,3 +1,4 @@
+<% content_for :title, "Omarchy #{@package_type.pluralize.capitalize}" %>
 <section class="hero">
   <div class="container hero__inner">
     <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
@@ -14,8 +15,7 @@
       <%= render "shared/copy_button", label: "Copy install command", variant: "copy-button--inline" %>
     </div>
     <div class="hero__stats">
-      <div class="hero__stat"><b><%= @stats[:plugins] %></b><span>plugins</span></div>
-      <div class="hero__stat"><b><%= @stats[:themes] %></b><span>themes</span></div>
+      <div class="hero__stat"><b><%= @stats.fetch(@package_type.pluralize.to_sym) %></b><span><%= @package_type.pluralize %></span></div>
       <div class="hero__stat"><b><%= @stats[:publishers] %></b><span>publishers</span></div>
       <div class="hero__stat"><b><%= compact_number(@stats[:downloads]) %></b><span>downloads</span></div>
     </div>
@@ -28,7 +28,7 @@
       <div class="showcase__head">
         <div>
           <h2 class="showcase__title"><%= @package_type == "theme" ? "A theme for every mood" : "A plugin for every dream, every desire" %></h2>
-          <p class="showcase__desc">Explore community <%= @package_type == "theme" ? "themes" : "plugins and themes" %> for Omarchy.
+          <p class="showcase__desc">Explore community <%= @package_type.pluralize %> for Omarchy.
             Don't find what you need?
             Just put your agent on the job, then share when done.</p>
         </div>
@@ -70,23 +70,16 @@
 <% end %>
 
 <section class="directory container">
-  <nav class="directory__filters" aria-label="Package type">
-    <%= link_to "Everything", directory_path(package_type: nil), class: "chip #{'chip--active' unless @package_type}" %>
-    <% Plugin::PACKAGE_TYPES.each do |type| %>
-      <%= link_to type.pluralize.capitalize, directory_path(package_type: type), class: "chip #{'chip--active' if @package_type == type}" %>
-    <% end %>
-  </nav>
-  <%= form_with url: root_path, method: :get, class: "directory__bar" do %>
+  <%= form_with url: directory_path(q: nil, sort: nil, category: nil, tag: nil), method: :get, class: "directory__bar" do %>
     <div class="directory__search">
       <%= render "shared/icon", name: "search" %>
       <input id="directory-search" type="search" name="q" value="<%= @query %>"
-        placeholder="Search plugins and themes…" aria-label="Search plugins and themes"
+        placeholder="Search <%= @package_type.pluralize %>…" aria-label="Search <%= @package_type.pluralize %>"
         spellcheck="false" autocomplete="off" enterkeyhint="search" aria-keyshortcuts="Control+K Meta+K">
       <kbd class="directory__kbd" aria-hidden="true">Ctrl K</kbd>
     </div>
     <% if @category %><input type="hidden" name="category" value="<%= @category %>"><% end %>
     <% if @tag %><input type="hidden" name="tag" value="<%= @tag %>"><% end %>
-    <% if @package_type %><input type="hidden" name="package_type" value="<%= @package_type %>"><% end %>
     <div class="directory__sort">
       <% HomeController::SORTS.each_key do |sort| %>
         <%= link_to sort, directory_path(sort: (sort unless sort == "downloads")), class: ("active" if @sort == sort) %>
@@ -124,7 +117,7 @@
   <% elsif @page > 1 %>
     <p class="muted">Nothing on this page — <%= link_to "back to the first page", directory_path %>.</p>
   <% else %>
-    <p class="muted"><% if @query.present? || @category || @tag || @package_type %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", root_path %>.<% else %>No packages published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
+    <p class="muted"><% if @query.present? || @category || @tag %>Nothing matches<%= " “#{@query}”" if @query.present? %> — <%= link_to "clear filters", directory_path(q: nil, sort: nil, category: nil, tag: nil) %>.<% else %>No <%= @package_type.pluralize %> published yet — <%= link_to "be the first", publishing_path %>.<% end %></p>
   <% end %>
 
   <% if @page > 1 || @more %>

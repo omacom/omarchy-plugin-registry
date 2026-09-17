@@ -56,6 +56,15 @@ public read surfaces as JSON on the same URLs, negotiated by format:
 `/plugins.json`, `/plugins/<publisher>/<name>.json`,
 `/plugins/<publisher>/<name>/<version>.json`, `/publishers/<name>.json`.
 
+The website's root is the plugin section; `/themes` is the separate theme section.
+Their grids, popular/recent shelves, search, facets, counts and pagination stay
+within the selected type. `/plugins.json` and `/themes.json` follow the same rule;
+query parameters cannot change their types. The explicit `/packages.json` native
+catalog can aggregate both, with optional `package_type` filtering. Publisher
+pages separate plugins and themes, and publisher JSON exposes distinct `plugins`
+and `themes` arrays with `plugin_count` and `theme_count`. Detail/version URLs
+under the wrong type return 404.
+
 Full reference, including query parameters, paging, and payload shapes:
 **[browse-api.md](browse-api.md)**.
 

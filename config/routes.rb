@@ -48,18 +48,18 @@ Rails.application.routes.draw do
   get "plugins.json", to: "home#index", as: :directory_json,
     defaults: { format: "json", package_type: "plugin" }, format: false
   get "packages.json", to: "home#index", as: :packages_json,
-    defaults: { format: "json" }, format: false
+    defaults: { format: "json", package_catalog: true }, format: false
   get "themes", to: "home#index", as: :themes, defaults: { package_type: "theme" }
   get "themes/:publisher/:name", to: "plugins#show", as: :theme, defaults: { package_type: "theme" }
   get "themes/:publisher/:name/:version", to: "plugins#version", as: :theme_version,
     defaults: { package_type: "theme" }, constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
-  get "plugins/:publisher/:name", to: "plugins#show", as: :plugin
+  get "plugins/:publisher/:name", to: "plugins#show", as: :plugin, defaults: { package_type: "plugin" }
   # The version segment is dotted (semver), so the router would otherwise
   # swallow a ".json" suffix into :version and 404 instead of negotiating the
   # format. Constraining it to semver characters that do NOT end in ".json"
   # lets Rails split the format itself — no hand-rolled suffix parsing.
   get "plugins/:publisher/:name/:version", to: "plugins#version", as: :plugin_version,
-    constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
+    defaults: { package_type: "plugin" }, constraints: { version: /\d[0-9A-Za-z.\-+]*(?<!\.json)/ }
   post "plugins/:publisher/:name/rating", to: "ratings#create", as: :plugin_rating
   post "plugins/:publisher/:name/comments", to: "comments#create", as: :plugin_comments
   resources :comments, only: :destroy

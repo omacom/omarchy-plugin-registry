@@ -132,7 +132,7 @@ class PreviewPipelineTest < ActionDispatch::IntegrationTest
       get "/#{kind}s.json"
       assert_equal 4, response.parsed_body.fetch("#{kind}s").sole.fetch("screenshots").size
       get "/publishers/acme.json"
-      assert_equal 4, response.parsed_body.fetch("plugins").sole.fetch("screenshots").size
+      assert_equal 4, response.parsed_body.fetch("#{kind}s").sole.fetch("screenshots").size
       get "/#{kind}s/acme/weather"
       assert_select ".screenshot-gallery .plugin-preview", count: 4
       assert_select "dialog.lightbox", count: 4

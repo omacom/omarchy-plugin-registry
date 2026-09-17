@@ -1,6 +1,7 @@
 class HomeController < ApplicationController
   include ConditionalGet
   allow_unauthenticated_access
+  before_action :redirect_legacy_theme_directory
 
   # Computed per row from the versions table — plugins.updated_at is useless
   # here (any counter or metadata write touches it). The published-state enum
@@ -37,8 +38,12 @@ class HomeController < ApplicationController
   MAX_PER_PAGE = 100
 
   def index
-    selected_type = request.path_parameters[:package_type] || params[:package_type]
-    @package_type = selected_type if Plugin::PACKAGE_TYPES.include?(selected_type)
+    # Website sections are always typed. Only the explicit native-client
+    # package catalog may aggregate both types.
+    @package_type = request.path_parameters[:package_type] || "plugin"
+    if request.path_parameters[:package_catalog] && request.format.json?
+      @package_type = params[:package_type].presence_in(Plugin::PACKAGE_TYPES)
+    end
     @query = params[:q].to_s.strip
     @sort = SORTS.key?(params[:sort]) ? params[:sort] : "downloads"
     @page = [ params[:page].to_i, 1 ].max
@@ -79,16 +84,26 @@ class HomeController < ApplicationController
       @popular = visible
         .order(Arel.sql(SORTS["downloads"])).order(:id).limit(6)
     end
+    visible_packages = package_scope.directory_visible
+    type_counts = visible_packages.group(:package_type).count
     @stats = {
-      plugins: Plugin.where(package_type: "plugin").directory_visible.count,
-      themes: Plugin.where(package_type: "theme").directory_visible.count,
-      publishers: Publisher.claimed.count,
-      downloads: Plugin.sum(:downloads_count)
+      plugins: type_counts.fetch("plugin", 0),
+      themes: type_counts.fetch("theme", 0),
+      publishers: Publisher.claimed.where(id: visible_packages.select(:publisher_id)).count,
+      downloads: visible_packages.sum(:downloads_count)
     }
     freshen(@plugins, @recent, @popular, @query, @sort, @category, @tag, @package_type, @page, @per_page, @more, @total, @stats.values)
   end
 
   private
+
+  def redirect_legacy_theme_directory
+    return if request.path_parameters[:package_type] || request.path_parameters[:package_catalog]
+    return unless params[:package_type] == "theme"
+    options = params.permit(:q, :sort, :page, :category, :tag, :per_page).to_h
+    options[:format] = :json if request.format.json?
+    redirect_to themes_path(options), status: :moved_permanently
+  end
 
   def package_scope
     @package_type ? Plugin.where(package_type: @package_type) : Plugin.all

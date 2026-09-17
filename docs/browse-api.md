@@ -41,6 +41,12 @@ response has no integrity guarantee and no rollback protection.
 The directory. Same query parameters as the website, so a client and the web
 page can never disagree about what a search returns.
 
+This endpoint and the website root contain only plugins. `/themes.json` and
+`/themes` contain only themes. Their popular/recent rows, facet counts and
+statistics use that same type. `package_type` cannot override a typed endpoint.
+Use `/packages.json` for an explicitly combined native-client catalog, optionally
+filtered with `package_type=plugin` or `package_type=theme`.
+
 | Parameter | Default | Notes |
 |---|---|---|
 | `q` | — | Free text over name and summary. Also understands typed operators (below). |
@@ -243,12 +249,16 @@ including prereleases like `2.0.0-rc.1.json`.
 
 ## `GET /publishers/<name>.json`
 
+The `plugins` and `themes` arrays are separate, as are the publisher's
+`plugin_count` and `theme_count`. The HTML publisher page uses matching sections.
+
 ```json
 { "schema_version": 1,
   "publisher": { "name": "acme", "display_name": "Acme Co", "kind": "org",
                  "bio": "…", "website": null, "claimed": true,
-                 "verified": false, "plugin_count": 12, "url": "https://…" },
-  "plugins": [ ... ] }
+                 "verified": false, "plugin_count": 12, "theme_count": 3,
+                 "url": "https://…" },
+  "plugins": [ ... ], "themes": [ ... ] }
 ```
 
 `claimed: false` means the listing was seeded from the legacy marketplace and

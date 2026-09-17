@@ -566,7 +566,7 @@ html[data-nav-menu="open"] .omarchy-hint { display: none; }
 .hero__install .copy-button svg { width: 20px; height: 20px; }
 @media (max-width: 639.98px) {
   .hero__install code { font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
-  .hero .hero__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; }
+  .hero .hero__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 }
 .hero__stats { display: flex; gap: 48px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
 .hero__stat b { display: block; font-family: var(--font-sans); font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
