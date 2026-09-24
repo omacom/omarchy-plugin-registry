@@ -5,7 +5,7 @@ class My::DeviceFlowTest < ActionDispatch::IntegrationTest
   setup { @user = create_my_user }
 
   test "account flow: code -> connect -> account token that reaches the My API but not publishing" do
-    post "/api/v1/device/code", params: { purpose: "account", device: "framework" }
+    post "/api/v1/device/code", params: { purpose: "account", device: "xps-14" }
     assert_response :created
     assert_equal "account", response.parsed_body["purpose"]
     assert_equal "http://my.test/device", response.parsed_body["verification_uri"]
@@ -16,7 +16,7 @@ class My::DeviceFlowTest < ActionDispatch::IntegrationTest
     get device_path(code: user_code)
     assert_response :success
     assert_match "Connect this machine?", response.body
-    assert_match "framework", response.body
+    assert_match "xps-14", response.body
     assert_no_match "publish token", response.body
 
     # Whatever the form posts, an account approval never carries a publish scope
@@ -28,12 +28,12 @@ class My::DeviceFlowTest < ActionDispatch::IntegrationTest
     token = response.parsed_body["token"]
     assert token.start_with?("oma_")
     assert_equal "account", response.parsed_body["purpose"]
-    assert_match(/framework/, response.parsed_body["scope"])
+    assert_match(/xps-14/, response.parsed_body["scope"])
 
     get "/api/v1/my/whoami", headers: { "Authorization" => "Bearer #{token}" }
     assert_response :success
     assert_equal "me", response.parsed_body.dig("user", "handle")
-    assert_equal "framework", response.parsed_body.dig("device", "name")
+    assert_equal "xps-14", response.parsed_body.dig("device", "name")
 
     post "/api/v1/plugins/me/weather/versions", params: TarballBuilder.build,
       headers: { "Authorization" => "Bearer #{token}", "Content-Type" => "application/gzip" }

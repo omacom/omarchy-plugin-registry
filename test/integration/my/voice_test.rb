@@ -3,7 +3,7 @@ require "test_helper"
 class My::VoiceTest < ActionDispatch::IntegrationTest
   setup do
     @user = create_my_user
-    @token = account_token_for(@user, device: "framework")
+    @token = account_token_for(@user, device: "xps-14")
   end
 
   test "disabled without a management key: pages say so, API says 501" do

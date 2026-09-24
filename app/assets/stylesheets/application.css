@@ -991,45 +991,57 @@ a:hover > .omarchy-footer__wordmark, a:focus-visible > .omarchy-footer__wordmark
 }
 
 /* ---- My Omarchy ------------------------------------------------------- */
-.my-nav { display: flex; gap: 4px; flex-wrap: wrap; padding-block: 12px 0; border-bottom: 1px solid var(--color-border-subtle); }
-.my-nav__link { font-size: 13px; padding: 8px 12px; color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.my-nav__link:hover { color: var(--color-text); }
-.my-nav__link[aria-current="page"] { color: var(--color-text); border-bottom-color: var(--color-brand); }
-.my-nav__link--aside { margin-left: auto; color: var(--color-text-muted); }
-.my-nav__link--aside + .my-nav__link--aside { margin-left: 0; }
-.my-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+/* The hub is one scrolling page in the omarchy.org idiom: hero, then a
+   showcase band per feature. Inner pages use the plugin-page head. */
+.my-hero__title { font-size: clamp(34px, 5vw, 56px); letter-spacing: -0.02em; margin-top: 10px; }
+.my-hero__actions { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
+.my-hero .hero__install { margin-top: 24px; }
+.my-pillars { display: grid; gap: 40px 32px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.my-pillar h2 { font-size: 22px; letter-spacing: -0.02em; margin: 6px 0 10px; }
+.my-pillar p { font-size: 15px; line-height: 1.6; color: var(--color-text-secondary); text-wrap: pretty; margin-bottom: 14px; }
+.my-pillar pre { margin: 0; }
+.my-empty { margin-top: 24px; max-width: 42rem; }
+.my-empty p { font-size: 15px; color: var(--color-text-secondary); margin-bottom: 12px; }
+.my-empty kbd { font-family: var(--font-mono); font-size: 12px; background: var(--color-surface-2); padding: 2px 6px; }
+.my-devices { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+.my-device { display: flex; flex-direction: column; gap: 6px; background: var(--color-surface); box-shadow: var(--t-elevation); padding: 16px 18px; }
+.my-device__name { font-family: var(--font-sans); font-size: 16px; font-weight: 600; }
+.my-device__meta { font-size: 12px; color: var(--color-text-muted); font-family: var(--font-mono); }
+.my-device--add { background: transparent; box-shadow: none; border: 1px dashed var(--color-border-strong); }
+.my-device--add .my-device__name { color: var(--color-text-secondary); font-weight: 500; }
+.my-account-band__inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+.my-account-band__links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.my-account-band__links form { margin: 0; }
+.my-page-head__inner { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.my-page-head .summary { color: var(--color-text-secondary); max-width: 62ch; font-size: 15px; line-height: 1.6; }
+.my-page-head__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.my-page-head__actions form { margin: 0; }
+.my-page { padding-block: 32px 96px; }
+.my-page > .table { margin-bottom: 8px; }
+.my-page > .install-strip { margin-top: 8px; }
+.my-section { margin-top: 48px; }
+.my-section > h2 { font-size: 22px; letter-spacing: -0.02em; margin-bottom: 14px; }
+.my-section p { font-size: 15px; line-height: 1.6; color: var(--color-text-secondary); max-width: 62ch; margin-bottom: 12px; }
+.my-voice-grid { display: grid; gap: 48px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.my-voice-grid .my-section { margin-top: 24px; }
+.my-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .my-actions form { margin: 0; }
-.my-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.my-card { border: 1px solid var(--color-border-subtle); background: var(--color-surface); padding: 20px; margin: 0 !important; }
-.my-card > h2 { border: 0 !important; padding: 0 !important; margin-bottom: 12px !important; font-size: 18px !important; }
-.my-card pre { margin-top: 12px; }
-.my-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
-.my-list li { padding: 6px 0; border-bottom: 1px solid var(--color-border-subtle); }
-.my-list li:last-child { border-bottom: 0; }
-.my-welcome .my-actions { margin-bottom: 48px; }
-.my-features { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.my-feature { border-top: 1px solid var(--color-border-subtle); padding-top: 18px; margin: 0 !important; }
-.my-feature h2 { border: 0 !important; padding: 0 !important; font-size: 20px !important; margin-bottom: 10px !important; }
-.my-feature p { color: var(--color-text-secondary); font-size: 14px; margin-bottom: 12px; }
 .path-list { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 32px; font-size: 13px; }
 .path-list li { padding: 3px 0; break-inside: avoid; }
-.snap-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.snap-thumb { display: block; width: 96px; height: 64px; overflow: hidden; border: 1px solid var(--color-border-subtle); background: var(--color-bg-deep); }
-.snap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.snap-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.snap-card { border: 1px solid var(--color-border-subtle); background: var(--color-surface); display: flex; flex-direction: column; }
-.snap-card__preview { display: block; aspect-ratio: 16 / 10; overflow: hidden; background: var(--color-bg-deep); }
-.snap-card__preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.snap-card__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
-.snap-card__body h3 { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.snap-card__body p { font-size: 12px; }
-.snap-card__actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
-.snap-card__actions form { margin: 0; }
+/* Snap cards ride the directory card exactly; the copy button sits in the head row */
+.snap-card__link { display: block; }
+.snap-card h3 a { color: inherit; text-decoration: none; }
+.snap-card h3 a:hover { color: var(--color-brand); }
+.snap-card__copy { margin-left: auto; flex-shrink: 0; }
+/* Owner grid: cards stretch to the row so the delete control lines up */
+.snap-card__wrap { display: flex; flex-direction: column; gap: 8px; }
+.snap-card__wrap .snap-card { flex: 1; }
+.snap-card__delete { align-self: flex-end; }
 .snap-page { padding-block: 40px 96px; }
 .snap-page__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; }
 .snap-page__head h1 { font-size: clamp(24px, 3vw, 34px); margin-bottom: 4px; }
 .snap-page__actions { display: flex; gap: 8px; }
-.snap-page__figure { margin: 0 0 18px; background: var(--color-bg-deep); border: 1px solid var(--color-border-subtle); display: flex; justify-content: center; }
+.snap-page__figure { margin: 0 0 18px; background: var(--color-bg-deep); box-shadow: var(--t-elevation); display: flex; justify-content: center; }
 .snap-page__zoom { display: block; background: none; border: 0; padding: 0; cursor: zoom-in; max-width: 100%; }
 .snap-page__zoom img { display: block; max-width: 100%; height: auto; max-height: 80vh; object-fit: contain; }
 .snap-page__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; }

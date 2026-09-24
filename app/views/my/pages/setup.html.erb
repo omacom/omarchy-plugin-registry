@@ -1,8 +1,8 @@
 <% content_for :title, "Setup — My Omarchy" %>
-<% content_for :no_my_nav, "1" unless authenticated? %>
-<div class="content-page container">
-  <p class="eyebrow">My Omarchy</p>
-  <h1>Set up a machine.</h1>
+<%= render "my/shared/page_head", crumb: "Setup", title: "Set up a machine.",
+      summary: "Four commands. Everything else is a web page." %>
+
+<div class="container my-page">
   <div class="prose">
     <h2>1. Sign in</h2>
     <pre>$ omarchy my login</pre>

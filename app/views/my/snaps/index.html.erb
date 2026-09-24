@@ -1,38 +1,22 @@
 <% content_for :title, "Snaps — My Omarchy" %>
-<div class="content-page container">
-  <p class="eyebrow">My Omarchy</p>
-  <h1>Snaps</h1>
-  <p class="lede">Screenshots you've shared. Each link is unguessable and never listed anywhere
-    but here; deleting one kills the link immediately.
-    <span class="muted"><%= number_to_human_size(@retained) %> of <%= number_to_human_size(Snap::MAX_RETAINED_BYTES_PER_USER) %> used.</span></p>
+<%= render "my/shared/page_head", crumb: "Snaps", title: "Snaps",
+      summary: "Screenshots you've shared. Each link is unguessable and never listed anywhere but here; deleting one kills the link immediately. #{number_to_human_size(@retained)} of #{number_to_human_size(Snap.max_retained_bytes_per_user)} used." %>
 
-  <section>
-    <% if @snaps.any? %>
-      <div class="snap-grid">
-        <% @snaps.each do |snap| %>
-          <article class="snap-card">
-            <%= link_to snap_path(snap.token), class: "snap-card__preview" do %>
-              <% if snap.preview.attached? %>
-                <img src="<%= snap_preview_path(snap.token) %>" alt="<%= snap.title %>" loading="lazy" width="<%= snap.width %>" height="<%= snap.height %>">
-              <% end %>
-            <% end %>
-            <div class="snap-card__body" data-controller="clipboard" data-clipboard-text-value="<%= MyOmarchy.url(snap_path(snap.token)) %>">
-              <h3><%= snap.title.presence || snap.token %></h3>
-              <p class="muted"><%= time_ago_in_words(snap.created_at) %> ago · <%= snap.width %>×<%= snap.height %>
-                · <%= pluralize(snap.views_count, "view") %>
-                <% if snap.expires_at %>· expires in <%= time_ago_in_words(snap.expires_at) %><% end %></p>
-              <div class="snap-card__actions">
-                <%= render "shared/copy_button", label: "Copy link", variant: "copy-button--inline" %>
-                <%= button_to "Delete", my_snap_path(snap.token), method: :delete, class: "button button--ghost button--small",
-                      form: { data: { turbo_confirm: "Delete this snap? The link stops working." } } %>
-              </div>
-            </div>
-          </article>
-        <% end %>
-      </div>
-    <% else %>
-      <p class="muted">Nothing shared yet.</p>
+<div class="container my-page">
+  <% if @snaps.any? %>
+    <div class="plugin-grid">
+      <% @snaps.each do |snap| %>
+        <div class="snap-card__wrap">
+          <%= render "my/snaps/card", snap: snap %>
+          <%= button_to "Delete", my_snap_path(snap.token), method: :delete, class: "button button--ghost button--small snap-card__delete",
+                form: { data: { turbo_confirm: "Delete this snap? The link stops working." } } %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="my-empty">
+      <p>Nothing shared yet. In omasnap, hit <kbd>Share</kbd> — or from a terminal:</p>
       <pre>$ omarchy my snap share ~/Pictures/Screenshots/latest.png</pre>
-    <% end %>
-  </section>
+    </div>
+  <% end %>
 </div>

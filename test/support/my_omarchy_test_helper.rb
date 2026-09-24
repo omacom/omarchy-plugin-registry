@@ -9,7 +9,7 @@ module MyOmarchyTestHelper
     user
   end
 
-  def account_token_for(user, device: "laptop")
+  def account_token_for(user, device: "xps-14")
     ApiToken.mint!(user: user, purpose: :account, device_name: device)
   end
 

@@ -1,46 +1,43 @@
 <% content_for :title, "Dotfiles — My Omarchy" %>
-<div class="content-page container">
-  <p class="eyebrow">My Omarchy</p>
-  <h1>Dotfiles</h1>
-  <p class="lede">Whole-config snapshots pushed from your machines. The newest
-    <%= DotfileBundle::KEEP_PER_USER %> are kept; <code>omarchy my sync pull</code> fetches the latest
-    (or any of these by id) and restores it after showing you the diff.</p>
+<%= render "my/shared/page_head", crumb: "Dotfiles", title: "Dotfiles",
+      summary: "Whole-config snapshots pushed from your machines. The newest #{DotfileBundle::KEEP_PER_USER} are kept; omarchy my sync pull fetches the latest (or any by id) and restores it after showing you the diff." %>
 
-  <section>
-    <% if @bundles.any? %>
-      <table class="table">
-        <thead><tr><th>Pushed</th><th>From</th><th>Files</th><th>Size</th><th>Omarchy</th><th></th></tr></thead>
-        <tbody>
-          <% @bundles.each do |bundle| %>
-            <tr>
-              <td><%= link_to "#{time_ago_in_words(bundle.created_at)} ago", my_dotfile_path(bundle) %></td>
-              <td><%= bundle.device_name.presence || "—" %></td>
-              <td><%= bundle.file_count %><% if bundle.encryption_age? %> <span class="badge">encrypted</span><% end %></td>
-              <td class="muted"><%= number_to_human_size(bundle.size_bytes) %></td>
-              <td class="muted"><%= bundle.omarchy_version || "—" %></td>
-              <td class="actions">
-                <%= link_to "Download", download_my_dotfile_path(bundle), class: "button button--ghost button--small" %>
-                <%= button_to "Delete", my_dotfile_path(bundle), method: :delete, class: "button button--ghost button--small",
-                      form: { data: { turbo_confirm: "Delete this snapshot? Machines can no longer pull it." } } %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% else %>
-      <p class="muted">No snapshots yet.</p>
+<div class="container my-page">
+  <% if @bundles.any? %>
+    <table class="table">
+      <thead><tr><th>Pushed</th><th>From</th><th>Files</th><th>Size</th><th>Omarchy</th><th></th></tr></thead>
+      <tbody>
+        <% @bundles.each do |bundle| %>
+          <tr>
+            <td><%= link_to "#{time_ago_in_words(bundle.created_at)} ago", my_dotfile_path(bundle) %></td>
+            <td><%= bundle.device_name.presence || "—" %></td>
+            <td><%= bundle.file_count %><% if bundle.encryption_age? %> <span class="badge">encrypted</span><% end %></td>
+            <td class="muted"><%= number_to_human_size(bundle.size_bytes) %></td>
+            <td class="muted"><%= bundle.omarchy_version || "—" %></td>
+            <td class="actions">
+              <%= link_to "Download", download_my_dotfile_path(bundle), class: "button button--ghost button--small" %>
+              <%= button_to "Delete", my_dotfile_path(bundle), method: :delete, class: "button button--ghost button--small",
+                    form: { data: { turbo_confirm: "Delete this snapshot? Machines can no longer pull it." } } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="my-empty">
+      <p>No snapshots yet. On any connected machine:</p>
       <pre>$ omarchy my sync push</pre>
-    <% end %>
-  </section>
+    </div>
+  <% end %>
 
-  <section>
+  <section class="my-section">
     <h2>What gets synced</h2>
-    <p>The client bundles <code>~/.config/omarchy</code>, <code>~/.config/hypr</code>, and the
-      app configs Omarchy manages (terminal, editor, shell). Keys and credentials are excluded
-      on the machine and refused by the server if they slip through: SSH, GPG, AWS, keyrings,
-      browser profiles, agent API keys.</p>
-    <p>Prefer nobody but you can read a snapshot? <code>omarchy my sync push --encrypt</code>
-      encrypts the bundle with <a href="https://age-encryption.org">age</a> before upload. The
-      server stores it as-is and shows only the file list the client declared.</p>
+    <p>The client bundles <code>~/.config/omarchy</code>, <code>~/.config/hypr</code>, and the app
+      configs Omarchy manages (terminal, editor, shell). Keys and credentials are excluded on the
+      machine and refused by the server if they slip through: SSH, GPG, AWS, keyrings, browser
+      profiles, agent API keys.</p>
+    <p>Prefer nobody but you can read a snapshot? <code>omarchy my sync push --encrypt</code> encrypts
+      the bundle with <a href="https://age-encryption.org">age</a> before upload. The server stores it
+      as-is and shows only the file list the client declared.</p>
   </section>
 </div>

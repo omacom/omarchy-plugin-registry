@@ -3,7 +3,7 @@ require "test_helper"
 class My::SnapsTest < ActionDispatch::IntegrationTest
   setup do
     @user = create_my_user
-    @token = account_token_for(@user, device: "framework")
+    @token = account_token_for(@user, device: "xps-14")
   end
 
   def share(bytes = ImageFixture.png, content_type: "image/png", headers: {})
@@ -45,10 +45,10 @@ class My::SnapsTest < ActionDispatch::IntegrationTest
   end
 
   test "header values arrive binary-encoded and are handled as UTF-8" do
-    share(headers: { "X-Omarchy-Title" => "Café ☕ bug".b, "X-Omarchy-Device" => "framework".b })
+    share(headers: { "X-Omarchy-Title" => "Café ☕ bug".b, "X-Omarchy-Device" => "xps-14".b })
     assert_response :created, response.body
     assert_equal "Café ☕ bug", response.parsed_body.dig("snap", "title")
-    assert_equal "framework", response.parsed_body.dig("snap", "device")
+    assert_equal "xps-14", response.parsed_body.dig("snap", "device")
     get "/s/#{response.parsed_body.dig('snap', 'token')}/image"
     assert_response :success
   end

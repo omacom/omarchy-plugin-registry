@@ -3,7 +3,7 @@ require "test_helper"
 class My::DotfilesTest < ActionDispatch::IntegrationTest
   setup do
     @user = create_my_user
-    @token = account_token_for(@user, device: "framework")
+    @token = account_token_for(@user, device: "xps-14")
   end
 
   test "push, list, show, download round trip" do
@@ -14,7 +14,7 @@ class My::DotfilesTest < ActionDispatch::IntegrationTest
     bundle = response.parsed_body["bundle"]
     assert_equal 2, bundle["file_count"]
     assert_equal "plain", bundle["encryption"]
-    assert_equal "framework", bundle["device"]
+    assert_equal "xps-14", bundle["device"]
     assert_equal "4.1.0", bundle["omarchy_version"]
     assert_equal [ ".config/hypr/bindings.lua", ".config/omarchy/shell.json" ], bundle["paths"]
     assert_equal Digest::SHA256.hexdigest(bytes), bundle["sha256"]
@@ -111,7 +111,7 @@ class My::DotfilesTest < ActionDispatch::IntegrationTest
     sign_in_as @user
     get my_dotfiles_path
     assert_response :success
-    assert_match "framework", response.body
+    assert_match "xps-14", response.body
     get my_dotfile_path(bundle)
     assert_response :success
     assert_match ".config/omarchy/shell.json", response.body

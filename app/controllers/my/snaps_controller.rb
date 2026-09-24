@@ -1,7 +1,7 @@
 module My
   class SnapsController < BaseController
     def index
-      @snaps = Current.user.snaps.live.newest_first
+      @snaps = Current.user.snaps.live.newest_first.with_attached_preview
       @retained = Current.user.snaps.live.sum(:byte_size)
     end
 

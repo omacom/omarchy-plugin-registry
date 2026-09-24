@@ -8,11 +8,11 @@ class MyTokenPurposeTest < ActiveSupport::TestCase
   end
 
   test "account tokens carry the oma_ prefix, a 90-day life, and no publish scope" do
-    token = ApiToken.mint!(user: @user, purpose: :account, device_name: "framework")
+    token = ApiToken.mint!(user: @user, purpose: :account, device_name: "xps-14")
     assert token.plaintext_token.start_with?("oma_")
     assert token.purpose_account?
     assert_in_delta 90.days.from_now, token.expires_at, 5
-    assert_equal "framework", token.device_name
+    assert_equal "xps-14", token.device_name
     assert_not token.authorizes?(@publisher, "weather")
     assert_match(/my\.omarchy\.org/, token.scope_label)
   end

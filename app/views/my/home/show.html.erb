@@ -1,73 +1,151 @@
 <% content_for :title, "My Omarchy" %>
-<div class="content-page container">
-  <p class="eyebrow">My Omarchy</p>
-  <h1>Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
-  <p class="lede">
+<%# One scrolling home in the omarchy.org idiom: a hero, then a showcase band
+    per feature. No sub-navigation — every section is its own front door and
+    links to its full page. %>
+<section class="hero my-hero" data-hero-sentinel>
+  <div class="container hero__inner">
+    <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
+    <p class="page-subtitle">My Omarchy</p>
+    <h1 class="my-hero__title">Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
+    <p class="hero__lede">
+      <% if @devices.empty? %>
+        No machine is connected yet. Run the command below on one, approve the code, and
+        everything on this page lights up.
+      <% else %>
+        <%= pluralize(@devices.size, "machine") %> connected
+        <% if @latest_bundle %>· config synced <%= time_ago_in_words(@latest_bundle.created_at) %> ago<% end %>
+        <% if @snap_count.positive? %>· <%= pluralize(@snap_count, "snap") %> shared<% end %>
+        <% if @voice_key %>· voice on<% end %>
+      <% end %>
+    </p>
     <% if @devices.empty? %>
-      No machine is connected yet. Run <code>omarchy my login</code> on one to get started,
-      or read the <%= link_to "setup guide", my_setup_path %>.
-    <% else %>
-      <%= pluralize(@devices.size, "machine") %> connected.
+      <div class="hero__install">
+        <span class="prompt">$</span><span>omarchy my login</span>
+      </div>
     <% end %>
-  </p>
-
-  <div class="my-grid">
-    <section class="my-card">
-      <h2><%= link_to "Devices", my_devices_path %></h2>
-      <% if @devices.any? %>
-        <ul class="my-list">
-          <% @devices.first(4).each do |device| %>
-            <li><strong><%= device.device_name.presence || device.token_hint %></strong>
-              <span class="muted">— <%= device.last_used_at ? "used #{time_ago_in_words(device.last_used_at)} ago" : "never used" %></span></li>
-          <% end %>
-        </ul>
-      <% else %>
-        <p class="muted">Nothing connected.</p>
-        <pre>$ omarchy my login</pre>
+    <div class="hero__stats">
+      <div class="hero__stat"><b><%= @devices.size %></b><span><%= "device".pluralize(@devices.size) %></span></div>
+      <div class="hero__stat"><b><%= @bundle_count %></b><span><%= "snapshot".pluralize(@bundle_count) %></span></div>
+      <div class="hero__stat"><b><%= @snap_count %></b><span><%= "snap".pluralize(@snap_count) %></span></div>
+      <% if @voice_enabled %>
+        <div class="hero__stat"><b><%= @voice_key ? number_to_currency(@voice_key.usage_monthly_usd, precision: 2) : "off" %></b><span>voice this month</span></div>
       <% end %>
-    </section>
-
-    <section class="my-card">
-      <h2><%= link_to "Dotfiles", my_dotfiles_path %></h2>
-      <% if @latest_bundle %>
-        <p>Latest snapshot <strong><%= time_ago_in_words(@latest_bundle.created_at) %> ago</strong>
-          from <strong><%= @latest_bundle.device_name.presence || "a device" %></strong> —
-          <%= pluralize(@latest_bundle.file_count, "file") %>, <%= number_to_human_size(@latest_bundle.size_bytes) %>
-          <% if @latest_bundle.encryption_age? %><span class="badge">encrypted</span><% end %>.</p>
-        <p class="muted"><%= pluralize(@bundle_count, "snapshot") %> kept (last <%= DotfileBundle::KEEP_PER_USER %>).</p>
-      <% else %>
-        <p class="muted">No snapshots yet.</p>
-        <pre>$ omarchy my sync push</pre>
-      <% end %>
-    </section>
-
-    <section class="my-card">
-      <h2><%= link_to "Snaps", my_snaps_path %></h2>
-      <% if @snaps.any? %>
-        <div class="snap-strip">
-          <% @snaps.each do |snap| %>
-            <%= link_to snap_path(snap.token), class: "snap-thumb", title: snap.title.presence || snap.token do %>
-              <% if snap.preview.attached? %><img src="<%= snap_preview_path(snap.token) %>" alt="" loading="lazy" width="<%= snap.width %>" height="<%= snap.height %>"><% end %>
-            <% end %>
-          <% end %>
-        </div>
-        <p class="muted"><%= pluralize(@snap_count, "live snap") %>.</p>
-      <% else %>
-        <p class="muted">Nothing shared yet — hit share in omasnap.</p>
-      <% end %>
-    </section>
-
-    <section class="my-card">
-      <h2><%= link_to "Voice", my_voice_path %></h2>
-      <% if !@voice_enabled %>
-        <p class="muted">Cloud transcription isn't enabled on this server.</p>
-      <% elsif @voice_key %>
-        <p>Key active — <strong><%= number_to_currency(@voice_key.usage_monthly_usd) %></strong> of
-          <%= number_to_currency(@voice_key.monthly_limit_usd) %> used this month; expires
-          <%= time_ago_in_words(@voice_key.expires_at) %> from now.</p>
-      <% else %>
-        <p class="muted">No voice key. Mint one to dictate through the cloud.</p>
-      <% end %>
-    </section>
+    </div>
   </div>
-</div>
+</section>
+
+<section class="showcase" aria-label="Snaps">
+  <div class="container">
+    <div class="showcase__head">
+      <div>
+        <h2 class="showcase__title">Snaps</h2>
+        <p class="showcase__desc">Screenshots you've shared from omasnap. Every link is unguessable
+          and never listed anywhere but here; delete one and it's gone.</p>
+      </div>
+      <%= link_to my_snaps_path, class: "showcase__action" do %>All snaps <span aria-hidden="true">→</span><% end %>
+    </div>
+    <% if @snaps.any? %>
+      <div class="plugin-grid showcase__grid">
+        <%= render partial: "my/snaps/card", collection: @snaps, as: :snap %>
+      </div>
+    <% else %>
+      <div class="my-empty">
+        <p>Nothing shared yet. In omasnap, hit <kbd>Share</kbd> — or from a terminal:</p>
+        <pre>$ omarchy my snap share ~/Pictures/Screenshots/latest.png</pre>
+      </div>
+    <% end %>
+    <div class="showcase__actions">
+      <%= link_to my_snaps_path, class: "showcase__action", style: "display:inline-flex" do %>All snaps <span aria-hidden="true">→</span><% end %>
+    </div>
+  </div>
+</section>
+
+<section class="showcase" aria-label="Dotfiles">
+  <div class="container">
+    <div class="showcase__head">
+      <div>
+        <h2 class="showcase__title">Dotfiles</h2>
+        <p class="showcase__desc">Whole-config snapshots pushed from your machines. The newest
+          <%= DotfileBundle::KEEP_PER_USER %> are kept; pull the latest, or any of them, on any machine.</p>
+      </div>
+      <%= link_to my_dotfiles_path, class: "showcase__action" do %>All snapshots <span aria-hidden="true">→</span><% end %>
+    </div>
+    <% if @bundles.any? %>
+      <div class="recent-band__row showcase__grid">
+        <% @bundles.each do |bundle| %>
+          <%= link_to my_dotfile_path(bundle), class: "recent-card" do %>
+            <span class="recent-card__name"><%= bundle.device_name.presence || "a device" %></span>
+            <span class="recent-card__summary"><%= pluralize(bundle.file_count, "file") %> · <%= number_to_human_size(bundle.size_bytes) %><% if bundle.encryption_age? %> · encrypted<% end %></span>
+            <span class="recent-card__meta"><%= time_ago_in_words(bundle.created_at) %> ago<% if bundle.omarchy_version %> · Omarchy <%= bundle.omarchy_version %><% end %></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="my-empty">
+        <p>No snapshots yet. On any connected machine:</p>
+        <pre>$ omarchy my sync push</pre>
+      </div>
+    <% end %>
+  </div>
+</section>
+
+<section class="showcase" aria-label="Devices">
+  <div class="container">
+    <div class="showcase__head">
+      <div>
+        <h2 class="showcase__title">Devices</h2>
+        <p class="showcase__desc">Every machine signed in to your account. Disconnecting one revokes
+          its token on the spot.</p>
+      </div>
+      <%= link_to my_devices_path, class: "showcase__action" do %>Manage devices <span aria-hidden="true">→</span><% end %>
+    </div>
+    <div class="my-devices showcase__grid">
+      <% @devices.each do |device| %>
+        <div class="my-device">
+          <span class="my-device__name"><%= device.device_name.presence || device.token_hint %></span>
+          <span class="my-device__meta"><%= device.last_used_at ? "active #{time_ago_in_words(device.last_used_at)} ago" : "never used" %> · expires in <%= time_ago_in_words(device.expires_at) %></span>
+        </div>
+      <% end %>
+      <div class="my-device my-device--add">
+        <span class="my-device__name">Connect another</span>
+        <span class="my-device__meta"><code>omarchy my login</code> on the machine, then approve the code here.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="showcase" aria-label="Voice">
+  <div class="container">
+    <div class="showcase__head">
+      <div>
+        <h2 class="showcase__title">Voice</h2>
+        <p class="showcase__desc">
+          <% if !@voice_enabled %>
+            Cloud transcription isn't enabled on this server. Local dictation through voxtype
+            still works everywhere.
+          <% elsif @voice_key %>
+            Your key is live: <strong><%= number_to_currency(@voice_key.usage_monthly_usd) %></strong> of
+            <%= number_to_currency(@voice_key.monthly_limit_usd) %> used this month, expires in
+            <%= time_ago_in_words(@voice_key.expires_at) %>. Run <code>omarchy my voice setup</code>
+            on any machine that should dictate through the cloud.
+          <% else %>
+            Mint a personal, spend-capped key and any of your machines can dictate through the
+            cloud instead of a local model.
+          <% end %>
+        </p>
+      </div>
+      <%= link_to my_voice_path, class: "showcase__action" do %><%= @voice_key ? "Manage voice key" : "Set up voice" %> <span aria-hidden="true">→</span><% end %>
+    </div>
+  </div>
+</section>
+
+<section class="showcase my-account-band" aria-label="Account">
+  <div class="container my-account-band__inner">
+    <p class="muted">Signed in as <%= @user.email_address %>.</p>
+    <div class="my-account-band__links">
+      <%= link_to "Security & passkeys", settings_two_factor_path %>
+      <%= link_to "Plugin publishing", dashboard_path %>
+      <%= button_to "Sign out", session_path, method: :delete, class: "button button--ghost button--small" %>
+    </div>
+  </div>
+</section>

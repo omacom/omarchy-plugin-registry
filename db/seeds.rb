@@ -341,3 +341,67 @@ Registry::ReviewJob.perform_now(PluginVersion.processing.last) while PluginVersi
 DataPlane::Regenerate.all
 puts "Seeded. Admin: ryan@heyoodle.com (passwordless — request a code in dev, it shows in the flash)."
 puts "Admin TOTP secret (add to your authenticator for step-up): #{admin.otp_secret}"
+
+# ---------------------------------------------------------------------------
+# My Omarchy: a connected device, a couple of config snapshots, and a handful
+# of shared snaps (real Omarchy screenshots from the manual, db/seeds/snaps)
+# so the hub has something worth looking at.
+my_device = admin.api_tokens.usable.purpose_account.find_by(device_name: "xps-14") ||
+  ApiToken.mint!(user: admin, purpose: :account, device_name: "xps-14")
+my_device.update!(last_used_at: 12.minutes.ago)
+desktop = admin.api_tokens.usable.purpose_account.find_by(device_name: "studio") ||
+  ApiToken.mint!(user: admin, purpose: :account, device_name: "studio")
+desktop.update!(last_used_at: 3.days.ago, created_at: 40.days.ago)
+admin.update!(verified_at: Time.current) if admin.verified_at.nil?
+
+def build_plain_tarball(files)
+  io = StringIO.new
+  Zlib::GzipWriter.wrap(io) do |gz|
+    Gem::Package::TarWriter.new(gz) do |tar|
+      files.each { |path, content| tar.add_file_simple(path, 0o644, content.bytesize) { |f| f.write(content) } }
+    end
+  end
+  io.string
+end
+
+if admin.dotfile_bundles.none?
+  base = {
+    ".config/omarchy/shell.json" => %({ "bar": { "position": "top" } }\n),
+    ".config/omarchy/branding/about.txt" => "omarchy\n",
+    ".config/hypr/bindings.lua" => %(o.bind("SUPER + RETURN", "Terminal", "ghostty")\n),
+    ".config/hypr/monitors.lua" => %(hl.monitor({ name = "eDP-1", scale = 1.5 })\n),
+    ".config/hypr/looknfeel.lua" => "hl.decoration({ rounding = 0 })\n",
+    ".config/ghostty/config" => "font-size = 13\ntheme = tokyo-night\n",
+    ".config/alacritty/alacritty.toml" => "[font]\nsize = 13\n",
+    ".config/starship.toml" => "add_newline = false\n",
+    ".config/lazygit/config.yml" => "gui:\n  nerdFontsVersion: \"3\"\n",
+    ".config/tmux/tmux.conf" => "set -g mouse on\n"
+  }
+  [
+    [ desktop, 9.days.ago, base.merge(".config/hypr/monitors.lua" => %(hl.monitor({ name = "DP-1", scale = 1 })\n)) ],
+    [ my_device, 2.days.ago, base ],
+    [ my_device, 12.minutes.ago, base.merge(".config/ghostty/config" => "font-size = 14\ntheme = tokyo-night\n") ]
+  ].each do |token, at, files|
+    bundle = MyOmarchy::DotfileSync.new(user: admin, bytes: build_plain_tarball(files), token: token,
+      device_name: token.device_name, declared_manifest: { "omarchy_version" => "4.1.0" }).call
+    bundle.update_columns(created_at: at, updated_at: at)
+  end
+end
+
+if admin.snaps.none?
+  [
+    [ "navigation-fourway-tiling.webp", "Four-way tiling on the 14\"", "7d", 3.hours.ago, 41 ],
+    [ "clipboard-history.webp", "Clipboard history search", nil, 1.day.ago, 118 ],
+    [ "notice-weather.webp", "Weather notice, new layout", "7d", 2.days.ago, 7 ],
+    [ "prompt.webp", "Prompt after the starship tweak", nil, 5.days.ago, 22 ],
+    [ "snapshots-restore.webp", "Restoring a snapshot from limine", "30d", 9.days.ago, 263 ],
+    [ "tmux-tdl.webp", "tmux layout for the pkgs review", nil, 16.days.ago, 9 ]
+  ].each do |file, title, ttl, at, views|
+    bytes = File.binread(Rails.root.join("db/seeds/snaps", file))
+    snap = MyOmarchy::SnapUpload.new(user: admin, bytes: bytes, content_type: "image/webp", title: title, ttl: ttl,
+      token: my_device, device_name: "xps-14").call
+    snap.update_columns(created_at: at, updated_at: at, views_count: views,
+      expires_at: (ttl ? at + Snap::TTL_OPTIONS.fetch(ttl) : nil))
+  end
+end
+puts "My Omarchy: #{admin.devices.count} devices, #{admin.dotfile_bundles.count} snapshots, #{admin.snaps.live.count} snaps for #{admin.email_address}."

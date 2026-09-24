@@ -48,12 +48,7 @@
       </div>
     <% end %>
 
-    <main id="main">
-      <% if authenticated? && Current.user&.onboarded? && !content_for?(:no_my_nav) %>
-        <%= render "my/shared/nav" %>
-      <% end %>
-      <%= yield %>
-    </main>
+    <main id="main"><%= yield %></main>
 
     <%= render "shared/site_footer" %>
     <%= render "shared/theme_picker" %>

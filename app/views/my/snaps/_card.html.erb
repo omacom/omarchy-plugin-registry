@@ -1,0 +1,24 @@
+<%# A snap in the directory-card idiom: 16:9 preview, title, meta row, and a
+    copy-link button that doesn't navigate. %>
+<article class="plugin-card snap-card" data-controller="clipboard" data-clipboard-text-value="<%= MyOmarchy.url(snap_path(snap.token)) %>">
+  <%= link_to snap_path(snap.token), class: "snap-card__link", aria: { label: snap.title.presence || "Snap #{snap.token}" } do %>
+    <% if snap.preview.attached? %>
+      <img class="plugin-card__preview" src="<%= snap_preview_path(snap.token) %>" alt="" loading="lazy" decoding="async"
+           width="<%= snap.width %>" height="<%= snap.height %>">
+    <% else %>
+      <div class="plugin-card__preview--fallback" aria-hidden="true">◫</div>
+    <% end %>
+  <% end %>
+  <div class="plugin-card__body">
+    <div class="plugin-card__head">
+      <h3><%= link_to (snap.title.presence || "Untitled"), snap_path(snap.token) %></h3>
+      <%= render "shared/copy_button", label: "Copy link", variant: "copy-button--inline snap-card__copy" %>
+    </div>
+    <div class="plugin-card__meta">
+      <span><%= snap.width %>×<%= snap.height %></span>
+      <span><%= pluralize(snap.views_count, "view") %></span>
+      <span><%= time_ago_in_words(snap.created_at) %> ago</span>
+      <% if snap.expires_at %><span class="badge badge--warning">expires in <%= time_ago_in_words(snap.expires_at) %></span><% end %>
+    </div>
+  </div>
+</article>

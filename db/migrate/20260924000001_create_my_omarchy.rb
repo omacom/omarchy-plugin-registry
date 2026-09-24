@@ -4,7 +4,7 @@ class CreateMyOmarchy < ActiveRecord::Migration[8.1]
     # plugin versions, account tokens are what a machine holds for My Omarchy
     # (dotfile sync, snap sharing, the voice key). Neither authorizes the
     # other's surface. device_name is the hostname the CLI reported so the
-    # devices page reads "framework-laptop" instead of a digest hint.
+    # devices page reads "xps-14" instead of a digest hint.
     add_column :api_tokens, :purpose, :integer, default: 0, null: false
     add_column :api_tokens, :device_name, :string
     add_column :device_authorizations, :purpose, :integer, default: 0, null: false

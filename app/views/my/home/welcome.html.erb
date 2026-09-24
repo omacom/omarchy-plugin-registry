@@ -1,37 +1,47 @@
 <% content_for :title, "My Omarchy" %>
-<% content_for :no_my_nav, "1" %>
-<div class="content-page container my-welcome">
-  <p class="eyebrow">My Omarchy</p>
-  <h1>Your Omarchy, on every machine.</h1>
-  <p class="lede">One account for the things that should follow you around: your config, the
-    screenshots you share, and dictation that works anywhere.</p>
-  <div class="my-actions">
-    <%= link_to "Sign in", new_session_path, class: "button" %>
-    <%= link_to "How it works", my_setup_path, class: "button button--ghost" %>
+<section class="hero" data-hero-sentinel>
+  <div class="container hero__inner">
+    <%= render "shared/omarchy_wordmark", class: "hero__wordmark", label: "Omarchy" %>
+    <p class="page-subtitle">My Omarchy</p>
+    <p class="hero__lede">One account for the things that should follow you from machine to machine:
+      your config, the screenshots you share, and dictation that works anywhere.</p>
+    <div class="hero__install">
+      <span class="prompt">$</span><span>omarchy my login</span>
+    </div>
+    <div class="my-hero__actions">
+      <%= link_to "Sign in", new_session_path, class: "button" %>
+      <%= link_to "How it works", my_setup_path, class: "button button--ghost" %>
+    </div>
   </div>
+</section>
 
-  <div class="my-features">
-    <section class="my-feature">
-      <h2>Dotfile sync</h2>
-      <p>Push a snapshot of your Omarchy config from any machine, pull it on the next. Whole
-        snapshots, kept for you, nothing merged behind your back. Encrypt them before they
-        leave the machine if you like — we store what you send.</p>
-      <pre>$ omarchy my sync push
+<section class="showcase" aria-label="What My Omarchy does">
+  <div class="container">
+    <div class="my-pillars">
+      <article class="my-pillar">
+        <p class="eyebrow">Dotfiles</p>
+        <h2>Your config, everywhere.</h2>
+        <p>Push a snapshot from one machine, pull it on the next. Whole snapshots, never merged
+          behind your back. Encrypt before upload if you like — we store what you send.</p>
+        <pre>$ omarchy my sync push
 $ omarchy my sync pull</pre>
-    </section>
-    <section class="my-feature">
-      <h2>Share a snap</h2>
-      <p>Hit share in <a href="https://github.com/omacom/omasnap">omasnap</a> and get a link on
-        your clipboard. Unguessable, never listed, optional expiry, and a proper preview card
-        wherever you paste it.</p>
-      <pre>$ omarchy my snap share ~/Pictures/Screenshots/latest.png</pre>
-    </section>
-    <section class="my-feature">
-      <h2>Voice, anywhere</h2>
-      <p>Local dictation is great on a fast machine. On a laptop, hand transcription to the
-        cloud: a personal, spend-capped key you can revoke any time, wired into voxtype in
-        one command.</p>
-      <pre>$ omarchy my voice setup</pre>
-    </section>
+      </article>
+      <article class="my-pillar">
+        <p class="eyebrow">Snaps</p>
+        <h2>Share a screenshot in one keystroke.</h2>
+        <p>Hit share in <a href="https://github.com/omacom/omasnap">omasnap</a> and the link is on
+          your clipboard. Unguessable, never listed, expires when you say, and it unfurls
+          properly wherever you paste it.</p>
+        <pre>$ omarchy my snap share shot.png</pre>
+      </article>
+      <article class="my-pillar">
+        <p class="eyebrow">Voice</p>
+        <h2>Dictate on any machine.</h2>
+        <p>Local transcription is great on a fast box. On a laptop, hand it to the cloud with a
+          personal key that's capped per month and revocable any time — wired into voxtype in
+          one command.</p>
+        <pre>$ omarchy my voice setup</pre>
+      </article>
+    </div>
   </div>
-</div>
+</section>

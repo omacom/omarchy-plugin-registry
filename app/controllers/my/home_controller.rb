@@ -9,9 +9,10 @@ module My
       return redirect_to onboarding_path unless Current.user.onboarded?
       @user = Current.user
       @devices = @user.devices
-      @latest_bundle = @user.dotfile_bundles.newest_first.first
+      @bundles = @user.dotfile_bundles.newest_first.limit(4).to_a
+      @latest_bundle = @bundles.first
       @bundle_count = @user.dotfile_bundles.count
-      @snaps = @user.snaps.live.newest_first.limit(6)
+      @snaps = @user.snaps.live.newest_first.with_attached_preview.limit(6)
       @snap_count = @user.snaps.live.count
       @voice_key = @user.voice_key
       @voice_enabled = MyOmarchy.voice_enabled?

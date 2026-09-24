@@ -1,0 +1,12 @@
+<%# Inner-page header in the plugin-page idiom: eyebrow (a link back to the
+    hub), title, one-line summary, optional right-side actions. %>
+<div class="page-head my-page-head">
+  <div class="container my-page-head__inner">
+    <div>
+      <p class="eyebrow"><%= link_to "My Omarchy", my_root_path %><% if local_assigns[:crumb] %> / <%= crumb %><% end %></p>
+      <h1><%= title %></h1>
+      <% if local_assigns[:summary] %><p class="summary"><%= summary %></p><% end %>
+    </div>
+    <% if local_assigns[:actions] %><div class="my-page-head__actions"><%= actions %></div><% end %>
+  </div>
+</div>
