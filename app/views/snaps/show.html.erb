@@ -1,0 +1,56 @@
+<% title = @snap.title.presence || "Shared with omasnap" %>
+<% content_for :title, "#{title} — My Omarchy" %>
+<% content_for :no_my_nav, "1" %>
+<% content_for :social, safe_join([
+     tag.meta(property: "og:type", content: "website"),
+     tag.meta(property: "og:title", content: title),
+     tag.meta(property: "og:description", content: "#{@snap.width}×#{@snap.height} screenshot shared from Omarchy"),
+     tag.meta(property: "og:image", content: MyOmarchy.url(og_snap_path(@snap.token))),
+     tag.meta(property: "og:image:width", content: "1200"),
+     tag.meta(property: "og:image:height", content: "630"),
+     tag.meta(property: "og:url", content: MyOmarchy.url(snap_path(@snap.token))),
+     tag.meta(name: "twitter:card", content: "summary_large_image"),
+     tag.meta(name: "twitter:title", content: title),
+     tag.meta(name: "twitter:image", content: MyOmarchy.url(og_snap_path(@snap.token))),
+     tag.meta(name: "robots", content: "noindex, nofollow")
+   ], "\n") %>
+<div class="snap-page container" data-controller="lightbox">
+  <header class="snap-page__head">
+    <div>
+      <p class="eyebrow">Shared with omasnap</p>
+      <h1><%= title %></h1>
+      <p class="muted"><%= @snap.width %>×<%= @snap.height %> · <%= number_to_human_size(@snap.byte_size) %>
+        · <%= time_ago_in_words(@snap.created_at) %> ago
+        <% if @snap.expires_at %>· expires in <%= time_ago_in_words(@snap.expires_at) %><% end %></p>
+    </div>
+    <div class="snap-page__actions">
+      <%= link_to "Open original", snap_image_path(@snap.token), class: "button button--ghost button--small" %>
+      <%= link_to "Download", snap_image_path(@snap.token, download: 1), class: "button button--small", download: @snap.filename %>
+    </div>
+  </header>
+
+  <figure class="snap-page__figure">
+    <button type="button" class="snap-page__zoom" data-action="lightbox#open" aria-label="View full size">
+      <img src="<%= snap_preview_path(@snap.token) %>" alt="<%= title %>" width="<%= @snap.width %>" height="<%= @snap.height %>">
+    </button>
+  </figure>
+  <dialog class="lightbox" data-lightbox-target="dialog" data-action="click->lightbox#backdropClose">
+    <img src="<%= snap_image_path(@snap.token) %>" alt="<%= title %>" loading="lazy">
+    <button type="button" class="lightbox__close" data-action="lightbox#close" aria-label="Close">×</button>
+  </dialog>
+
+  <footer class="snap-page__foot">
+    <% if @owner %>
+      <p class="muted">This is yours. <%= link_to "Manage snaps", my_snaps_path %>.</p>
+    <% elsif authenticated? %>
+      <%= form_with url: reports_path, class: "form-inline" do %>
+        <input type="hidden" name="reportable_type" value="Snap">
+        <input type="hidden" name="reportable_id" value="<%= @snap.token %>">
+        <input type="hidden" name="reason" value="inappropriate snap">
+        <button type="submit" class="button button--ghost button--small">Report</button>
+      <% end %>
+    <% else %>
+      <p class="muted">Screenshots on <a href="https://omarchy.org">Omarchy</a>: <%= link_to "My Omarchy", my_root_path %>.</p>
+    <% end %>
+  </footer>
+</div>

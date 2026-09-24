@@ -13,6 +13,7 @@ module Registry
         .where.not(id: PluginVersion.where.not(api_token_id: nil).select(:api_token_id))
         .delete_all
       Session.expired.delete_all
+      purge_expired_snaps
       purge_unverified_users
       purge_rejected_tarballs
       resume_stuck_pipeline_work
@@ -20,6 +21,15 @@ module Registry
     end
 
     private
+
+    # A snap past its expiry is already invisible; drop its bytes too.
+    def purge_expired_snaps
+      Snap.expired.find_each do |snap|
+        snap.image.purge if snap.image.attached?
+        snap.preview.purge if snap.preview.attached?
+        snap.destroy
+      end
+    end
 
     # A sign-in request creates the user row BEFORE mailbox ownership is
     # proven; rows that never redeem a code are pending, not permanent.

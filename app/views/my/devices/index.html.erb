@@ -1,0 +1,36 @@
+<% content_for :title, "Devices — My Omarchy" %>
+<div class="content-page container">
+  <p class="eyebrow">My Omarchy</p>
+  <h1>Devices</h1>
+  <p class="lede">Every machine signed in to your account. Disconnecting one revokes its token on
+    the spot; it keeps its local files and can sign in again with <code>omarchy my login</code>.</p>
+
+  <section>
+    <% if @devices.any? %>
+      <table class="table">
+        <thead><tr><th>Machine</th><th>Connected</th><th>Last used</th><th>Expires</th><th></th></tr></thead>
+        <tbody>
+          <% @devices.each do |device| %>
+            <tr>
+              <td><strong><%= device.device_name.presence || "unnamed" %></strong> <code class="muted"><%= device.token_hint %></code></td>
+              <td class="muted"><%= time_ago_in_words(device.created_at) %> ago</td>
+              <td class="muted"><%= device.last_used_at ? "#{time_ago_in_words(device.last_used_at)} ago" : "never" %></td>
+              <td class="muted">in <%= time_ago_in_words(device.expires_at) %></td>
+              <td class="actions"><%= button_to "Disconnect", my_device_path(device), method: :delete, class: "button button--ghost button--small" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="muted">No machine is connected.</p>
+    <% end %>
+  </section>
+
+  <section>
+    <h2>Connect a machine</h2>
+    <p>On the machine, run:</p>
+    <pre>$ omarchy my login</pre>
+    <p>It prints an 8-character code; approve it at <%= link_to MyOmarchy.url(device_path), device_path %>.
+      The token it receives lasts 90 days and can only reach My Omarchy — it can't publish plugins.</p>
+  </section>
+</div>

@@ -108,8 +108,17 @@ Rails.application.configure do
   # Host authorization: only the registry host (plus explicitly configured
   # extras) may reach the app. An attacker-pointed domain must never mint or
   # receive publisher/admin session cookies.
-  config.hosts = [ ENV.fetch("REGISTRY_HOST", "plugins.omarchy.org") ] +
+  config.hosts = [ ENV.fetch("REGISTRY_HOST", "plugins.omarchy.org"),
+                   ENV.fetch("MY_OMARCHY_HOST", "my.omarchy.org") ] +
     ENV.fetch("ADDITIONAL_HOSTS", "").split(",").map(&:strip).reject(&:empty?)
   # Health checks arrive by IP from the load balancer
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # One sign-in across plugins.omarchy.org and my.omarchy.org: scope the
+  # cookie session (CSRF token, pending sign-in state) to the shared parent
+  # domain. The signed session_id cookie follows the same setting in
+  # Authentication#start_new_session_for. Unset = host-only cookies.
+  if ENV["SESSION_COOKIE_DOMAIN"].present?
+    config.session_store :cookie_store, key: "_omarchy_session", domain: ENV["SESSION_COOKIE_DOMAIN"]
+  end
 end

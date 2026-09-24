@@ -1,0 +1,30 @@
+<% content_for :title, "Snapshot — My Omarchy" %>
+<div class="content-page container">
+  <p class="eyebrow"><%= link_to "Dotfiles", my_dotfiles_path %></p>
+  <h1>Snapshot from <%= @bundle.device_name.presence || "a device" %></h1>
+  <p class="lede">Pushed <%= time_ago_in_words(@bundle.created_at) %> ago —
+    <%= pluralize(@bundle.file_count, "file") %>, <%= number_to_human_size(@bundle.size_bytes) %>
+    <% if @bundle.encryption_age? %>· <span class="badge">encrypted</span> (listing as declared by the client)<% end %>.
+    <% if @bundle.omarchy_version %>Omarchy <%= @bundle.omarchy_version %>.<% end %></p>
+
+  <section>
+    <div class="my-actions">
+      <%= link_to "Download .tar.gz", download_my_dotfile_path(@bundle), class: "button" %>
+      <%= button_to "Delete", my_dotfile_path(@bundle), method: :delete, class: "button button--ghost",
+            form: { data: { turbo_confirm: "Delete this snapshot?" } } %>
+    </div>
+    <p class="muted">Restore on a machine with <code>omarchy my sync pull --id <%= @bundle.id %></code>.
+      SHA-256 <code><%= @bundle.sha256 %></code>.</p>
+  </section>
+
+  <section>
+    <h2>Files</h2>
+    <% if @bundle.paths.any? %>
+      <ul class="path-list">
+        <% @bundle.paths.each do |path| %><li><code><%= path %></code></li><% end %>
+      </ul>
+    <% else %>
+      <p class="muted">No listing available.</p>
+    <% end %>
+  </section>
+</div>

@@ -76,6 +76,14 @@ env:
     # configured via /ai/base_url + /ai/model + /ai/effort. Swap for a hosted
     # key file (openai_key/anthropic_key) at launch.
     AI_REVIEW_COMMAND: /rails/script/ai_review_adapter
+    # My Omarchy shares this host on staging (the hub answers at /my). For
+    # production add my.omarchy.org to the tunnel + proxy.host and set
+    # MY_OMARCHY_BASE_URL/MY_OMARCHY_HOST, SESSION_COOKIE_DOMAIN and
+    # PASSKEY_RP_ID (docs/deploy.md). Voice keys switch on when the
+    # management key file exists under the /ai mount.
+    MY_OMARCHY_BASE_URL: https://omarchy-plugins.ryanhughes.me
+    MY_OMARCHY_HOST: omarchy-plugins.ryanhughes.me
+    OPENROUTER_MANAGEMENT_KEY_FILE: /ai/openrouter_management_key
     # Cloudflare R2 for Active Storage originals (tarball uploads survive
     # loss of the app volume). Credentials in .kamal/local/r2_*.
     R2_BUCKET: omarchy-plugins

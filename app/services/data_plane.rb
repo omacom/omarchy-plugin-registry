@@ -19,6 +19,10 @@ module DataPlane
     Rails.application.config.x.registry_base_url
   end
 
+  def host
+    URI(base_url).host
+  end
+
   # Every index file gets a detached Ed25519 signature at <path>.sig. The
   # complete new content is STAGED first under a deterministic name, then the
   # signature promotes, then the staged content renames into place. Readers

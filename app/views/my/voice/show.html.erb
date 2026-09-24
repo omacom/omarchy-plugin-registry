@@ -1,0 +1,61 @@
+<% content_for :title, "Voice — My Omarchy" %>
+<div class="content-page container">
+  <p class="eyebrow">My Omarchy</p>
+  <h1>Voice</h1>
+  <p class="lede">Dictation through <a href="https://voxtype.io">voxtype</a> runs locally by default.
+    A voice key moves transcription to the cloud (<code><%= @model %></code> via OpenRouter) for
+    machines too slow to run a model well — spend-capped at
+    <strong><%= number_to_currency(@limit) %> a month</strong>, revocable here any time.</p>
+
+  <% unless @enabled %>
+    <section><p class="muted">Cloud transcription isn't enabled on this server.</p></section>
+  <% else %>
+    <% if flash[:minted_voice_key] %>
+      <div class="token-reveal" data-controller="clipboard" data-clipboard-text-value="<%= flash[:minted_voice_key] %>">
+        <p class="eyebrow">Your voice key — copy it now, it won't be shown here again</p>
+        <div class="token-reveal__row">
+          <code><%= flash[:minted_voice_key] %></code>
+          <%= render "shared/copy_button", label: "Copy voice key" %>
+        </div>
+        <p class="hint">Connected machines can fetch it themselves: <code>omarchy my voice setup</code>.</p>
+      </div>
+    <% end %>
+
+    <section>
+      <% if @key %>
+        <h2>Active key</h2>
+        <table class="table u-max-mid">
+          <tbody>
+            <tr><th>Key</th><td><code><%= @key.label %></code></td></tr>
+            <tr><th>Used this month</th><td><%= number_to_currency(@key.usage_monthly_usd) %> of <%= number_to_currency(@key.monthly_limit_usd) %>
+              <% if @key.exhausted? %><span class="badge badge--warning">cap reached — resets on the 1st (UTC)</span><% end %></td></tr>
+            <tr><th>All-time</th><td><%= number_to_currency(@key.usage_usd) %></td></tr>
+            <tr><th>Minted</th><td><%= time_ago_in_words(@key.created_at) %> ago<% if @key.device_name %> from <%= @key.device_name %><% end %></td></tr>
+            <tr><th>Expires</th><td>in <%= time_ago_in_words(@key.expires_at) %></td></tr>
+          </tbody>
+        </table>
+        <div class="my-actions u-gap-top">
+          <%= button_to "Rotate key", my_voice_path, method: :post, class: "button button--ghost",
+                form: { data: { turbo_confirm: "Rotate? The current key stops working everywhere; re-run `omarchy my voice setup` on each machine." } } %>
+          <%= button_to "Revoke", my_voice_path, method: :delete, class: "button button--danger",
+                form: { data: { turbo_confirm: "Revoke the voice key? Machines fall back to local transcription." } } %>
+        </div>
+      <% else %>
+        <h2>No voice key</h2>
+        <p>Minting one takes a second and needs a fresh second-factor check.</p>
+        <%= button_to "Mint a voice key", my_voice_path, method: :post, class: "button" %>
+      <% end %>
+    </section>
+
+    <section>
+      <h2>Set up a machine</h2>
+      <pre>$ omarchy my voice setup</pre>
+      <p>That writes <code>backend = "remote"</code> into <code>~/.config/voxtype/config.toml</code>,
+        points it at OpenRouter with model <code><%= @model %></code>, and stores the key in
+        <code>VOXTYPE_WHISPER_API_KEY</code> for the voxtype service. <code>omarchy my voice off</code>
+        puts it back to local.</p>
+      <p class="muted">Audio leaves the machine only while you're dictating. OpenRouter routes to
+        the model's provider; nothing is stored by my.omarchy.org.</p>
+    </section>
+  <% end %>
+</div>

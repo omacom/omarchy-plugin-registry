@@ -64,6 +64,9 @@
               <td>
                 <% if report.reportable.is_a?(Comment) %>
                   comment on <%= report.reportable.plugin.full_name %>: “<%= report.reportable.body.truncate(80) %>”
+                <% elsif report.reportable.is_a?(Snap) %>
+                  snap <%= link_to report.reportable.token, snap_path(report.reportable.token) %>
+                  by <%= report.reportable.user.email_address %><%= " (hidden)" if report.reportable.hidden? %>
                 <% else %>
                   <%= report.reportable.try(:full_name) || report.reportable_type %>
                 <% end %>
@@ -71,7 +74,7 @@
               <td><%= report.reason %></td>
               <td class="muted"><%= report.user.name %></td>
               <td class="actions">
-                <% if report.reportable.is_a?(Comment) %>
+                <% if report.reportable.is_a?(Comment) || (report.reportable.is_a?(Snap) && !report.reportable.hidden?) %>
                   <%= button_to "Hide + resolve", resolve_admin_report_path(report, hide: 1), class: "button button--small" %>
                 <% end %>
                 <%= button_to "Dismiss", resolve_admin_report_path(report), class: "button button--ghost button--small" %>
@@ -82,6 +85,29 @@
       </table>
     <% else %>
       <p class="muted">No open reports.</p>
+    <% end %>
+  </section>
+
+  <section>
+    <h2>Recent snaps</h2>
+    <% if @recent_snaps.any? %>
+      <table class="table">
+        <thead><tr><th>Snap</th><th>By</th><th>Size</th><th>Views</th><th>When</th><th></th></tr></thead>
+        <tbody>
+          <% @recent_snaps.each do |snap| %>
+            <tr>
+              <td><%= link_to (snap.title.presence || snap.token), snap_path(snap.token) %></td>
+              <td class="muted"><%= snap.user.email_address %></td>
+              <td class="muted"><%= snap.width %>×<%= snap.height %></td>
+              <td class="muted"><%= snap.views_count %></td>
+              <td class="muted"><%= time_ago_in_words(snap.created_at) %> ago</td>
+              <td class="actions"><%= button_to "Hide", hide_admin_snap_path(snap), class: "button button--ghost button--small" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <p class="muted">No snaps shared yet.</p>
     <% end %>
   </section>
 

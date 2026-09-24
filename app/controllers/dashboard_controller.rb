@@ -5,6 +5,7 @@ class DashboardController < ApplicationController
   def show
     @user = Current.user
     @publishers = @user.publishers.includes(:plugins)
-    @tokens = @user.api_tokens.usable.order(created_at: :desc)
+    # Account (My Omarchy) tokens are devices, managed on my.omarchy.org
+    @tokens = @user.api_tokens.usable.purpose_publish.order(created_at: :desc)
   end
 end

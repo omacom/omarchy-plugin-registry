@@ -1,0 +1,37 @@
+<% content_for :title, "My Omarchy" %>
+<% content_for :no_my_nav, "1" %>
+<div class="content-page container my-welcome">
+  <p class="eyebrow">My Omarchy</p>
+  <h1>Your Omarchy, on every machine.</h1>
+  <p class="lede">One account for the things that should follow you around: your config, the
+    screenshots you share, and dictation that works anywhere.</p>
+  <div class="my-actions">
+    <%= link_to "Sign in", new_session_path, class: "button" %>
+    <%= link_to "How it works", my_setup_path, class: "button button--ghost" %>
+  </div>
+
+  <div class="my-features">
+    <section class="my-feature">
+      <h2>Dotfile sync</h2>
+      <p>Push a snapshot of your Omarchy config from any machine, pull it on the next. Whole
+        snapshots, kept for you, nothing merged behind your back. Encrypt them before they
+        leave the machine if you like — we store what you send.</p>
+      <pre>$ omarchy my sync push
+$ omarchy my sync pull</pre>
+    </section>
+    <section class="my-feature">
+      <h2>Share a snap</h2>
+      <p>Hit share in <a href="https://github.com/omacom/omasnap">omasnap</a> and get a link on
+        your clipboard. Unguessable, never listed, optional expiry, and a proper preview card
+        wherever you paste it.</p>
+      <pre>$ omarchy my snap share ~/Pictures/Screenshots/latest.png</pre>
+    </section>
+    <section class="my-feature">
+      <h2>Voice, anywhere</h2>
+      <p>Local dictation is great on a fast machine. On a laptop, hand transcription to the
+        cloud: a personal, spend-capped key you can revoke any time, wired into voxtype in
+        one command.</p>
+      <pre>$ omarchy my voice setup</pre>
+    </section>
+  </div>
+</div>

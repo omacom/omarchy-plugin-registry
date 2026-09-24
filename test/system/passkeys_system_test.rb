@@ -16,12 +16,16 @@ class PasskeysSystemTest < ApplicationSystemTestCase
     # The ceremony origin is the Capybara server, not the configured base URL
     server = Capybara.current_session.server
     @original_origins = WebAuthn.configuration.allowed_origins
+    @original_rp_id = WebAuthn.configuration.rp_id
     WebAuthn.configuration.allowed_origins = [ "http://#{server.host}:#{server.port}" ]
+    # The multi-host rp_id (registry.test) is not a suffix of 127.0.0.1
+    WebAuthn.configuration.rp_id = nil
   end
 
   teardown do
     @authenticator&.remove!
     WebAuthn.configuration.allowed_origins = @original_origins
+    WebAuthn.configuration.rp_id = @original_rp_id
   end
 
   def sign_in_with_email_code
@@ -55,7 +59,7 @@ class PasskeysSystemTest < ApplicationSystemTestCase
     visit new_session_path
 
     click_button "Sign in with a passkey"
-    assert_text "DASHBOARD", wait: 10 # authenticated header appears
+    assert_text "Dashboard", wait: 10 # authenticated header appears
     visit dashboard_path
     assert_text "Hey, Dev"
   end

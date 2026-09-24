@@ -7,6 +7,8 @@ Rails.application.configure do
   config.x.skip_first_release_gate = true
   config.x.publish_hold = 0
   config.x.registry_base_url = "http://registry.test"
+  # A distinct host so the hostname routing (my.test/ = the My hub) is testable
+  config.x.my_omarchy_base_url = "http://my.test"
   config.x.data_plane_root = Rails.root.join("tmp/test_data_plane")
   # Never touch the GitHub API from the suite; tests override per-case.
   config.x.repo_stats_lookup = ->(repository) { {} }

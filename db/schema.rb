@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_24_000001) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -41,11 +41,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
 
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "device_name"
     t.datetime "expires_at", null: false
     t.datetime "last_used_at"
     t.string "plugin_name"
     t.json "provenance"
     t.integer "publisher_id"
+    t.integer "purpose", default: 0, null: false
     t.datetime "revoked_at"
     t.string "token_digest", null: false
     t.string "token_hint", null: false
@@ -94,9 +96,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.integer "api_token_id"
     t.datetime "created_at", null: false
     t.string "device_code_digest", null: false
+    t.string "device_name"
     t.datetime "expires_at", null: false
     t.string "plugin_name"
     t.integer "publisher_id"
+    t.integer "purpose", default: 0, null: false
     t.string "requested_plugin_name"
     t.string "requested_publisher_name"
     t.integer "status", default: 0, null: false
@@ -109,6 +113,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.index ["publisher_id"], name: "index_device_authorizations_on_publisher_id"
     t.index ["user_code"], name: "index_device_authorizations_on_user_code", unique: true
     t.index ["user_id"], name: "index_device_authorizations_on_user_id"
+  end
+
+  create_table "dotfile_bundles", force: :cascade do |t|
+    t.integer "api_token_id"
+    t.datetime "created_at", null: false
+    t.string "device_name"
+    t.integer "encryption", default: 0, null: false
+    t.integer "file_count", default: 0, null: false
+    t.json "manifest", default: {}, null: false
+    t.string "sha256", null: false
+    t.integer "size_bytes", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["api_token_id"], name: "index_dotfile_bundles_on_api_token_id"
+    t.index ["user_id", "created_at"], name: "index_dotfile_bundles_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_dotfile_bundles_on_user_id"
   end
 
   create_table "login_codes", force: :cascade do |t|
@@ -281,6 +301,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "snaps", force: :cascade do |t|
+    t.integer "api_token_id"
+    t.integer "byte_size", null: false
+    t.string "content_type", null: false
+    t.datetime "created_at", null: false
+    t.string "device_name"
+    t.datetime "expires_at"
+    t.integer "height", null: false
+    t.datetime "hidden_at"
+    t.string "title"
+    t.string "token", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.integer "views_count", default: 0, null: false
+    t.integer "width", null: false
+    t.index ["api_token_id"], name: "index_snaps_on_api_token_id"
+    t.index ["expires_at"], name: "index_snaps_on_expires_at"
+    t.index ["token"], name: "index_snaps_on_token", unique: true
+    t.index ["user_id", "created_at"], name: "index_snaps_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_snaps_on_user_id"
+  end
+
   create_table "trusted_publishers", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "created_by_id", null: false
@@ -316,6 +358,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  create_table "voice_keys", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "device_name"
+    t.datetime "expires_at", null: false
+    t.string "label"
+    t.decimal "monthly_limit_usd", precision: 8, scale: 2, null: false
+    t.string "provider", default: "openrouter", null: false
+    t.datetime "provider_deleted_at"
+    t.string "provider_hash", null: false
+    t.datetime "revoked_at"
+    t.text "secret"
+    t.datetime "updated_at", null: false
+    t.decimal "usage_monthly_usd", precision: 10, scale: 4, default: "0.0", null: false
+    t.datetime "usage_synced_at"
+    t.decimal "usage_usd", precision: 10, scale: 4, default: "0.0", null: false
+    t.integer "user_id", null: false
+    t.index ["provider_hash"], name: "index_voice_keys_on_provider_hash", unique: true
+    t.index ["user_id"], name: "index_voice_keys_on_user_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "api_tokens", "publishers"
@@ -327,6 +389,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
   add_foreign_key "device_authorizations", "api_tokens"
   add_foreign_key "device_authorizations", "publishers"
   add_foreign_key "device_authorizations", "users"
+  add_foreign_key "dotfile_bundles", "api_tokens", on_delete: :nullify
+  add_foreign_key "dotfile_bundles", "users"
   add_foreign_key "login_codes", "users"
   add_foreign_key "memberships", "publishers"
   add_foreign_key "memberships", "users"
@@ -343,6 +407,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_120003) do
   add_foreign_key "revocations", "plugins"
   add_foreign_key "revocations", "users", column: "created_by_id"
   add_foreign_key "sessions", "users"
+  add_foreign_key "snaps", "api_tokens", on_delete: :nullify
+  add_foreign_key "snaps", "users"
   add_foreign_key "trusted_publishers", "publishers"
   add_foreign_key "trusted_publishers", "users", column: "created_by_id"
+  add_foreign_key "voice_keys", "users"
 end

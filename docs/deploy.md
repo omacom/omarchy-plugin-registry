@@ -61,6 +61,11 @@ apply to any orchestration.
 | `REGISTRY_WITNESS_PATH` | Strongly recommended: a file on storage SEPARATE from the app volume (second disk, object-store mount). Each regeneration records the signed kill-list generation there; after a full-volume restore the witness proves the data plane is older than the last published kill list and regeneration refuses to sign a newer empty one until `registry:import_revocations` restores the authoritative copy (`REGISTRY_RESTORE_ACK=1` overrides once, deliberately). Unset = a full-volume restore to a pre-revocation state is locally undetectable. |
 | `REGISTRY_HOST` | Host-authorization allowlist (defaults to `plugins.omarchy.org`). Requests carrying any other `Host` are rejected — session cookies are never minted for attacker-pointed domains. `ADDITIONAL_HOSTS` (comma-separated) adds extras; `/up` is exempt for by-IP health checks. |
 | `SMTP_ADDRESS` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | Login-code email delivery |
+| `MY_OMARCHY_BASE_URL` / `MY_OMARCHY_HOST` | My Omarchy (`docs/my-omarchy.md`): the hostname the hub answers on and generates links for (default `https://my.omarchy.org`). Both hosts point at this one app; `/my/*` also answers on the registry host. |
+| `SESSION_COOKIE_DOMAIN` | Set to `omarchy.org` so one sign-in covers plugins. and my. (session + CSRF cookies scoped to the parent domain). Unset = host-only cookies, sign in on each host separately. |
+| `PASSKEY_RP_ID` | Set to `omarchy.org` **before launch** so one passkey works on both hosts. Unset, passkeys work only on the registry host. Changing it later invalidates every enrolled passkey. |
+| `OPENROUTER_MANAGEMENT_KEY_FILE` (or `OPENROUTER_MANAGEMENT_KEY`) | Enables voice keys. A *management* key from openrouter.ai/settings/management-keys (it can only mint/manage other keys). Keep it in a file on a read-only bind mount like the AI-review credentials, give it an expiry at the provider, and keep Auto Top-Up on the account: every voice key draws from the same balance. Unset = voice is off. |
+| `VOICE_MONTHLY_LIMIT_USD` / `VOICE_KEY_TTL_DAYS` / `VOICE_MAX_ACTIVE_KEYS` / `VOICE_MODEL` | Per-key monthly cap (5), key lifetime (90), global live-key cap (2000) — cap × keys is the worst-case monthly exposure — and the transcription model handed to clients (`openai/whisper-1`). |
 | `AI_REVIEW_COMMAND` | Optional — enables LLM review in the pipeline (escalate-only). The command runs with a scrubbed environment (no app secrets); it should call a REMOTE model API with its own credentials, and for full isolation run it under a separate UID (systemd DynamicUser or a sidecar). Note the adapter receives UNPUBLISHED submissions and previous source — treat its endpoint as a confidential-data processor. |
 
 ## Pieces
@@ -109,9 +114,19 @@ Then notify listed authors to claim: each publisher page shows the
 repo-proof claim flow. Seeded plugins that failed the pipeline stay visible as
 under-review and uninstallable.
 
+## My Omarchy (my.omarchy.org)
+
+Same container, second hostname. Add `my.omarchy.org` to the tunnel's
+ingress (→ the same `kamal-proxy`), to `proxy.host` (Kamal accepts a list),
+and set the four variables above. Storage: dotfile bundles and snaps are
+Active Storage blobs, so they land in R2 next to the tarballs. Voice needs
+the management key file at `/ai/openrouter_management_key` (or wherever
+`OPENROUTER_MANAGEMENT_KEY_FILE` points).
+
 ## Day-2 controls
 
-- Admin queue: `/admin` (quarantined/held versions, reports, kill list).
+- Admin queue: `/admin` (quarantined/held versions, reports — including
+  reported snaps — recent snaps with one-click Hide, kill list).
 - `bin/rails registry:regenerate` rebuilds the whole data plane from the DB.
 - Publish hold window: off by default (`PUBLISH_HOLD_SECONDS`, 0). Set it to
   a number of seconds during an incident to delay review-clean versions going

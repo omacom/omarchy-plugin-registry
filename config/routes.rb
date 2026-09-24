@@ -1,5 +1,26 @@
 Rails.application.routes.draw do
+  # my.omarchy.org answers the My Omarchy hub at its root; on the registry
+  # host the same pages live under /my. One app, one session, two front doors.
+  constraints ->(request) { MyOmarchy.my_host?(request.host) } do
+    root "my/home#show", as: :my_host_root
+  end
   root "home#index"
+
+  namespace :my do
+    root "home#show"
+    resources :devices, only: %i[index destroy]
+    resources :dotfiles, only: %i[index show destroy] do
+      get :download, on: :member
+    end
+    resources :snaps, only: %i[index destroy]
+    resource :voice, only: %i[show create destroy], controller: "voice"
+    get "setup", to: "pages#setup"
+  end
+  # Public share page + bytes. The token is the only access control.
+  get "s/:token", to: "snaps#show", as: :snap, constraints: { token: Snap::TOKEN_PATTERN }
+  get "s/:token/image", to: "snaps#image", as: :snap_image, constraints: { token: Snap::TOKEN_PATTERN }, format: false
+  get "s/:token/preview", to: "snaps#preview", as: :snap_preview, constraints: { token: Snap::TOKEN_PATTERN }, format: false
+  get "og/s/:token.png", to: "og#snap", as: :og_snap, constraints: { token: Snap::TOKEN_PATTERN }, format: false
 
   # Passwordless auth (Cortex/Herald flow): email -> one-time code -> session
   resource :session, only: %i[new create destroy] do
@@ -95,6 +116,11 @@ Rails.application.routes.draw do
         post :hide
       end
     end
+    resources :snaps, only: [] do
+      member do
+        post :hide
+      end
+    end
     post "suspensions/user", to: "suspensions#suspend_user", as: :suspend_user
     post "suspensions/user/lift", to: "suspensions#unsuspend_user", as: :unsuspend_user
     post "suspensions/publisher", to: "suspensions#suspend_publisher", as: :suspend_publisher
@@ -111,6 +137,17 @@ Rails.application.routes.draw do
       post "device/code", to: "device#code"
       post "device/token", to: "device#token"
       post "trusted/exchange", to: "trusted#exchange"
+
+      # --- My Omarchy (account tokens only; see docs/my-omarchy.md) ---
+      namespace :my do
+        get "whoami", to: "account#show"
+        delete "device", to: "account#destroy"
+        resources :dotfiles, only: %i[index show create] do
+          get :download, on: :member
+        end
+        resources :snaps, only: %i[index create destroy]
+        resource :voice, only: %i[show create destroy], controller: "voice"
+      end
     end
   end
 

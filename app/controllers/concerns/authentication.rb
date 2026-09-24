@@ -67,14 +67,16 @@ module Authentication
       user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
         Current.session = session
         cookies.signed[:session_id] = { value: session.id, httponly: true, same_site: :lax,
-                                        expires: Session::ABSOLUTE_LIFETIME.from_now }
+                                        expires: Session::ABSOLUTE_LIFETIME.from_now,
+                                        # Shared across plugins./my. when configured (see production.rb)
+                                        **(ENV["SESSION_COOKIE_DOMAIN"].present? ? { domain: ENV["SESSION_COOKIE_DOMAIN"] } : {}) }
       end
     end
 
     def terminate_session
       Current.session.destroy
       Current.session = nil
-      cookies.delete(:session_id)
+      cookies.delete(:session_id, **(ENV["SESSION_COOKIE_DOMAIN"].present? ? { domain: ENV["SESSION_COOKIE_DOMAIN"] } : {}))
       reset_session
     end
 end

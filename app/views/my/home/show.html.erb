@@ -1,0 +1,73 @@
+<% content_for :title, "My Omarchy" %>
+<div class="content-page container">
+  <p class="eyebrow">My Omarchy</p>
+  <h1>Hey, <%= @user.name&.split(" ")&.first || @user.email_address %>.</h1>
+  <p class="lede">
+    <% if @devices.empty? %>
+      No machine is connected yet. Run <code>omarchy my login</code> on one to get started,
+      or read the <%= link_to "setup guide", my_setup_path %>.
+    <% else %>
+      <%= pluralize(@devices.size, "machine") %> connected.
+    <% end %>
+  </p>
+
+  <div class="my-grid">
+    <section class="my-card">
+      <h2><%= link_to "Devices", my_devices_path %></h2>
+      <% if @devices.any? %>
+        <ul class="my-list">
+          <% @devices.first(4).each do |device| %>
+            <li><strong><%= device.device_name.presence || device.token_hint %></strong>
+              <span class="muted">— <%= device.last_used_at ? "used #{time_ago_in_words(device.last_used_at)} ago" : "never used" %></span></li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="muted">Nothing connected.</p>
+        <pre>$ omarchy my login</pre>
+      <% end %>
+    </section>
+
+    <section class="my-card">
+      <h2><%= link_to "Dotfiles", my_dotfiles_path %></h2>
+      <% if @latest_bundle %>
+        <p>Latest snapshot <strong><%= time_ago_in_words(@latest_bundle.created_at) %> ago</strong>
+          from <strong><%= @latest_bundle.device_name.presence || "a device" %></strong> —
+          <%= pluralize(@latest_bundle.file_count, "file") %>, <%= number_to_human_size(@latest_bundle.size_bytes) %>
+          <% if @latest_bundle.encryption_age? %><span class="badge">encrypted</span><% end %>.</p>
+        <p class="muted"><%= pluralize(@bundle_count, "snapshot") %> kept (last <%= DotfileBundle::KEEP_PER_USER %>).</p>
+      <% else %>
+        <p class="muted">No snapshots yet.</p>
+        <pre>$ omarchy my sync push</pre>
+      <% end %>
+    </section>
+
+    <section class="my-card">
+      <h2><%= link_to "Snaps", my_snaps_path %></h2>
+      <% if @snaps.any? %>
+        <div class="snap-strip">
+          <% @snaps.each do |snap| %>
+            <%= link_to snap_path(snap.token), class: "snap-thumb", title: snap.title.presence || snap.token do %>
+              <% if snap.preview.attached? %><img src="<%= snap_preview_path(snap.token) %>" alt="" loading="lazy" width="<%= snap.width %>" height="<%= snap.height %>"><% end %>
+            <% end %>
+          <% end %>
+        </div>
+        <p class="muted"><%= pluralize(@snap_count, "live snap") %>.</p>
+      <% else %>
+        <p class="muted">Nothing shared yet — hit share in omasnap.</p>
+      <% end %>
+    </section>
+
+    <section class="my-card">
+      <h2><%= link_to "Voice", my_voice_path %></h2>
+      <% if !@voice_enabled %>
+        <p class="muted">Cloud transcription isn't enabled on this server.</p>
+      <% elsif @voice_key %>
+        <p>Key active — <strong><%= number_to_currency(@voice_key.usage_monthly_usd) %></strong> of
+          <%= number_to_currency(@voice_key.monthly_limit_usd) %> used this month; expires
+          <%= time_ago_in_words(@voice_key.expires_at) %> from now.</p>
+      <% else %>
+        <p class="muted">No voice key. Mint one to dictate through the cloud.</p>
+      <% end %>
+    </section>
+  </div>
+</div>

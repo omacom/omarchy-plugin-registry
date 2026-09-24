@@ -13,14 +13,19 @@ module Api
 
       # POST /api/v1/device/code — CLI starts the flow, optionally naming the
       # publisher/plugin it wants so the approval page can display the scope
-      # instead of making the human re-type it
+      # instead of making the human re-type it. purpose=account (with an
+      # optional device hostname) asks for a My Omarchy token instead of a
+      # publish token; the approval page says which.
       def code
+        purpose = params[:purpose].to_s == "account" ? :account : :publish
         authorization = DeviceAuthorization.start!(
-          requested_publisher: params[:publisher], requested_plugin: params[:plugin])
+          requested_publisher: params[:publisher], requested_plugin: params[:plugin],
+          purpose: purpose, device_name: params[:device])
         render json: {
           device_code: authorization.plaintext_device_code,
           user_code: authorization.user_code,
-          verification_uri: "#{DataPlane.base_url}/device",
+          purpose: authorization.purpose,
+          verification_uri: "#{purpose == :account ? MyOmarchy.base_url : DataPlane.base_url}/device",
           expires_in: DeviceAuthorization::EXPIRATION.to_i,
           interval: DeviceAuthorization::POLL_INTERVAL
         }, status: :created
@@ -48,6 +53,7 @@ module Api
           render json: {
             token: plaintext,
             token_type: "bearer",
+            purpose: authorization.purpose,
             scope: authorization.api_token&.scope_label,
             expires_at: authorization.api_token&.expires_at&.utc&.iso8601
           }

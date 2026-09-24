@@ -10,6 +10,7 @@ module NameRules
     omarchy omacom omacon admin api dl index plugins plugin publishers publisher
     users user settings tokens token session sessions passwords search about
     governance security audit revocations assets rails help docs new edit
+    my snap snaps voice dotfiles devices s og
   ].freeze
 
   module_function

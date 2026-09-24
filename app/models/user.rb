@@ -14,6 +14,10 @@ class User < ApplicationRecord
   has_many :comments, dependent: :destroy
   has_many :ratings, dependent: :destroy
   has_many :reports, dependent: :destroy
+  # My Omarchy: what a signed-in machine syncs, shares, and transcribes with
+  has_many :dotfile_bundles, dependent: :destroy
+  has_many :snaps, dependent: :destroy
+  has_many :voice_keys, dependent: :destroy
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
@@ -70,6 +74,11 @@ class User < ApplicationRecord
   end
 
   def otp_enabled? = otp_enabled_at.present?
+
+  # Connected machines: the account tokens still usable, newest first
+  def devices = api_tokens.usable.purpose_account.order(created_at: :desc)
+
+  def voice_key = voice_keys.active.order(created_at: :desc).first
 
   # Lost-factor recovery: after a 72-hour delay (announced by email, visible
   # on every sign-in, cancellable by any successful step-up), factor

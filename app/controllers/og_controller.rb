@@ -24,6 +24,18 @@ class OgController < ApplicationController
     serve(png)
   end
 
+  # /og/s/:token.png — the link card for a shared snap: the preview itself,
+  # boxed to the card ratio. Nothing else about the account is on it.
+  def snap
+    snap = Snap.find_live_by_token(params[:token]) or raise ActiveRecord::RecordNotFound
+    return head :not_found unless snap.preview.attached?
+    png = Rails.cache.fetch([ "og-card", "snap", snap.id ], expires_in: CACHE_TTL) do
+      Registry::OgCard.snap(snap.preview.download)
+    end
+    response.headers["X-Robots-Tag"] = "noindex"
+    serve(png)
+  end
+
   private
 
   def serve(png)

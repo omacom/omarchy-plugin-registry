@@ -17,7 +17,7 @@ class DeviceController < ApplicationController
 
     if params[:decision] == "deny"
       authorization.deny!(user: Current.user)
-      return redirect_to dashboard_path, notice: "Denied. The CLI has been told no."
+      return redirect_to (authorization.purpose_account? ? my_root_path : dashboard_path), notice: "Denied. The CLI has been told no."
     end
 
     # Account-wide token: it can publish to any namespace this user belongs to
@@ -29,7 +29,11 @@ class DeviceController < ApplicationController
       return redirect_to dashboard_path, alert: e.record.errors.full_messages.join("; ")
     end
     AuditEvent.record!(actor: Current.user, action: "device.approve", subject: authorization,
-      metadata: { scope: token.scope_label })
-    redirect_to dashboard_path, notice: "Approved — your terminal has a publish token for your account. It expires in 7 days."
+      metadata: { scope: token.scope_label, purpose: authorization.purpose })
+    if authorization.purpose_account?
+      redirect_to my_devices_path, notice: "Connected — #{token.device_name.presence || 'that machine'} is signed in to My Omarchy for 90 days."
+    else
+      redirect_to dashboard_path, notice: "Approved — your terminal has a publish token for your account. It expires in 7 days."
+    end
   end
 end

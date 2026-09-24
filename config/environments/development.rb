@@ -4,6 +4,8 @@ Rails.application.configure do
   config.x.skip_first_release_gate = true
   config.x.publish_hold = 0
   config.x.registry_base_url = "http://localhost:3000"
+  # Same host in development: My Omarchy lives under /my
+  config.x.my_omarchy_base_url = "http://localhost:3000"
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.

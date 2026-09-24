@@ -1,4 +1,4 @@
-# Omarchy Plugin Registry
+# Omarchy Plugin Registry + My Omarchy
 
 The hosted plugin registry for [Omarchy](https://omarchy.org) Quattro —
 `plugins.omarchy.org`. A Rails control plane serving a crates.io-style static
@@ -6,7 +6,12 @@ data plane: append-only JSON index + immutable, checksummed tarballs, with
 registry-native accounts, automated review, and a kill-bit for revoking
 already-installed plugins.
 
-Full design: [docs/design.md](docs/design.md). Branding: [docs/branding.md](docs/branding.md)
+The same app also serves **My Omarchy** at `my.omarchy.org` — the account
+side: dotfile sync between machines, screenshot sharing from omasnap, and a
+personal spend-capped key for cloud voice transcription. One account, one
+sign-in, one admin console. Contract and design: [docs/my-omarchy.md](docs/my-omarchy.md).
+
+Full registry design: [docs/design.md](docs/design.md). Branding: [docs/branding.md](docs/branding.md)
 (matches Omacom / [omacon.org](https://www.omacon.org)).
 
 ## Architecture in one paragraph
@@ -44,6 +49,13 @@ community (ratings/comments/views/reports + moderation), seeding + repo-proof
 claims, the admin console, and a JSON browse API for a native in-desktop
 plugin browser (docs/browse-api.md — unsigned browse data, never an install
 path).
+
+**My Omarchy** (`docs/my-omarchy.md`) is built on the server side: account
+tokens via the device flow, dotfile push/pull with the shared safe tar reader
+and a forbidden-path screen, snap sharing with public pages, previews, link
+cards, and admin takedown, and OpenRouter-managed voice keys with a monthly
+cap. Its Quattro-side client (`omarchy my …`, the omasnap share hook, the
+voxtype wiring) is specified there and not yet written.
 
 **Not yet done, and required before launch**: the Quattro-side client
 (`omarchy plugin add/update/publish`, signature + freshness verification,

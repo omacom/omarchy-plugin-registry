@@ -13,6 +13,8 @@ module Admin
         user.update!(suspended_at: Time.current, recovery_requested_at: nil)
         user.sessions.destroy_all
         user.api_tokens.usable.find_each(&:revoke!)
+        # Voice keys spend money: pull them at the provider too
+        user.voice_keys.active.find_each { |key| MyOmarchy::VoiceKeys.revoke!(key, actor: Current.user) }
         AuditEvent.record!(actor: Current.user, action: "user.suspend", subject: user,
           public: true, metadata: { reason: params[:reason].presence || "unspecified" })
       end

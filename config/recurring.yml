@@ -24,3 +24,7 @@ production:
   repo_stats_sweep:
     class: Registry::RepoStatsSweepJob
     schedule: at 4am every day
+  # My Omarchy voice keys: refresh spend, finish provider-side deletes
+  voice_key_sweep:
+    class: MyOmarchy::VoiceKeySweepJob
+    schedule: at 4:30am every day

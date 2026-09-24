@@ -26,6 +26,7 @@ module Registry
 
     def self.plugin(plugin) = new.render_plugin(plugin)
     def self.site(stats) = new.render_site(stats)
+    def self.snap(preview_bytes) = new.render_snap(preview_bytes)
 
     def render_plugin(plugin)
       preview = preview_panel(plugin)
@@ -58,6 +59,21 @@ module Registry
       png(canvas)
     end
 
+    # A shared snap's link card: the screenshot itself, letterboxed on the ink
+    # ground under the same header. Nothing about the account is on it.
+    def render_snap(preview_bytes)
+      canvas = base_canvas
+      canvas = header(canvas, word: "Snap")
+      box_w = WIDTH - MARGIN * 2
+      box_h = HEIGHT - 150 - 40
+      image = Vips::Image.thumbnail_buffer(preview_bytes, box_w, height: box_h, size: :down)
+      image = image.flatten(background: INK) if image.has_alpha?
+      framed = image.embed(1, 1, image.width + 2, image.height + 2, extend: :background, background: PAPER)
+        .copy(interpretation: :srgb)
+      canvas = canvas.composite2(framed, :over, x: (WIDTH - framed.width) / 2, y: 150 + (box_h - framed.height) / 2)
+      png(canvas)
+    end
+
     private
 
     def base_canvas
@@ -71,10 +87,10 @@ module Registry
       canvas
     end
 
-    def header(canvas)
+    def header(canvas, word: "Plugins")
       canvas = canvas.composite2(logo(56), :over, x: MARGIN, y: 56)
       canvas = stamp(canvas, text("Omarchy", :bold, 30), PAPER, MARGIN + 156, 68)
-      stamp(canvas, text("Plugins", :bold, 30), PINK, MARGIN + 156 + 152, 68)
+      stamp(canvas, text(word, :bold, 30), PINK, MARGIN + 156 + 152, 68)
     end
 
     def footer(canvas)

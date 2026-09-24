@@ -1,7 +1,24 @@
 <% content_for :title, "Device sign-in — Omarchy Plugins" %>
 <div class="form-page">
   <p class="eyebrow">CLI sign-in</p>
-  <% if @authorization %>
+  <% if @authorization&.purpose_account? %>
+    <h1>Connect this machine?</h1>
+    <p>A machine<% if @authorization.device_name %> calling itself <strong><%= @authorization.device_name %></strong><% end %>
+      holding code <strong class="code-chip"><%= @authorization.user_code %></strong> wants to sign in to
+      My Omarchy as you. Only approve if you just ran <code>omarchy my login</code> yourself and the
+      code above matches your terminal.</p>
+    <div class="field">
+      <label>Grants</label>
+      <p class="hint">A 90-day account token for this machine: push and pull your dotfile snapshots,
+        share screenshots under your account, and fetch your voice key. It cannot publish plugins,
+        change account settings, or add factors. Disconnect it any time from Devices.</p>
+    </div>
+    <%= form_with url: approve_device_path do |form| %>
+      <input type="hidden" name="code" value="<%= @authorization.user_code %>">
+      <button type="submit" class="button">Connect</button>
+      <button type="submit" name="decision" value="deny" class="button button--ghost">Deny</button>
+    <% end %>
+  <% elsif @authorization %>
     <h1>Approve this terminal?</h1>
     <p>A device holding code <strong class="code-chip"><%= @authorization.user_code %></strong> wants a
       publish token for your account. Only approve if you just ran
@@ -24,8 +41,8 @@
     <% end %>
   <% else %>
     <h1>Enter the code from your terminal.</h1>
-    <p><code>omarchy plugin publish</code> shows an 8-character code. Type it here to connect
-      that terminal to your account.</p>
+    <p><code>omarchy plugin publish</code> and <code>omarchy my login</code> show an 8-character
+      code. Type it here to connect that terminal to your account.</p>
     <%= form_with url: device_path, method: :get do |form| %>
       <div class="field">
         <label for="code">Code</label>

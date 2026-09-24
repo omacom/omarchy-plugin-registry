@@ -6,5 +6,7 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   # Registry bearer secrets: device-flow codes, sign-in/TOTP codes, passkey assertions
-  :device_code, :code, :credential
+  :device_code, :code, :credential,
+  # My Omarchy: the minted voice key
+  :api_key, :minted_voice_key
 ]

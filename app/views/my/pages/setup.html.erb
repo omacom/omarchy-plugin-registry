@@ -1,0 +1,34 @@
+<% content_for :title, "Setup — My Omarchy" %>
+<% content_for :no_my_nav, "1" unless authenticated? %>
+<div class="content-page container">
+  <p class="eyebrow">My Omarchy</p>
+  <h1>Set up a machine.</h1>
+  <div class="prose">
+    <h2>1. Sign in</h2>
+    <pre>$ omarchy my login</pre>
+    <p>Prints an 8-character code and opens <%= link_to "the approval page", device_path %>. Approve it in
+      a browser where you're signed in (email code or passkey). The machine gets a 90-day token
+      that can only reach My Omarchy — never the plugin publish API.</p>
+
+    <h2>2. Sync your config</h2>
+    <pre>$ omarchy my sync push            # snapshot this machine
+$ omarchy my sync pull            # restore the latest snapshot here
+$ omarchy my sync push --encrypt  # age-encrypt before upload</pre>
+    <p>Snapshots are whole bundles, never merged. Pull shows the diff and asks before writing.
+      Credentials are excluded by path on the machine and refused by the server.</p>
+
+    <h2>3. Share screenshots</h2>
+    <pre>$ omarchy my snap share image.png [--title "…"] [--ttl 1h|1d|7d|30d]</pre>
+    <p>Returns a link and puts it on the clipboard. omasnap's share button does the same.</p>
+
+    <h2>4. Dictate through the cloud</h2>
+    <pre>$ omarchy my voice setup   # fetch your key, configure voxtype
+$ omarchy my voice off     # back to local transcription</pre>
+    <p>Mint the key on <%= link_to "the voice page", my_voice_path %> first. It's yours alone,
+      capped per month, and revocable there.</p>
+
+    <h2>Leaving</h2>
+    <pre>$ omarchy my logout</pre>
+    <p>Revokes this machine's token. Or disconnect it from <%= link_to "Devices", my_devices_path %>.</p>
+  </div>
+</div>

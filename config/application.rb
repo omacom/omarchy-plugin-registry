@@ -65,6 +65,20 @@ module OmarchyPluginRegistry
     # Origin-side download counting (production uses CDN log aggregation instead)
     config.x.count_origin_downloads = true
 
+    # My Omarchy (my.omarchy.org): the account side — dotfile sync, snap
+    # sharing, voice keys — served by this same app on its own hostname.
+    config.x.my_omarchy_base_url = ENV.fetch("MY_OMARCHY_BASE_URL", "https://my.omarchy.org")
+    # Cloud transcription: the OpenRouter management client (nil = resolve from
+    # OPENROUTER_MANAGEMENT_KEY / _FILE at runtime; tests inject a fake), the
+    # model handed to clients, the per-account monthly spend cap in USD, how
+    # long a minted key lives, and how many may be live at once — the last two
+    # bound the operator's total liability.
+    config.x.open_router_client = nil
+    config.x.voice_model = ENV.fetch("VOICE_MODEL", "openai/whisper-1")
+    config.x.voice_monthly_limit_usd = ENV.fetch("VOICE_MONTHLY_LIMIT_USD", "5").to_f
+    config.x.voice_key_ttl = ENV.fetch("VOICE_KEY_TTL_DAYS", "90").to_i.days
+    config.x.voice_max_active_keys = ENV.fetch("VOICE_MAX_ACTIVE_KEYS", "2000").to_i
+
     # App-side view counting — plugin pages render at the app regardless, so
     # this stays on in every environment (registry:import_view_counts can
     # supplement from edge analytics)
