@@ -74,4 +74,4 @@ gem "webauthn"                  # Passkeys
 
 gem "aws-sdk-s3", "~> 1.229", require: false # Active Storage on Cloudflare R2 (S3-compatible)
 
-gem "ruby_llm", "~> 1.16"
+gem "ruby_llm", "~> 2.0"
