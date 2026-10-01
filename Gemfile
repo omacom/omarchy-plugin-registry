@@ -72,6 +72,6 @@ gem "ed25519"                   # Index/kill-list signing (minisign-style detach
 gem "jwt"                       # OIDC trusted publishing (GitHub Actions token verification)
 gem "webauthn"                  # Passkeys
 
-gem "aws-sdk-s3", "~> 1.229", require: false # Active Storage on Cloudflare R2 (S3-compatible)
+gem "aws-sdk-s3", "~> 1.232", require: false # Active Storage on Cloudflare R2 (S3-compatible)
 
 gem "ruby_llm", "~> 1.16"
